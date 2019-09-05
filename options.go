@@ -58,10 +58,10 @@ type eventHandler func(LineEvent)
 // AsIsOption indicates the line direction should be left as is.
 type AsIsOption struct{}
 
-// WithAsIs indicates that a line be requested as neither an input or output.
+// AsIs indicates that a line be requested as neither an input or output.
 // That is its direction is left as is. This option overrides and clears any
 // previous Input or Output options.
-func WithAsIs() AsIsOption {
+func AsIs() AsIsOption {
 	return AsIsOption{}
 }
 
@@ -72,10 +72,10 @@ func (o AsIsOption) applyLineOption(l *LineOptions) {
 // InputOption indicates the line direction should be set to an input.
 type InputOption struct{}
 
-// WithInput indicates that a line be requested as an input.
+// AsInput indicates that a line be requested as an input.
 // This option overrides and clears any previous Output, OpenDrain, or
 // OpenSource options.
-func WithInput() InputOption {
+func AsInput() InputOption {
 	return InputOption{}
 }
 
@@ -87,10 +87,10 @@ func (o InputOption) applyLineOption(l *LineOptions) {
 // OutputOption indicates the line direction should be set to an output.
 type OutputOption struct{}
 
-// WithOutput indicates that a line be requested as an output.
+// AsOutput indicates that a line be requested as an output.
 // This option overrides and clears any previous Input, RisingEdge, FallingEdge,
 // or BothEdges options.
-func WithOutput() OutputOption {
+func AsOutput() OutputOption {
 	return OutputOption{}
 }
 
@@ -104,9 +104,9 @@ func (o OutputOption) applyLineOption(l *LineOptions) {
 // is low.
 type ActiveLowOption struct{}
 
-// WithActiveLow indicates that a line be considered active when the line level
+// AsActiveLow indicates that a line be considered active when the line level
 // is low.
-func WithActiveLow() ActiveLowOption {
+func AsActiveLow() ActiveLowOption {
 	return ActiveLowOption{}
 }
 
@@ -118,10 +118,10 @@ func (o ActiveLowOption) applyLineOption(l *LineOptions) {
 // high.
 type OpenDrainOption struct{}
 
-// WithOpenDrain indicates that a line be driven low but left floating for high.
+// AsOpenDrain indicates that a line be driven low but left floating for high.
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, or OpenSource options.
-func WithOpenDrain() OpenDrainOption {
+func AsOpenDrain() OpenDrainOption {
 	return OpenDrainOption{}
 }
 
@@ -135,10 +135,10 @@ func (o OpenDrainOption) applyLineOption(l *LineOptions) {
 // low.
 type OpenSourceOption struct{}
 
-// WithOpenSource indicates that a line be driven low but left floating for hign.
+// AsOpenSource indicates that a line be driven low but left floating for hign.
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, or OpenDrain options.
-func WithOpenSource() OpenSourceOption {
+func AsOpenSource() OpenSourceOption {
 	return OpenSourceOption{}
 }
 

@@ -36,7 +36,7 @@ type Chip struct {
 	w *watcher
 }
 
-// LineInfo contains a summary of publically available information about the
+// LineInfo contains a summary of publicly available information about the
 // line.
 type LineInfo struct {
 	Offset     uint
@@ -65,13 +65,9 @@ func NewChip(path string, options ...ChipOption) (*Chip, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err != nil {
-			f.Close()
-		}
-	}()
 	ci, err := uapi.GetChipInfo(f.Fd())
 	if err != nil {
+		f.Close()
 		return nil, err
 	}
 	c := Chip{
@@ -94,7 +90,7 @@ func (c *Chip) Close() {
 	c.rr = nil
 	c.mu.Unlock()
 	if c.w != nil {
-		c.w.Close()
+		c.w.close()
 	}
 	for _, req := range rr {
 		unix.Close(int(req.fd))
@@ -102,7 +98,7 @@ func (c *Chip) Close() {
 	c.f.Close()
 }
 
-// LineInfo returns the publically available information on the line.
+// LineInfo returns the publicly available information on the line.
 // This is always available and does not require requesting the line.
 func (c *Chip) LineInfo(offset uint) (LineInfo, error) {
 	if offset >= c.lines {
@@ -129,10 +125,10 @@ func (c *Chip) Lines() uint {
 	return c.lines
 }
 
-// GetLine requests control of a single line on the chip.
+// RequestLine requests control of a single line on the chip.
 // If granted, control is maintained until either the Line or Chip are closed.
-func (c *Chip) GetLine(offset uint, options ...LineOption) (*Line, error) {
-	ll, err := c.GetLines([]uint{offset}, options...)
+func (c *Chip) RequestLine(offset uint, options ...LineOption) (*Line, error) {
+	ll, err := c.RequestLines([]uint{offset}, options...)
 	if err != nil {
 		return nil, err
 	}
@@ -140,8 +136,8 @@ func (c *Chip) GetLine(offset uint, options ...LineOption) (*Line, error) {
 	return &l, nil
 }
 
-// GetLines requests control of a correction of lines on the chip.
-func (c *Chip) GetLines(offsets []uint, options ...LineOption) (*Lines, error) {
+// RequestLines requests control of a collection of lines on the chip.
+func (c *Chip) RequestLines(offsets []uint, options ...LineOption) (*Lines, error) {
 	for _, o := range offsets {
 		if o >= c.lines {
 			return nil, unix.EINVAL
@@ -257,9 +253,9 @@ type Line struct {
 	Lines
 }
 
-// GetValue returns the current value (active state) of the line.
-func (l *Line) GetValue() (int, error) {
-	v, err := l.GetValues()
+// Value returns the current value (active state) of the line.
+func (l *Line) Value() (int, error) {
+	v, err := l.Values()
 	if err != nil {
 		return 0, err
 	}
@@ -277,7 +273,7 @@ func (l *Line) SetValue(value int) error {
 	return uapi.SetLineValues(l.vfd, values)
 }
 
-// Lines represents a correction of requested lines.
+// Lines represents a collection of requested lines.
 type Lines struct {
 	offsets []uint
 	vfd     uintptr
@@ -300,9 +296,9 @@ func (l *Lines) Close() {
 	}
 }
 
-// GetValues returns the current value (active state) of the correction of
+// Values returns the current value (active state) of the collection of
 // lines.
-func (l *Lines) GetValues() ([]uint8, error) {
+func (l *Lines) Values() ([]uint8, error) {
 	var values uapi.HandleData
 	err := uapi.GetLineValues(l.vfd, &values)
 	if err != nil {
@@ -311,7 +307,7 @@ func (l *Lines) GetValues() ([]uint8, error) {
 	return append(values[:0:0], values[:len(l.offsets)]...), nil
 }
 
-// SetValues sets the current active state of the correction of lines. Only
+// SetValues sets the current active state of the collection of lines. Only
 // valid for output lines.
 // All lines in the set are set at once and the provided values must contain a
 // value for each line.
@@ -333,10 +329,11 @@ func (l *Lines) SetValues(values []uint8) error {
 type LineEventType uint
 
 const (
+	_ LineEventType = iota
 	// LineEventRisingEdge indicates a low to high event.
-	LineEventRisingEdge = LineEventType(1)
+	LineEventRisingEdge
 	// LineEventFallingEdge indicates a high to low event.
-	LineEventFallingEdge = LineEventType(iota)
+	LineEventFallingEdge
 )
 
 // LineEvent represents a change in state to a monitored line.
@@ -384,97 +381,4 @@ func IsCharDev(path string) error {
 		return unix.ENODEV
 	}
 	return nil
-}
-
-type watcher struct {
-	epfd    int
-	donefds []int
-	mu      sync.Mutex
-	hh      map[int32]*request
-}
-
-func (w *watcher) add(r *request) {
-	w.mu.Lock()
-	w.hh[int32(r.fd)] = r
-	w.mu.Unlock()
-	epv := unix.EpollEvent{Events: unix.EPOLLIN, Fd: int32(r.fd)}
-	unix.EpollCtl(w.epfd, unix.EPOLL_CTL_ADD, int(r.fd), &epv)
-}
-
-func (w *watcher) del(r *request) {
-	unix.EpollCtl(w.epfd, unix.EPOLL_CTL_DEL, int(r.fd), nil)
-	w.mu.Lock()
-	delete(w.hh, int32(r.fd))
-	w.mu.Unlock()
-}
-
-func newWatcher() (*watcher, error) {
-	epfd, err := unix.EpollCreate1(unix.EPOLL_CLOEXEC)
-	if err != nil {
-		return nil, err
-	}
-	p := []int{0, 0}
-	err = unix.Pipe2(p, unix.O_CLOEXEC)
-	if err != nil {
-		return nil, err
-	}
-	epv := unix.EpollEvent{Events: unix.EPOLLIN, Fd: int32(p[0])}
-	unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, int(p[0]), &epv)
-	w := watcher{
-		epfd:    epfd,
-		hh:      make(map[int32]*request),
-		donefds: p,
-	}
-	go w.watch()
-	return &w, nil
-}
-
-// Close - His watch has ended.
-func (w *watcher) Close() {
-	unix.Write(w.donefds[1], []byte("bye"))
-	unix.Close(w.donefds[1])
-}
-
-func (w *watcher) watch() {
-	var epollEvents [1]unix.EpollEvent
-	for {
-		n, err := unix.EpollWait(w.epfd, epollEvents[:], -1)
-		if err != nil {
-			fmt.Println("epoll:", n, err)
-			if err == unix.EBADF || err == unix.EINVAL {
-				// fd closed so exit
-				return
-			}
-			if err == unix.EINTR {
-				continue
-			}
-			panic(fmt.Sprintf("EpollWait unexpected error: %v", err))
-		}
-		for _, ev := range epollEvents {
-			fd := ev.Fd
-			if fd == int32(w.donefds[0]) {
-				unix.Close(w.epfd)
-				unix.Close(w.donefds[0])
-				fmt.Println("watcher exitting")
-				return
-			}
-			w.mu.Lock()
-			req := w.hh[fd]
-			w.mu.Unlock()
-			if req == nil {
-				continue
-			}
-			evt, err := uapi.ReadEvent(uintptr(fd))
-			if err != nil {
-				fmt.Println("event read error:", err)
-				continue
-			}
-			le := LineEvent{
-				Offset:    req.offset,
-				Timestamp: time.Duration(evt.Timestamp),
-				Type:      LineEventType(evt.ID),
-			}
-			req.eh(le)
-		}
-	}
 }

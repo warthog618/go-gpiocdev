@@ -41,28 +41,28 @@ The API is still in flux, and I can already see things that will change, but thi
     inf, _ := c.LineInfo(2)
 
     // request a line as is, so not altering direction settings.
-    li, _ := c.GetLine(2)
-    v, _ := li.GetValue()
+    li, _ := c.RequestLine(2)
+    v, _ := li.Value()
 
     // request a line as input, so altering direction settings.
-    li, _ := c.GetLine(2,gpiod.WithInput())
-    v, _ := li.GetValue()
+    li, _ := c.RequestLine(2,gpiod.AsInput())
+    v, _ := li.Value()
 
-    // request a line as outout
-    li, _ = c.GetLine(3,gpiod.WithOutput())
-    v,_ = li.GetValue()
+    // request a line as output
+    li, _ = c.RequestLine(3,gpiod.AsOutput())
+    v,_ = li.Value()
     li.SetValue(1)
 
     // request a line with edge detection
     handler := func(evt gpiod.LineEvent) {
       // handle the edge event here
     }
-    li, _ = c.GetLine(4,gpiod.WithRisingEdge(handler))
-    v, _ = li.GetValue() // can still read it too
+    li, _ = c.RequestLine(4,gpiod.WithRisingEdge(handler))
+    v, _ = li.Value() // can still read it too
 
     // request a bunch of lines
-    ll, _ := c.GetLines([]uint{0,1,2,3},gpiod.WithOutput())
-    vv, _ := li.GetValues()
+    ll, _ := c.RequestLines([]uint{0,1,2,3},gpiod.AsOutput())
+    vv, _ := li.Values()
     li.SetValues([]uint{0,1,1,0})
 ```
 

@@ -173,19 +173,19 @@ const (
 	// LineFlagRequested indicates that the line has been requested.
 	// It may have been requested by this process or another process.
 	// The line cannot be requested again until this flag is clear.
-	LineFlagRequested = LineFlag(1) << iota
+	LineFlagRequested LineFlag = 1 << iota
 	// LineFlagIsOut indicates that the line is an output.
-	LineFlagIsOut = LineFlag(1) << iota
+	LineFlagIsOut
 	// LineFlagActiveLow indicates that the line is active low.
-	LineFlagActiveLow = LineFlag(1) << iota
+	LineFlagActiveLow
 	// LineFlagOpenDrain indicates that the line will pull low when set low but
 	// float when set high. This flag only applies to output lines.
 	// An output cannot be both open drain and open source.
-	LineFlagOpenDrain = LineFlag(1) << iota
+	LineFlagOpenDrain
 	// LineFlagOpenSource indicates that the line will pull high when set high
 	// but float when set low. This flag only applies to output lines.
 	// An output cannot be both open drain and open source.
-	LineFlagOpenSource = LineFlag(1) << iota
+	LineFlagOpenSource
 )
 
 // IsRequested returns true if the line is requested.
@@ -230,17 +230,17 @@ type HandleFlag uint32
 const (
 	// HandleRequestInput requests the line as an input.
 	// This cannot be set at the same time as Output, OpenDrain or OpenSource.
-	HandleRequestInput = HandleFlag(1) << iota
+	HandleRequestInput HandleFlag = 1 << iota
 	// HandleRequestOutput requests the line as an output.
-	HandleRequestOutput = HandleFlag(1) << iota
+	HandleRequestOutput
 	// HandleRequestActiveLow requests the line be made active low.
-	HandleRequestActiveLow = HandleFlag(1) << iota
+	HandleRequestActiveLow
 	// HandleRequestOpenDrain requests the line be made open drain.
 	// This cannot be set at the same time as OpenSource.
-	HandleRequestOpenDrain = HandleFlag(1) << iota
+	HandleRequestOpenDrain
 	// HandleRequestOpenSource requests the line be made open source.
 	// This cannot be set at the same time as OpenDrain.
-	HandleRequestOpenSource = HandleFlag(1) << iota
+	HandleRequestOpenSource
 	// HandlesMax is the maximum number of lines that can be requested in a
 	// single request.
 	HandlesMax = 64
@@ -294,14 +294,14 @@ const (
 	// physical low to a physical high.
 	// Note that for active low lines this means a transition from a physical
 	// high to a physical low.
-	EventRequestRisingEdge = EventFlag(1) << iota
+	EventRequestRisingEdge EventFlag = 1 << iota
 	// EventRequestFallingEdge requests falling edge events.
 	// This means a transition from a high logical state to a low logical state.
 	// For active high lines (the default) this means a transition from a
 	// physical high to a physical low.
 	// Note that for active low lines this means a transition from a physical
 	// low to a physical high.
-	EventRequestFallingEdge = EventFlag(1) << iota
+	EventRequestFallingEdge
 	// EventRequestBothEdges requests both rising and falling edge events.
 	// This is equivalent to requesting both EventRequestRisingEdge and
 	// EventRequestRisingEdge.
@@ -344,8 +344,8 @@ const (
 	iocTypeShift = iocNRShift + iocNRBits
 	iocSizeShift = iocTypeShift + iocTypeBits
 	iocDirShift  = iocSizeShift + iocSizeBits
-	iocWrite     = uintptr(1)
-	iocRead      = uintptr(2)
+	iocWrite     = 1
+	iocRead      = 2
 )
 
 func ior(t, nr, size uintptr) ioctl {
