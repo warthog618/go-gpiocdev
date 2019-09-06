@@ -5,6 +5,8 @@
 
 // +build linux
 
+// Package gpiod provides a library for the Linux GPIO descriptor UAPI.
+// This is a Go equivalent to libgpiod.
 package gpiod
 
 import (
@@ -24,14 +26,14 @@ type Chip struct {
 	Name  string
 	Label string
 	// The number of GPIO lines on this chip.
-	lines uint
+	lines int
 	// default consumer label for reserved lines
 	consumer string
 	// mutex covers the attributes below it.
 	mu sync.Mutex
 	// set of requests currently open.
 	// This doubles as a closed flag - is nil once closed.
-	rr map[uint]*request
+	rr map[int]*request
 	// watcher for events
 	w *watcher
 }
@@ -39,7 +41,7 @@ type Chip struct {
 // LineInfo contains a summary of publicly available information about the
 // line.
 type LineInfo struct {
-	Offset     uint
+	Offset     int
 	Name       string
 	Consumer   string
 	Requested  bool
@@ -74,9 +76,9 @@ func NewChip(path string, options ...ChipOption) (*Chip, error) {
 		f:        f,
 		Name:     string(ci.Name[:]),
 		Label:    string(ci.Label[:]),
-		lines:    uint(ci.Lines),
+		lines:    int(ci.Lines),
 		consumer: co.consumer,
-		rr:       make(map[uint]*request)}
+		rr:       make(map[int]*request)}
 	if len(c.Label) == 0 {
 		c.Label = "unknown"
 	}
@@ -100,11 +102,11 @@ func (c *Chip) Close() {
 
 // LineInfo returns the publicly available information on the line.
 // This is always available and does not require requesting the line.
-func (c *Chip) LineInfo(offset uint) (LineInfo, error) {
-	if offset >= c.lines {
+func (c *Chip) LineInfo(offset int) (LineInfo, error) {
+	if offset < 0 || offset >= c.lines {
 		return LineInfo{}, unix.EINVAL
 	}
-	li, err := uapi.GetLineInfo(c.f.Fd(), uint32(offset))
+	li, err := uapi.GetLineInfo(c.f.Fd(), offset)
 	if err != nil {
 		return LineInfo{}, err
 	}
@@ -121,14 +123,14 @@ func (c *Chip) LineInfo(offset uint) (LineInfo, error) {
 }
 
 // Lines returns the number of lines that exist on the GPIO chip.
-func (c *Chip) Lines() uint {
+func (c *Chip) Lines() int {
 	return c.lines
 }
 
 // RequestLine requests control of a single line on the chip.
 // If granted, control is maintained until either the Line or Chip are closed.
-func (c *Chip) RequestLine(offset uint, options ...LineOption) (*Line, error) {
-	ll, err := c.RequestLines([]uint{offset}, options...)
+func (c *Chip) RequestLine(offset int, options ...LineOption) (*Line, error) {
+	ll, err := c.RequestLines([]int{offset}, options...)
 	if err != nil {
 		return nil, err
 	}
@@ -137,9 +139,9 @@ func (c *Chip) RequestLine(offset uint, options ...LineOption) (*Line, error) {
 }
 
 // RequestLines requests control of a collection of lines on the chip.
-func (c *Chip) RequestLines(offsets []uint, options ...LineOption) (*Lines, error) {
+func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error) {
 	for _, o := range offsets {
-		if o >= c.lines {
+		if o < 0 || o >= c.lines {
 			return nil, unix.EINVAL
 		}
 	}
@@ -207,7 +209,7 @@ func (c *Chip) RequestLines(offsets []uint, options ...LineOption) (*Lines, erro
 }
 
 type request struct {
-	offset uint
+	offset int
 	fd     uintptr
 	eh     eventHandler
 }
@@ -233,7 +235,7 @@ func (c *Chip) addRequest(r request) error {
 	return nil
 }
 
-func (c *Chip) removeRequest(offset uint) {
+func (c *Chip) removeRequest(offset int) {
 	c.mu.Lock()
 	if c.rr != nil {
 		r := c.rr[offset]
@@ -275,7 +277,7 @@ func (l *Line) SetValue(value int) error {
 
 // Lines represents a collection of requested lines.
 type Lines struct {
-	offsets []uint
+	offsets []int
 	vfd     uintptr
 	canset  bool
 	mu      *sync.Mutex
@@ -298,20 +300,24 @@ func (l *Lines) Close() {
 
 // Values returns the current value (active state) of the collection of
 // lines.
-func (l *Lines) Values() ([]uint8, error) {
+func (l *Lines) Values() ([]int, error) {
 	var values uapi.HandleData
 	err := uapi.GetLineValues(l.vfd, &values)
 	if err != nil {
 		return nil, err
 	}
-	return append(values[:0:0], values[:len(l.offsets)]...), nil
+	vv := make([]int, len(l.offsets))
+	for i := 0; i < len(l.offsets); i++ {
+		vv[i] = int(values[i])
+	}
+	return vv, nil
 }
 
 // SetValues sets the current active state of the collection of lines. Only
 // valid for output lines.
 // All lines in the set are set at once and the provided values must contain a
 // value for each line.
-func (l *Lines) SetValues(values []uint8) error {
+func (l *Lines) SetValues(values []int) error {
 	if l.canset == false {
 		return unix.EPERM
 	}
@@ -319,14 +325,16 @@ func (l *Lines) SetValues(values []uint8) error {
 		return unix.EINVAL
 	}
 	var vv uapi.HandleData
-	copy(vv[:], values)
+	for i, v := range values {
+		vv[i] = uint8(v)
+	}
 	return uapi.SetLineValues(l.vfd, vv)
 }
 
 // LineEventType indicates the type of change to the line active state.
 // Note that for active low lines a low line level results in a high active
 // state.
-type LineEventType uint
+type LineEventType int
 
 const (
 	_ LineEventType = iota
@@ -339,7 +347,7 @@ const (
 // LineEvent represents a change in state to a monitored line.
 type LineEvent struct {
 	// The line offset within the GPIO chip.
-	Offset uint
+	Offset int
 	// Timestamp is the best guess as to the time the event was detected.
 	// This is the Unix epoch - nsec since Jan 1 1970.
 	Timestamp time.Duration

@@ -30,9 +30,9 @@ func GetChipInfo(fd uintptr) (ChipInfo, error) {
 
 // GetLineInfo returns the LineInfo for one line from the GPIO character device.
 // Offsets are zero based.
-func GetLineInfo(fd uintptr, offset uint32) (LineInfo, error) {
+func GetLineInfo(fd uintptr, offset int) (LineInfo, error) {
 	var li LineInfo
-	li.Offset = offset
+	li.Offset = uint32(offset)
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		fd,
 		uintptr(getLineInfoIoctl),
