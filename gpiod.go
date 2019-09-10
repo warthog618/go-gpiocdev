@@ -1,7 +1,6 @@
-// Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
+// SPDX-License-Identifier: MIT
 //
-// Use of this source code is governed by an MIT-style
-// license that can be found in the LICENSE file.
+// Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
 
 // +build linux
 
@@ -23,17 +22,24 @@ import (
 type Chip struct {
 	f *os.File
 	// The system name for this chip.
-	Name  string
+	Name string
+
+	// A more individual label for the chip.
 	Label string
+
 	// The number of GPIO lines on this chip.
 	lines int
+
 	// default consumer label for reserved lines
 	consumer string
+
 	// mutex covers the attributes below it.
 	mu sync.Mutex
+
 	// set of requests currently open.
 	// This doubles as a closed flag - is nil once closed.
 	rr map[int]*request
+
 	// watcher for events
 	w *watcher
 }
@@ -191,9 +197,13 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 			Flags: lo.HandleFlags,
 		}
 		copy(hr.Consumer[:], lo.consumer)
-		//copy(hr.Offsets[:], l.offsets) - with cast
+		//copy(hr.Offsets[:], ll.offsets) - with cast
 		for i, o := range ll.offsets {
 			hr.Offsets[i] = uint32(o)
+		}
+		//copy(hr.DefaultValues[:], lo.DefaultValues) - with cast
+		for i, v := range lo.DefaultValues {
+			hr.DefaultValues[i] = uint8(v)
 		}
 		err := uapi.GetLineHandle(c.f.Fd(), &hr)
 		if err != nil {
@@ -340,6 +350,7 @@ const (
 	_ LineEventType = iota
 	// LineEventRisingEdge indicates a low to high event.
 	LineEventRisingEdge
+
 	// LineEventFallingEdge indicates a high to low event.
 	LineEventFallingEdge
 )
@@ -348,9 +359,11 @@ const (
 type LineEvent struct {
 	// The line offset within the GPIO chip.
 	Offset int
-	// Timestamp is the best guess as to the time the event was detected.
+
+	// Timestamp is the time the event was detected.
 	// This is the Unix epoch - nsec since Jan 1 1970.
 	Timestamp time.Duration
+
 	// The type of event this structure represents.
 	Type LineEventType
 }

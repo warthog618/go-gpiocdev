@@ -1,7 +1,6 @@
-// Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
+// SPDX-License-Identifier: MIT
 //
-// Use of this source code is governed by an MIT-style
-// license that can be found in the LICENSE file.
+// Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
 
 // +build linux
 
@@ -100,6 +99,8 @@ func (fd eventReader) Read(b []byte) (int, error) {
 }
 
 // ReadEvent reads a single event from a requested line.
+// This function is blocking and should only be called when the fd is known to
+// be ready to read.
 func ReadEvent(fd uintptr) (EventData, error) {
 	var ed EventData
 	err := binary.Read(eventReader(fd), nativeEndian, &ed)
@@ -138,17 +139,7 @@ func init() {
 	getLineValuesIoctl = iorw(0xB4, 0x08, unsafe.Sizeof(hd))
 	setLineValuesIoctl = iorw(0xB4, 0x09, unsafe.Sizeof(hd))
 
-	// the standard hack to determine native Endianness.
-	buf := [2]byte{}
-	*(*uint16)(unsafe.Pointer(&buf[0])) = uint16(0xABCD)
-	switch buf {
-	case [2]byte{0xCD, 0xAB}:
-		nativeEndian = binary.LittleEndian
-	case [2]byte{0xAB, 0xCD}:
-		nativeEndian = binary.BigEndian
-	default:
-		panic("Could not determine native endianness.")
-	}
+	nativeEndian = findEndian()
 }
 
 // ChipInfo contains the details of a GPIO chip.
@@ -174,14 +165,18 @@ const (
 	// It may have been requested by this process or another process.
 	// The line cannot be requested again until this flag is clear.
 	LineFlagRequested LineFlag = 1 << iota
+
 	// LineFlagIsOut indicates that the line is an output.
 	LineFlagIsOut
+
 	// LineFlagActiveLow indicates that the line is active low.
 	LineFlagActiveLow
+
 	// LineFlagOpenDrain indicates that the line will pull low when set low but
 	// float when set high. This flag only applies to output lines.
 	// An output cannot be both open drain and open source.
 	LineFlagOpenDrain
+
 	// LineFlagOpenSource indicates that the line will pull high when set high
 	// but float when set low. This flag only applies to output lines.
 	// An output cannot be both open drain and open source.
@@ -218,7 +213,7 @@ func (f LineFlag) IsOpenSource() bool {
 type HandleRequest struct {
 	Offsets       [HandlesMax]uint32
 	Flags         HandleFlag
-	DefaultValues [HandlesMax]byte
+	DefaultValues [HandlesMax]uint8
 	Consumer      [nameSize]byte
 	Lines         uint32
 	Fd            int32
@@ -229,18 +224,26 @@ type HandleFlag uint32
 
 const (
 	// HandleRequestInput requests the line as an input.
-	// This cannot be set at the same time as Output, OpenDrain or OpenSource.
+	// This is ignored if Output is also set.
 	HandleRequestInput HandleFlag = 1 << iota
+
 	// HandleRequestOutput requests the line as an output.
+	// This takes precedence over Input, if both are set.
 	HandleRequestOutput
+
 	// HandleRequestActiveLow requests the line be made active low.
 	HandleRequestActiveLow
+
 	// HandleRequestOpenDrain requests the line be made open drain.
+	// This option requires the line to be requested as an Output.
 	// This cannot be set at the same time as OpenSource.
 	HandleRequestOpenDrain
+
 	// HandleRequestOpenSource requests the line be made open source.
+	// This option requires the line to be requested as an Output.
 	// This cannot be set at the same time as OpenDrain.
 	HandleRequestOpenSource
+
 	// HandlesMax is the maximum number of lines that can be requested in a
 	// single request.
 	HandlesMax = 64
@@ -295,6 +298,7 @@ const (
 	// Note that for active low lines this means a transition from a physical
 	// high to a physical low.
 	EventRequestRisingEdge EventFlag = 1 << iota
+
 	// EventRequestFallingEdge requests falling edge events.
 	// This means a transition from a high logical state to a low logical state.
 	// For active high lines (the default) this means a transition from a
@@ -302,6 +306,7 @@ const (
 	// Note that for active low lines this means a transition from a physical
 	// low to a physical high.
 	EventRequestFallingEdge
+
 	// EventRequestBothEdges requests both rising and falling edge events.
 	// This is equivalent to requesting both EventRequestRisingEdge and
 	// EventRequestRisingEdge.

@@ -1,7 +1,6 @@
-// Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
+// SPDX-License-Identifier: MIT
 //
-// Use of this source code is governed by an MIT-style
-// license that can be found in the LICENSE file.
+// Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
 
 // +build linux
 
@@ -46,10 +45,11 @@ type LineOption interface {
 
 // LineOptions contains the options for a Line or Lines.
 type LineOptions struct {
-	consumer    string
-	EventFlags  uapi.EventFlag
-	HandleFlags uapi.HandleFlag
-	eh          eventHandler
+	consumer      string
+	DefaultValues []int
+	EventFlags    uapi.EventFlag
+	HandleFlags   uapi.HandleFlag
+	eh            eventHandler
 }
 
 // eventHandler is a receiver for line events.
@@ -85,19 +85,27 @@ func (o InputOption) applyLineOption(l *LineOptions) {
 }
 
 // OutputOption indicates the line direction should be set to an output.
-type OutputOption struct{}
+type OutputOption struct {
+	defaultValues []int
+}
 
-// AsOutput indicates that a line be requested as an output.
+// AsOutput indicates that a line or lines be requested as an output.
+// The initial values for the line(s) can be provided.
+// If fewer defaults are provided than lines then the remaining lines default to
+// inactive.
+//
 // This option overrides and clears any previous Input, RisingEdge, FallingEdge,
 // or BothEdges options.
-func AsOutput() OutputOption {
-	return OutputOption{}
+func AsOutput(values ...int) OutputOption {
+	vv := append([]int{}, values...)
+	return OutputOption{vv}
 }
 
 func (o OutputOption) applyLineOption(l *LineOptions) {
 	l.HandleFlags &= ^uapi.HandleRequestInput
 	l.HandleFlags |= uapi.HandleRequestOutput
 	l.EventFlags = 0
+	l.DefaultValues = o.defaultValues
 }
 
 // ActiveLowOption indicates the line be considered active when the line level
@@ -156,6 +164,7 @@ type FallingEdgeOption struct {
 
 // WithFallingEdge indicates that a line will generate events when its active
 // state transitions from high to low.
+// Events are forwarded to the provided handler function.
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
 func WithFallingEdge(e func(LineEvent)) FallingEdgeOption {
@@ -177,6 +186,7 @@ type RisingEdgeOption struct {
 
 // WithRisingEdge indicates that a line will generate events when its active
 // state transitions from low to high.
+// Events are forwarded to the provided handler function.
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
 func WithRisingEdge(e func(LineEvent)) RisingEdgeOption {
@@ -198,6 +208,7 @@ type BothEdgesOption struct {
 
 // WithBothEdges indicates that a line will generate events when its active
 // state transitions from low to high and from high to low.
+// Events are forwarded to the provided handler function.
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
 func WithBothEdges(e func(LineEvent)) BothEdgesOption {

@@ -65,7 +65,7 @@ func (w *watcher) close() {
 }
 
 func (w *watcher) watch() {
-	var epollEvents [1]unix.EpollEvent
+	var epollEvents [6]unix.EpollEvent
 	for {
 		n, err := unix.EpollWait(w.epfd, epollEvents[:], -1)
 		if err != nil {
@@ -93,7 +93,9 @@ func (w *watcher) watch() {
 			if req == nil {
 				continue
 			}
-			evt, err := uapi.ReadEvent(uintptr(fd))
+			// consider passing off to a goroutine here.
+			// Wait for benchmarking to see if it makes sense.
+			evt, err := uapi.ReadEvent(uintptr(req.fd))
 			if err != nil {
 				fmt.Println("event read error:", err)
 				continue

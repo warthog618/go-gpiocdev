@@ -4,9 +4,9 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/warthog618/gpiod)](https://goreportcard.com/report/github.com/warthog618/gpiod)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/warthog618/gpiod/blob/master/LICENSE)
 
-Native Go GPIO library for Linux.
+A native Go GPIO library for Linux.
 
-The intent of this library is to provide the Go equivalent of [libgpiod](https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/).  The goal is not to mirror the libgpiod API but to provide the equivalent functionality.
+The goal of this library is to provide the Go equivalent of [libgpiod](https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/).  The intent is not to mirror the libgpiod API but to provide the equivalent functionality.
 
 This is very much a work in progress, so I don't suggest using it for anything serious yet.
 
@@ -31,7 +31,7 @@ Note that pull up and down are not supported.  This a limitation of the current 
 
 ## Usage
 
-The API is still in flux, and I can already see things that will change, but this is a current example:
+The API is still in flux, but this is a current example:
 
 ```go
     // get a chip and set the default label to apply to requested lines
@@ -45,25 +45,26 @@ The API is still in flux, and I can already see things that will change, but thi
     v, _ := li.Value()
 
     // request a line as input, so altering direction settings.
-    li, _ := c.RequestLine(2,gpiod.AsInput())
-    v, _ := li.Value()
+    li, _ = c.RequestLine(2, gpiod.AsInput())
+    v, _ = li.Value()
 
-    // request a line as output
-    li, _ = c.RequestLine(3,gpiod.AsOutput())
-    v,_ = li.Value()
+    // request a line as outout
+    li, _ = c.RequestLine(3, gpiod.AsOutput())
+    v, _ = li.Value()
     li.SetValue(1)
 
     // request a line with edge detection
-    handler := func(evt gpiod.LineEvent) {
-      // handle the edge event here
+    handler := func(gpiod.LineEvent) {
+        // handle the edge event here
     }
-    li, _ = c.RequestLine(4,gpiod.WithRisingEdge(handler))
-    v, _ = li.Value() // can still read it too
+    li, _ = c.RequestLine(4, gpiod.WithRisingEdge(handler))
+    v, _ = li.Value()
 
     // request a bunch of lines
-    ll, _ := c.RequestLines([]uint{0,1,2,3},gpiod.AsOutput())
+    ll, _ := c.RequestLines([]int{0, 1, 2, 3}, gpiod.AsOutput())
     vv, _ := li.Values()
-    li.SetValues([]uint{0,1,1,0})
+    ll.SetValues([]int{0, 1, 1, 0})
+
 ```
 
 Error handling ommitted for brevity.
