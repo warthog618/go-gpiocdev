@@ -97,7 +97,7 @@ type OutputOption struct {
 // This option overrides and clears any previous Input, RisingEdge, FallingEdge,
 // or BothEdges options.
 func AsOutput(values ...int) OutputOption {
-	vv := append([]int{}, values...)
+	vv := append([]int(nil), values...)
 	return OutputOption{vv}
 }
 

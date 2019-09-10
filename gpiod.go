@@ -158,7 +158,7 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 		option.applyLineOption(&lo)
 	}
 	ll := Lines{
-		offsets: offsets,
+		offsets: append([]int(nil), offsets...),
 		canset:  lo.HandleFlags.IsOutput(),
 		mu:      &sync.Mutex{},
 		chip:    c,
