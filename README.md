@@ -48,10 +48,10 @@ The API is still in flux, but this is a current example:
     li, _ = c.RequestLine(2, gpiod.AsInput())
     v, _ = li.Value()
 
-    // request a line as outout
-    li, _ = c.RequestLine(3, gpiod.AsOutput())
+    // request a line as output - initially set active
+    li, _ = c.RequestLine(3, gpiod.AsOutput(1))
     v, _ = li.Value()
-    li.SetValue(1)
+    li.SetValue(0) // then set inactive
 
     // request a line with edge detection
     handler := func(gpiod.LineEvent) {
@@ -63,7 +63,7 @@ The API is still in flux, but this is a current example:
     // request a bunch of lines
     ll, _ := c.RequestLines([]int{0, 1, 2, 3}, gpiod.AsOutput())
     vv, _ := li.Values()
-    ll.SetValues([]int{0, 1, 1, 0})
+    ll.SetValues(0, 1, 1, 0)
 
 ```
 

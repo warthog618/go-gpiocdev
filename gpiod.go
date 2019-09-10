@@ -323,15 +323,15 @@ func (l *Lines) Values() ([]int, error) {
 	return vv, nil
 }
 
-// SetValues sets the current active state of the collection of lines. Only
-// valid for output lines.
-// All lines in the set are set at once and the provided values must contain a
-// value for each line.
-func (l *Lines) SetValues(values []int) error {
+// SetValues sets the current active state of the collection of lines.
+// Only valid for output lines.
+// All lines in the set are set at once.  If insufficient values are provided
+// then the remaining lines are set to inactive.
+func (l *Lines) SetValues(values ...int) error {
 	if l.canset == false {
 		return unix.EPERM
 	}
-	if len(values) < len(l.offsets) {
+	if len(values) > len(l.offsets) {
 		return unix.EINVAL
 	}
 	var vv uapi.HandleData
