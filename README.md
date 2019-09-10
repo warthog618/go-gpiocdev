@@ -61,7 +61,7 @@ The API is still in flux, but this is a current example:
     v, _ = li.Value()
 
     // request a bunch of lines
-    ll, _ := c.RequestLines([]int{0, 1, 2, 3}, gpiod.AsOutput())
+    ll, _ := c.RequestLines([]int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1))
     vv, _ := li.Values()
     ll.SetValues(0, 1, 1, 0)
 
