@@ -84,7 +84,6 @@ func (w *watcher) watch() {
 			if fd == int32(w.donefds[0]) {
 				unix.Close(w.epfd)
 				unix.Close(w.donefds[0])
-				fmt.Println("watcher exitting")
 				return
 			}
 			w.mu.Lock()

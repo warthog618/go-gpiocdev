@@ -69,8 +69,25 @@ The API is still in flux, but this is a current example:
 
 Error handling ommitted for brevity.
 
+### Benchmarks
+
+The tests include benchmarks on reads, writes and interrupt latency.
+
+These are the results from a Raspberry Pi Zero W built with Go 1.13:
+
+```sh
+$ ./gpiod.test -test.bench=.*
+goos: linux
+goarch: arm
+pkg: gpiod
+BenchmarkRead                   140811          7710 ns/op
+BenchmarkWrite                  156889          7206 ns/op
+BenchmarkInterruptLatency         3746        526171 ns/op
+PASS
+```
+
 ## Prerequisites
 
-The library targets Linux with support for the GPIO character device API.  That generally means that */dev/gpiochip0* exists.
+The library targets Linux with support for the GPIO character device API.  That generally means that **/dev/gpiochip0** exists.
 
-The caller must have access to the character device - */dev/gpiochip0*.  That is generally root unless you have changed the permissions of that device.
+The caller must have access to the character device - **/dev/gpiochip0**.  That is generally root unless you have changed the permissions of that device.
