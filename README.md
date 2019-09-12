@@ -67,11 +67,44 @@ The API is still in flux, but this is a current example:
 
 ```
 
-Error handling ommitted for brevity.
+Error handling omitted for brevity.
+
+## Tests
+
+The library tests are still a work in progress...
+
+### Platforms
+
+The tests can be run on either of two platforms:
+
+- Raspberry Pi
+- gpio-mockup
+
+#### Raspberry Pi
+
+On Raspberry Pi, the tests are intended to be run on a board with J8 pins 11 and 12 floating and with pins 15 and 16 tied together, possibly using a jumper across the header.  The tests set J8 pins 11, 12 and 16 to outputs so **DO NOT** run them on hardware where that pin is being externally driven.
+
+The test user must have access to the **/dev/gpiochip0** character device.
+
+Tests have been run successfully on Raspberry Pi Zero W.  The library should also work on other Raspberry Pi variants, I just haven't gotten around to testing them yet.
+
+The tests can be cross-compiled from other platforms using
+
+```sh
+GOOS=linux GOARCH=arm GOARM=6 go test -c
+```
+
+Later Pis can also use ARM7 (GOARM=7).
+
+#### gpio-mockup
+
+Other than the Raspberry Pi, the tests can be run on any Linux platform with a recent kernel that supports the gpio-mockup loadable module.  gpio-mockup must be built as a module and the test user must have rights to load and unload the module.
+
+The tests require a kernel release 5.1.0 or later to run.  For all the tests to pass a kernel 5.3.0 or later is required.
 
 ### Benchmarks
 
-The tests include benchmarks on reads, writes and interrupt latency.
+The tests include benchmarks on reads, writes, bulk reads and writes,  and interrupt latency.
 
 These are the results from a Raspberry Pi Zero W built with Go 1.13:
 
@@ -80,9 +113,11 @@ $ ./gpiod.test -test.bench=.*
 goos: linux
 goarch: arm
 pkg: gpiod
-BenchmarkRead                   140811          7710 ns/op
-BenchmarkWrite                  156889          7206 ns/op
-BenchmarkInterruptLatency         3746        526171 ns/op
+BenchmarkLineValue              248344          5659 ns/op
+BenchmarkLinesValues            142282          8377 ns/op
+BenchmarkLineSetValue           178704          6632 ns/op
+BenchmarkLinesSetValues         135058          7875 ns/op
+BenchmarkInterruptLatency         2040        530332 ns/op
 PASS
 ```
 

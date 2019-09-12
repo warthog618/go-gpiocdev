@@ -92,8 +92,6 @@ func (w *watcher) watch() {
 			if req == nil {
 				continue
 			}
-			// consider passing off to a goroutine here.
-			// Wait for benchmarking to see if it makes sense.
 			evt, err := uapi.ReadEvent(uintptr(req.fd))
 			if err != nil {
 				fmt.Println("event read error:", err)
@@ -104,7 +102,8 @@ func (w *watcher) watch() {
 				Timestamp: time.Duration(evt.Timestamp),
 				Type:      LineEventType(evt.ID),
 			}
-			req.eh(le)
+			// run the handler in a goroutine in case it is badly behaved
+			go req.eh(le)
 		}
 	}
 }

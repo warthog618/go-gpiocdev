@@ -13,12 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func BenchmarkRead(b *testing.B) {
-	c, err := gpiod.NewChip("/dev/gpiochip0")
+func BenchmarkLineValue(b *testing.B) {
+	c, err := gpiod.NewChip(platform.Devpath())
 	require.Nil(b, err)
 	require.NotNil(b, c)
 	defer c.Close()
-	l, err := c.RequestLine(J8p15)
+	l, err := c.RequestLine(platform.IntrLine())
 	require.Nil(b, err)
 	require.NotNil(b, l)
 	defer l.Close()
@@ -27,12 +27,25 @@ func BenchmarkRead(b *testing.B) {
 	}
 }
 
-func BenchmarkWrite(b *testing.B) {
-	c, err := gpiod.NewChip("/dev/gpiochip0")
+func BenchmarkLinesValues(b *testing.B) {
+	c, err := gpiod.NewChip(platform.Devpath())
 	require.Nil(b, err)
 	require.NotNil(b, c)
 	defer c.Close()
-	l, err := c.RequestLine(J8p16, gpiod.AsOutput(0))
+	l, err := c.RequestLines(platform.FloatingLines())
+	require.Nil(b, err)
+	require.NotNil(b, l)
+	defer l.Close()
+	for i := 0; i < b.N; i++ {
+		l.Values()
+	}
+}
+func BenchmarkLineSetValue(b *testing.B) {
+	c, err := gpiod.NewChip(platform.Devpath())
+	require.Nil(b, err)
+	require.NotNil(b, c)
+	defer c.Close()
+	l, err := c.RequestLine(platform.FloatingLines()[0], gpiod.AsOutput(0))
 	require.Nil(b, err)
 	require.NotNil(b, l)
 	defer l.Close()
@@ -41,50 +54,28 @@ func BenchmarkWrite(b *testing.B) {
 	}
 }
 
-// Raspberry Pi BCM GPIO pins
-const (
-	J8p27 = iota
-	J8p28
-	J8p3
-	J8p5
-	J8p7
-	J8p29
-	J8p31
-	J8p26
-	J8p24
-	J8p21
-	J8p19
-	J8p23
-	J8p32
-	J8p33
-	J8p8
-	J8p10
-	J8p36
-	J8p11
-	J8p12
-	J8p35
-	J8p38
-	J8p40
-	J8p15
-	J8p16
-	J8p18
-	J8p22
-	J8p37
-	J8p13
-	MaxGPIOPin
-)
-
-func BenchmarkInterruptLatency(b *testing.B) {
-	c, err := gpiod.NewChip("/dev/gpiochip0")
+func BenchmarkLinesSetValues(b *testing.B) {
+	c, err := gpiod.NewChip(platform.Devpath())
 	require.Nil(b, err)
 	require.NotNil(b, c)
 	defer c.Close()
-	w, err := c.RequestLine(J8p16, gpiod.AsOutput(1))
+	ll, err := c.RequestLines(platform.FloatingLines(), gpiod.AsOutput(0))
 	require.Nil(b, err)
-	require.NotNil(b, w)
-	defer w.Close()
+	require.NotNil(b, ll)
+	defer ll.Close()
+	for i := 0; i < b.N; i++ {
+		ll.SetValues(i, 0)
+	}
+}
+
+func BenchmarkInterruptLatency(b *testing.B) {
+	c, err := gpiod.NewChip(platform.Devpath())
+	require.Nil(b, err)
+	require.NotNil(b, c)
+	defer c.Close()
+	platform.TriggerIntr(1)
 	ich := make(chan int)
-	r, err := c.RequestLine(J8p15,
+	r, err := c.RequestLine(platform.IntrLine(),
 		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
 			ich <- 1
 		}))
@@ -92,7 +83,7 @@ func BenchmarkInterruptLatency(b *testing.B) {
 	require.NotNil(b, r)
 	defer r.Close()
 	for i := 0; i < b.N; i++ {
-		w.SetValue(i & 1)
+		platform.TriggerIntr(i & 1)
 		<-ich
 	}
 }

@@ -9,6 +9,8 @@
 package gpiod
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"gpiod/uapi"
 	"os"
@@ -84,26 +86,30 @@ func NewChip(path string, options ...ChipOption) (*Chip, error) {
 		Label:    string(ci.Label[:]),
 		lines:    int(ci.Lines),
 		consumer: co.consumer,
-		rr:       make(map[int]*request)}
+		rr:       make(map[int]*request),
+	}
 	if len(c.Label) == 0 {
 		c.Label = "unknown"
 	}
 	return &c, nil
 }
 
-// Close releases all resources associated with the Chip
-func (c *Chip) Close() {
+// Close releases all resources associated with the Chip.
+func (c *Chip) Close() error {
 	c.mu.Lock()
 	rr := c.rr
 	c.rr = nil
 	c.mu.Unlock()
+	if rr == nil {
+		return ErrClosed
+	}
 	if c.w != nil {
 		c.w.close()
 	}
 	for _, req := range rr {
 		unix.Close(int(req.fd))
 	}
-	c.f.Close()
+	return c.f.Close()
 }
 
 // LineInfo returns the publicly available information on the line.
@@ -118,14 +124,22 @@ func (c *Chip) LineInfo(offset int) (LineInfo, error) {
 	}
 	return LineInfo{
 		Offset:     offset,
-		Name:       string(li.Name[:]),
-		Consumer:   string(li.Consumer[:]),
+		Name:       bytesToString(li.Name[:]),
+		Consumer:   bytesToString(li.Consumer[:]),
 		Requested:  li.Flags.IsRequested(),
 		IsOut:      li.Flags.IsOut(),
 		ActiveLow:  li.Flags.IsActiveLow(),
 		OpenDrain:  li.Flags.IsOpenDrain(),
 		OpenSource: li.Flags.IsOpenSource(),
 	}, nil
+}
+
+func bytesToString(a []byte) string {
+	n := bytes.IndexByte(a, 0)
+	if n == -1 {
+		return string(a)
+	}
+	return string(a[:n])
 }
 
 // Lines returns the number of lines that exist on the GPIO chip.
@@ -140,7 +154,12 @@ func (c *Chip) RequestLine(offset int, options ...LineOption) (*Line, error) {
 	if err != nil {
 		return nil, err
 	}
-	l := Line{*ll}
+	l := Line{
+		offset: offset,
+		vfd:    ll.vfd,
+		canset: ll.canset,
+		chip:   c,
+	}
 	return &l, nil
 }
 
@@ -173,9 +192,7 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 			copy(er.Consumer[:], lo.consumer)
 			err := uapi.GetLineEvent(c.f.Fd(), &er)
 			if err != nil {
-				for _, ono := range offsets[:i] {
-					c.removeRequest(ono)
-				}
+				c.removeRequests(offsets[:i]...)
 				return nil, err
 			}
 			fd := uintptr(er.Fd)
@@ -185,9 +202,7 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 			err = c.addRequest(request{o, ll.vfd, lo.eh})
 			if err != nil {
 				unix.Close(int(fd))
-				for _, ono := range offsets[:i] {
-					c.removeRequest(ono)
-				}
+				c.removeRequests(offsets[:i]...)
 				return nil, err
 			}
 		}
@@ -245,9 +260,13 @@ func (c *Chip) addRequest(r request) error {
 	return nil
 }
 
-func (c *Chip) removeRequest(offset int) {
+func (c *Chip) removeRequests(offsets ...int) {
 	c.mu.Lock()
-	if c.rr != nil {
+	defer c.mu.Unlock()
+	if c.rr == nil {
+		return
+	}
+	for _, offset := range offsets {
 		r := c.rr[offset]
 		delete(c.rr, offset)
 		if r != nil {
@@ -257,21 +276,25 @@ func (c *Chip) removeRequest(offset int) {
 			unix.Close(int(r.fd))
 		}
 	}
-	c.mu.Unlock()
 }
 
 // Line represents a single requested line.
 type Line struct {
-	Lines
+	offset int
+	vfd    uintptr
+	canset bool
+	mu     sync.Mutex
+	chip   *Chip
 }
 
 // Value returns the current value (active state) of the line.
 func (l *Line) Value() (int, error) {
-	v, err := l.Values()
+	var values uapi.HandleData
+	err := uapi.GetLineValues(l.vfd, &values)
 	if err != nil {
 		return 0, err
 	}
-	return int(v[0]), nil
+	return int(values[0]), nil
 }
 
 // SetValue sets the current active state of the line.
@@ -285,6 +308,19 @@ func (l *Line) SetValue(value int) error {
 	return uapi.SetLineValues(l.vfd, values)
 }
 
+// Close releases all resources held by the requested line.
+func (l *Line) Close() error {
+	l.mu.Lock()
+	c := l.chip
+	l.chip = nil
+	l.mu.Unlock()
+	if c == nil {
+		return ErrClosed
+	}
+	c.removeRequests(l.offset)
+	return nil
+}
+
 // Lines represents a collection of requested lines.
 type Lines struct {
 	offsets []int
@@ -295,17 +331,16 @@ type Lines struct {
 }
 
 // Close releases all resources held by the requested lines.
-func (l *Lines) Close() {
+func (l *Lines) Close() error {
 	l.mu.Lock()
 	c := l.chip
 	l.chip = nil
 	l.mu.Unlock()
 	if c == nil {
-		return
+		return ErrClosed
 	}
-	for _, o := range l.offsets {
-		c.removeRequest(o)
-	}
+	c.removeRequests(l.offsets...)
+	return nil
 }
 
 // Values returns the current value (active state) of the collection of
@@ -403,3 +438,8 @@ func IsCharDev(path string) error {
 	}
 	return nil
 }
+
+var (
+	// ErrClosed indicates the chip or line has already been closed.
+	ErrClosed = errors.New("already closed")
+)

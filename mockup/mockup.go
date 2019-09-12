@@ -15,8 +15,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -181,10 +181,13 @@ func KernelVersion() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	vers := strings.SplitN(string(release), ".", 3)
-	vers[2] = strings.SplitN(vers[2], "-", 2)[0]
+	r := regexp.MustCompile(`(\d+)\.(\d+)\.(\d+)`)
+	vers := r.FindStringSubmatch(string(release))
+	if len(vers) != 4 {
+		return nil, fmt.Errorf("can't parse uname: %s", release)
+	}
 	v := []byte{0, 0, 0}
-	for i, vf := range vers {
+	for i, vf := range vers[1:] {
 		vfi, err := strconv.ParseUint(vf, 10, 64)
 		if err != nil {
 			return nil, err
@@ -229,7 +232,7 @@ type ErrorIndexRange struct {
 }
 
 func (e ErrorIndexRange) Error() string {
-	return fmt.Sprintf("Index out of range - got %d, limit is %d.", e.Req, e.Limit)
+	return fmt.Sprintf("index out of range - got %d, limit is %d.", e.Req, e.Limit)
 }
 
 // ErrorBadVersion indicates the kernel version is insufficient.
@@ -239,5 +242,5 @@ type ErrorBadVersion struct {
 }
 
 func (e ErrorBadVersion) Error() string {
-	return fmt.Sprintf("Require kernel %s or later, but running %s", e.Need, e.Have)
+	return fmt.Sprintf("require kernel %s or later, but running %s", e.Need, e.Have)
 }
