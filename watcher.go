@@ -67,9 +67,8 @@ func (w *watcher) close() {
 func (w *watcher) watch() {
 	var epollEvents [6]unix.EpollEvent
 	for {
-		n, err := unix.EpollWait(w.epfd, epollEvents[:], -1)
+		_, err := unix.EpollWait(w.epfd, epollEvents[:], -1)
 		if err != nil {
-			fmt.Println("epoll:", n, err)
 			if err == unix.EBADF || err == unix.EINVAL {
 				// fd closed so exit
 				return
@@ -94,7 +93,6 @@ func (w *watcher) watch() {
 			}
 			evt, err := uapi.ReadEvent(uintptr(req.fd))
 			if err != nil {
-				fmt.Println("event read error:", err)
 				continue
 			}
 			le := LineEvent{

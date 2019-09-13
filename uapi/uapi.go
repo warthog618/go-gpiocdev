@@ -8,6 +8,7 @@
 package uapi
 
 import (
+	"bytes"
 	"encoding/binary"
 	"unsafe"
 
@@ -90,6 +91,16 @@ func SetLineValues(fd uintptr, values HandleData) error {
 		return errno
 	}
 	return nil
+}
+
+// BytesToString is a helper function that converts strings stored in byte
+// arrays, as returned by GetChipInfo and GetLineInfo, into strings.
+func BytesToString(a []byte) string {
+	n := bytes.IndexByte(a, 0)
+	if n == -1 {
+		return string(a)
+	}
+	return string(a[:n])
 }
 
 type eventReader int

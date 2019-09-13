@@ -9,7 +9,6 @@
 package gpiod
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"gpiod/uapi"
@@ -61,7 +60,7 @@ type LineInfo struct {
 
 // NewChip opens a GPIO character device.
 func NewChip(path string, options ...ChipOption) (*Chip, error) {
-	err := IsCharDev(path)
+	err := IsChip(path)
 	if err != nil {
 		return nil, err
 	}
@@ -73,17 +72,19 @@ func NewChip(path string, options ...ChipOption) (*Chip, error) {
 	}
 	f, err := os.OpenFile(path, unix.O_CLOEXEC, unix.O_RDONLY)
 	if err != nil {
+		// only happens if device removed/locked since IsChip call.
 		return nil, err
 	}
 	ci, err := uapi.GetChipInfo(f.Fd())
 	if err != nil {
+		// only occurs if IsChip was wrong?
 		f.Close()
 		return nil, err
 	}
 	c := Chip{
 		f:        f,
-		Name:     string(ci.Name[:]),
-		Label:    string(ci.Label[:]),
+		Name:     uapi.BytesToString(ci.Name[:]),
+		Label:    uapi.BytesToString(ci.Label[:]),
 		lines:    int(ci.Lines),
 		consumer: co.consumer,
 		rr:       make(map[int]*request),
@@ -116,7 +117,7 @@ func (c *Chip) Close() error {
 // This is always available and does not require requesting the line.
 func (c *Chip) LineInfo(offset int) (LineInfo, error) {
 	if offset < 0 || offset >= c.lines {
-		return LineInfo{}, unix.EINVAL
+		return LineInfo{}, ErrInvalidOffset
 	}
 	li, err := uapi.GetLineInfo(c.f.Fd(), offset)
 	if err != nil {
@@ -124,22 +125,14 @@ func (c *Chip) LineInfo(offset int) (LineInfo, error) {
 	}
 	return LineInfo{
 		Offset:     offset,
-		Name:       bytesToString(li.Name[:]),
-		Consumer:   bytesToString(li.Consumer[:]),
+		Name:       uapi.BytesToString(li.Name[:]),
+		Consumer:   uapi.BytesToString(li.Consumer[:]),
 		Requested:  li.Flags.IsRequested(),
 		IsOut:      li.Flags.IsOut(),
 		ActiveLow:  li.Flags.IsActiveLow(),
 		OpenDrain:  li.Flags.IsOpenDrain(),
 		OpenSource: li.Flags.IsOpenSource(),
 	}, nil
-}
-
-func bytesToString(a []byte) string {
-	n := bytes.IndexByte(a, 0)
-	if n == -1 {
-		return string(a)
-	}
-	return string(a[:n])
 }
 
 // Lines returns the number of lines that exist on the GPIO chip.
@@ -167,7 +160,7 @@ func (c *Chip) RequestLine(offset int, options ...LineOption) (*Line, error) {
 func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error) {
 	for _, o := range offsets {
 		if o < 0 || o >= c.lines {
-			return nil, unix.EINVAL
+			return nil, ErrInvalidOffset
 		}
 	}
 	lo := LineOptions{
@@ -199,8 +192,9 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 			if i == 0 {
 				ll.vfd = fd
 			}
-			err = c.addRequest(request{o, ll.vfd, lo.eh})
+			err = c.addRequest(request{o, fd, lo.eh})
 			if err != nil {
+				// this should never happen, but just in case...
 				unix.Close(int(fd))
 				c.removeRequests(offsets[:i]...)
 				return nil, err
@@ -227,6 +221,7 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 		ll.vfd = uintptr(hr.Fd)
 		err = c.addRequest(request{offsets[0], ll.vfd, lo.eh})
 		if err != nil {
+			// this should never happen, but just in case...
 			return nil, err
 		}
 	}
@@ -244,7 +239,7 @@ func (c *Chip) addRequest(r request) error {
 	defer c.mu.Unlock()
 	// just in case of a race on Chip.Close and Chip.GetLine(s)
 	if c.rr == nil {
-		return unix.ECANCELED
+		return ErrClosed
 	}
 	c.rr[r.offset] = &r
 	if r.eh != nil {
@@ -291,17 +286,14 @@ type Line struct {
 func (l *Line) Value() (int, error) {
 	var values uapi.HandleData
 	err := uapi.GetLineValues(l.vfd, &values)
-	if err != nil {
-		return 0, err
-	}
-	return int(values[0]), nil
+	return int(values[0]), err
 }
 
 // SetValue sets the current active state of the line.
 // Only valid for output lines.
 func (l *Line) SetValue(value int) error {
 	if l.canset == false {
-		return unix.EPERM
+		return ErrPermissionDenied
 	}
 	var values uapi.HandleData
 	values[0] = uint8(value)
@@ -364,10 +356,10 @@ func (l *Lines) Values() ([]int, error) {
 // then the remaining lines are set to inactive.
 func (l *Lines) SetValues(values ...int) error {
 	if l.canset == false {
-		return unix.EPERM
+		return ErrPermissionDenied
 	}
 	if len(values) > len(l.offsets) {
-		return unix.EINVAL
+		return ErrInvalidOffset
 	}
 	var vv uapi.HandleData
 	for i, v := range values {
@@ -403,29 +395,29 @@ type LineEvent struct {
 	Type LineEventType
 }
 
-// IsCharDev checks if the device at path is an accessible GPIO chardev.
-// Returns nil if it is and an error if not.
-func IsCharDev(path string) error {
+// IsChip checks if the device at path is an accessible GPIO chardev.
+// Returns an error if not.
+func IsChip(path string) error {
 	fi, err := os.Lstat(path)
 	if err != nil {
 		return err
 	}
 	if fi.Mode()&os.ModeCharDevice == 0 {
-		return unix.ENOTTY
+		return ErrNotCharacterDevice
 	}
 	sysfspath := fmt.Sprintf("/sys/bus/gpio/devices/%s/dev", fi.Name())
 	if err = unix.Access(sysfspath, unix.R_OK); err != nil {
-		return unix.ENOTTY
+		return ErrNotCharacterDevice
 	}
 	sysfsf, err := os.Open(sysfspath)
 	if err != nil {
-		return unix.ENODEV
+		return ErrNotCharacterDevice
 	}
 	var sysfsdev [16]byte
 	n, err := sysfsf.Read(sysfsdev[:])
 	sysfsf.Close()
 	if err != nil || n <= 0 {
-		return unix.ENODEV
+		return ErrNotCharacterDevice
 	}
 	var stat unix.Stat_t
 	if err = unix.Lstat(path, &stat); err != nil {
@@ -434,7 +426,7 @@ func IsCharDev(path string) error {
 	devstr := fmt.Sprintf("%d:%d", unix.Major(stat.Rdev), unix.Minor(stat.Rdev))
 	sysstr := string(sysfsdev[:n-1])
 	if devstr != sysstr {
-		return unix.ENODEV
+		return ErrNotCharacterDevice
 	}
 	return nil
 }
@@ -442,4 +434,11 @@ func IsCharDev(path string) error {
 var (
 	// ErrClosed indicates the chip or line has already been closed.
 	ErrClosed = errors.New("already closed")
+	// ErrInvalidOffset indicates a line offset is invalid.
+	ErrInvalidOffset = errors.New("invalid offset")
+	// ErrNotCharacterDevice indicates the device is not a character device.
+	ErrNotCharacterDevice = errors.New("not a character device")
+	// ErrPermissionDenied indicates caller does not have required permissions
+	// for the operation.
+	ErrPermissionDenied = errors.New("permission denied")
 )

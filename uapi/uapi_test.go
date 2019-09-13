@@ -429,6 +429,23 @@ func readTimeout(fd int32, t time.Duration) (*uapi.EventData, error) {
 	return &evt, nil
 }
 
+func TestBytesToString(t *testing.T) {
+	name := "a test string"
+	a := [20]byte{}
+	copy(a[:], name)
+
+	// empty
+	v := uapi.BytesToString(a[:0])
+	assert.Equal(t, 0, len(v))
+
+	// normal
+	v = uapi.BytesToString(a[:])
+	assert.Equal(t, name, v)
+
+	// unterminated
+	v = uapi.BytesToString(a[:len(name)])
+	assert.Equal(t, name, v)
+}
 func TestLineFlags(t *testing.T) {
 	assert.False(t, uapi.LineFlag(0).IsRequested())
 	assert.False(t, uapi.LineFlag(0).IsOut())
