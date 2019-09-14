@@ -203,6 +203,18 @@ func TestChipRequestLines(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestLineChip(t *testing.T) {
+	requirePlatform(t)
+	c := getChip(t)
+	defer c.Close()
+	l, err := c.RequestLine(platform.IntrLine())
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	lc := l.Chip()
+	assert.Equal(t, c, lc)
+}
+
 func TestLineClose(t *testing.T) {
 	requirePlatform(t)
 	c := getChip(t)
@@ -215,6 +227,32 @@ func TestLineClose(t *testing.T) {
 
 	err = l.Close()
 	assert.Equal(t, gpiod.ErrClosed, err)
+}
+
+func TestLineInfo(t *testing.T) {
+	requirePlatform(t)
+	c := getChip(t)
+	defer c.Close()
+	l, err := c.RequestLine(platform.IntrLine())
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	cli, err := c.LineInfo(platform.IntrLine())
+	assert.Nil(t, err)
+	li := l.Info()
+	assert.Equal(t, cli, li)
+}
+
+func TestLineOffset(t *testing.T) {
+	requirePlatform(t)
+	c := getChip(t)
+	defer c.Close()
+	l, err := c.RequestLine(platform.IntrLine())
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	lo := l.Offset()
+	assert.Equal(t, platform.IntrLine(), lo)
 }
 
 func TestLineValue(t *testing.T) {
@@ -259,6 +297,18 @@ func TestLineSetValue(t *testing.T) {
 	l.Close()
 }
 
+func TestLinesChip(t *testing.T) {
+	requirePlatform(t)
+	c := getChip(t)
+	defer c.Close()
+	l, err := c.RequestLines(platform.FloatingLines())
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	lc := l.Chip()
+	assert.Equal(t, c, lc)
+}
+
 func TestLinesClose(t *testing.T) {
 	requirePlatform(t)
 	c := getChip(t)
@@ -271,6 +321,34 @@ func TestLinesClose(t *testing.T) {
 
 	err = l.Close()
 	assert.Equal(t, gpiod.ErrClosed, err)
+}
+
+func TestLinesInfo(t *testing.T) {
+	requirePlatform(t)
+	c := getChip(t)
+	defer c.Close()
+	l, err := c.RequestLines(platform.FloatingLines())
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	li := l.Info()
+	for i, o := range platform.FloatingLines() {
+		cli, err := c.LineInfo(o)
+		assert.Nil(t, err)
+		assert.Equal(t, cli, li[i])
+	}
+}
+
+func TestLineOffsets(t *testing.T) {
+	requirePlatform(t)
+	c := getChip(t)
+	defer c.Close()
+	l, err := c.RequestLines(platform.FloatingLines())
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	lo := l.Offsets()
+	assert.Equal(t, platform.FloatingLines(), lo)
 }
 
 func TestLinesValues(t *testing.T) {

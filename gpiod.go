@@ -5,7 +5,7 @@
 // +build linux
 
 // Package gpiod provides a library for the Linux GPIO descriptor UAPI.
-// This is a Go equivalent to libgpiod.
+// This is a Go equivalent of libgpiod.
 package gpiod
 
 import (
@@ -37,9 +37,11 @@ type Chip struct {
 	// mutex covers the attributes below it.
 	mu sync.Mutex
 
+	// indicates the chip has been closed.
+	closed bool
+
 	// set of requests currently open.
-	// This doubles as a closed flag - is nil once closed.
-	rr map[int]*request
+	reqs map[int]*request
 
 	// watcher for events
 	w *watcher
@@ -87,7 +89,7 @@ func NewChip(path string, options ...ChipOption) (*Chip, error) {
 		Label:    uapi.BytesToString(ci.Label[:]),
 		lines:    int(ci.Lines),
 		consumer: co.consumer,
-		rr:       make(map[int]*request),
+		reqs:     make(map[int]*request),
 	}
 	if len(c.Label) == 0 {
 		c.Label = "unknown"
@@ -98,17 +100,18 @@ func NewChip(path string, options ...ChipOption) (*Chip, error) {
 // Close releases all resources associated with the Chip.
 func (c *Chip) Close() error {
 	c.mu.Lock()
-	rr := c.rr
-	c.rr = nil
+	closed := c.closed
+	c.closed = true
 	c.mu.Unlock()
-	if rr == nil {
+	if closed {
 		return ErrClosed
 	}
 	if c.w != nil {
 		c.w.close()
 	}
-	for _, req := range rr {
+	for k, req := range c.reqs {
 		unix.Close(int(req.fd))
+		delete(c.reqs, k)
 	}
 	return c.f.Close()
 }
@@ -152,6 +155,7 @@ func (c *Chip) RequestLine(offset int, options ...LineOption) (*Line, error) {
 		vfd:    ll.vfd,
 		canset: ll.canset,
 		chip:   c,
+		info:   ll.info[0],
 	}
 	return &l, nil
 }
@@ -172,8 +176,8 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 	ll := Lines{
 		offsets: append([]int(nil), offsets...),
 		canset:  lo.HandleFlags.IsOutput(),
-		mu:      &sync.Mutex{},
 		chip:    c,
+		info:    make([]LineInfo, len(offsets)),
 	}
 	if lo.eh != nil {
 		for i, o := range offsets {
@@ -225,6 +229,14 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 			return nil, err
 		}
 	}
+	for i, o := range offsets {
+		inf, err := c.LineInfo(o)
+		if err != nil {
+			ll.Close()
+			return nil, err
+		}
+		ll.info[i] = inf
+	}
 	return &ll, nil
 }
 
@@ -238,10 +250,10 @@ func (c *Chip) addRequest(r request) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	// just in case of a race on Chip.Close and Chip.GetLine(s)
-	if c.rr == nil {
+	if c.closed {
 		return ErrClosed
 	}
-	c.rr[r.offset] = &r
+	c.reqs[r.offset] = &r
 	if r.eh != nil {
 		if c.w == nil {
 			w, err := newWatcher()
@@ -258,12 +270,12 @@ func (c *Chip) addRequest(r request) error {
 func (c *Chip) removeRequests(offsets ...int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.rr == nil {
+	if c.closed {
 		return
 	}
 	for _, offset := range offsets {
-		r := c.rr[offset]
-		delete(c.rr, offset)
+		r := c.reqs[offset]
+		delete(c.reqs, offset)
 		if r != nil {
 			if r.eh != nil {
 				c.w.del(r)
@@ -278,8 +290,28 @@ type Line struct {
 	offset int
 	vfd    uintptr
 	canset bool
-	mu     sync.Mutex
 	chip   *Chip
+	info   LineInfo
+	mu     sync.Mutex
+	closed bool
+}
+
+// Chip returns the chip from which the line was requested.
+func (l *Line) Chip() *Chip {
+	return l.chip
+}
+
+// Offset returns the offset of the line within the chip.
+func (l *Line) Offset() int {
+	return l.offset
+}
+
+// Info returns the information about the line.
+// The line info is immuatble for the lifetime of the line request.
+// This is a snapshot of the info taken when the line was requested and provides a
+// convenient method to check the options requested on the line.
+func (l *Line) Info() LineInfo {
+	return l.info
 }
 
 // Value returns the current value (active state) of the line.
@@ -303,13 +335,13 @@ func (l *Line) SetValue(value int) error {
 // Close releases all resources held by the requested line.
 func (l *Line) Close() error {
 	l.mu.Lock()
-	c := l.chip
-	l.chip = nil
+	closed := l.closed
+	l.closed = true
 	l.mu.Unlock()
-	if c == nil {
+	if closed {
 		return ErrClosed
 	}
-	c.removeRequests(l.offset)
+	l.chip.removeRequests(l.offset)
 	return nil
 }
 
@@ -318,24 +350,44 @@ type Lines struct {
 	offsets []int
 	vfd     uintptr
 	canset  bool
-	mu      *sync.Mutex
 	chip    *Chip
+	info    []LineInfo
+	mu      sync.Mutex
+	closed  bool
+}
+
+// Chip returns the chip from which the lines were requested.
+func (l *Lines) Chip() *Chip {
+	return l.chip
 }
 
 // Close releases all resources held by the requested lines.
 func (l *Lines) Close() error {
 	l.mu.Lock()
-	c := l.chip
-	l.chip = nil
+	closed := l.closed
+	l.closed = true
 	l.mu.Unlock()
-	if c == nil {
+	if closed {
 		return ErrClosed
 	}
-	c.removeRequests(l.offsets...)
+	l.chip.removeRequests(l.offsets...)
 	return nil
 }
 
-// Values returns the current value (active state) of the collection of
+// Offsets returns the offsets of the lines within the chip.
+func (l *Lines) Offsets() []int {
+	return l.offsets
+}
+
+// Info returns the information about the lines.
+// The line info is immuatble for the lifetime of the lines request.
+// This is a snapshot of the info taken when the lines were requested and provides a
+// convenient method to check the options requested on the lines.
+func (l *Lines) Info() []LineInfo {
+	return l.info
+}
+
+// Values returns the current values (active state) of the collection of
 // lines.
 func (l *Lines) Values() ([]int, error) {
 	var values uapi.HandleData
