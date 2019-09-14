@@ -382,7 +382,7 @@ const (
 	LineEventFallingEdge
 )
 
-// LineEvent represents a change in state to a monitored line.
+// LineEvent represents a change in the state of a monitored line.
 type LineEvent struct {
 	// The line offset within the GPIO chip.
 	Offset int
@@ -391,11 +391,11 @@ type LineEvent struct {
 	// This is the Unix epoch - nsec since Jan 1 1970.
 	Timestamp time.Duration
 
-	// The type of event this structure represents.
+	// The type of state change event this structure represents.
 	Type LineEventType
 }
 
-// IsChip checks if the device at path is an accessible GPIO chardev.
+// IsChip checks if the device at path is an accessible GPIO character device.
 // Returns an error if not.
 func IsChip(path string) error {
 	fi, err := os.Lstat(path)

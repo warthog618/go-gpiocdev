@@ -66,7 +66,7 @@ func AsIs() AsIsOption {
 }
 
 func (o AsIsOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^(uapi.HandleRequestOutput & uapi.HandleRequestInput)
+	l.HandleFlags &= ^(uapi.HandleRequestOutput | uapi.HandleRequestInput)
 }
 
 // InputOption indicates the line direction should be set to an input.
@@ -80,7 +80,9 @@ func AsInput() InputOption {
 }
 
 func (o InputOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^(uapi.HandleRequestOutput & uapi.HandleRequestOpenDrain & uapi.HandleRequestOpenSource)
+	l.HandleFlags &= ^(uapi.HandleRequestOutput |
+		uapi.HandleRequestOpenDrain |
+		uapi.HandleRequestOpenSource)
 	l.HandleFlags |= uapi.HandleRequestInput
 }
 
@@ -134,8 +136,8 @@ func AsOpenDrain() OpenDrainOption {
 }
 
 func (o OpenDrainOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^uapi.HandleRequestInput & uapi.HandleRequestOpenSource
-	l.HandleFlags |= uapi.HandleRequestOpenDrain & uapi.HandleRequestOutput
+	l.HandleFlags &= ^(uapi.HandleRequestInput | uapi.HandleRequestOpenSource)
+	l.HandleFlags |= (uapi.HandleRequestOpenDrain | uapi.HandleRequestOutput)
 	l.EventFlags = 0
 }
 
@@ -151,8 +153,8 @@ func AsOpenSource() OpenSourceOption {
 }
 
 func (o OpenSourceOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^uapi.HandleRequestInput & uapi.HandleRequestOpenDrain
-	l.HandleFlags |= uapi.HandleRequestOpenSource & uapi.HandleRequestOutput
+	l.HandleFlags &= ^(uapi.HandleRequestInput | uapi.HandleRequestOpenDrain)
+	l.HandleFlags |= (uapi.HandleRequestOpenSource | uapi.HandleRequestOutput)
 	l.EventFlags = 0
 }
 
@@ -172,7 +174,9 @@ func WithFallingEdge(e func(LineEvent)) FallingEdgeOption {
 }
 
 func (o FallingEdgeOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^uapi.HandleRequestOutput & uapi.HandleRequestOpenDrain & uapi.HandleRequestOpenSource
+	l.HandleFlags &= ^(uapi.HandleRequestOutput |
+		uapi.HandleRequestOpenDrain |
+		uapi.HandleRequestOpenSource)
 	l.HandleFlags |= uapi.HandleRequestInput
 	l.EventFlags |= uapi.EventRequestFallingEdge
 	l.eh = o.e
@@ -194,7 +198,9 @@ func WithRisingEdge(e func(LineEvent)) RisingEdgeOption {
 }
 
 func (o RisingEdgeOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^uapi.HandleRequestOutput & uapi.HandleRequestOpenDrain & uapi.HandleRequestOpenSource
+	l.HandleFlags &= ^(uapi.HandleRequestOutput |
+		uapi.HandleRequestOpenDrain |
+		uapi.HandleRequestOpenSource)
 	l.HandleFlags |= uapi.HandleRequestInput
 	l.EventFlags |= uapi.EventRequestRisingEdge
 	l.eh = o.e
@@ -216,7 +222,9 @@ func WithBothEdges(e func(LineEvent)) BothEdgesOption {
 }
 
 func (o BothEdgesOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^uapi.HandleRequestOutput & uapi.HandleRequestOpenDrain & uapi.HandleRequestOpenSource
+	l.HandleFlags &= ^(uapi.HandleRequestOutput |
+		uapi.HandleRequestOpenDrain |
+		uapi.HandleRequestOpenSource)
 	l.HandleFlags |= uapi.HandleRequestInput
 	l.EventFlags |= uapi.EventRequestBothEdges
 	l.eh = o.e

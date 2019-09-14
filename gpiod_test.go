@@ -7,7 +7,7 @@
 package gpiod_test
 
 import (
-	"bytes"
+	"errors"
 	"fmt"
 	"gpiod"
 	"gpiod/mockup"
@@ -26,7 +26,7 @@ var setupError error
 func TestMain(m *testing.M) {
 	detectPlatform()
 	if platform == nil {
-		fmt.Println("Unsupported platform -", setupError)
+		fmt.Println("Platform not supported -", setupError)
 		os.Exit(-1)
 	}
 	rc := m.Run()
@@ -62,6 +62,7 @@ func TestNewChip(t *testing.T) {
 
 func TestChipClose(t *testing.T) {
 	requirePlatform(t)
+
 	// without lines
 	c := getChip(t)
 	err := c.Close()
@@ -271,6 +272,7 @@ func TestLinesClose(t *testing.T) {
 	err = l.Close()
 	assert.Equal(t, gpiod.ErrClosed, err)
 }
+
 func TestLinesValues(t *testing.T) {
 	requirePlatform(t)
 	c := getChip(t)
@@ -405,7 +407,7 @@ type Platform interface {
 func requirePlatform(t *testing.T) {
 	t.Helper()
 	if platform == nil {
-		t.Skip("platform not supported -", setupError)
+		t.Skip("Platform not supported -", setupError)
 	}
 }
 
@@ -415,48 +417,66 @@ type RaspberryPi struct {
 	wline *gpiod.Line
 }
 
-func newPi(path string) (*RaspberryPi, error) {
+func isPi(path string) error {
 	if err := gpiod.IsChip(path); err != nil {
-		return nil, err
+		return err
 	}
 	f, err := os.OpenFile(path, unix.O_CLOEXEC, unix.O_RDONLY)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer f.Close()
 	ci, err := uapi.GetChipInfo(f.Fd())
 	if err != nil {
-		return nil, err
+		return err
 	}
-	label := bytesToString(ci.Label[:])
+	label := uapi.BytesToString(ci.Label[:])
 	if label != "pinctrl-bcm2835" {
-		return nil, fmt.Errorf("unsupported gpiochip - %s", label)
+		return fmt.Errorf("unsupported gpiochip - %s", label)
 	}
+	return nil
+}
+
+func newPi(path string) (*RaspberryPi, error) {
+	// from here on we know we have a Raspberry Pi, so any errors should be
+	// fatal.
 	ch, err := gpiod.NewChip(path)
 	if err != nil {
 		return nil, err
 	}
-	w, err := ch.RequestLine(J8p16, gpiod.AsOutput(0),
+	defer func() {
+		if err != nil {
+			ch.Close()
+		}
+	}()
+	w, err := ch.RequestLine(J8p16, gpiod.AsOutput(1),
 		gpiod.WithConsumer("gpiod-test-w"))
 	pi := RaspberryPi{
 		chip{
 			name:    "gpiochip0",
 			label:   "pinctrl-bcm2835",
 			devpath: path,
-			lines:   int(ci.Lines),
+			lines:   int(ch.Lines()),
 			intr:    J8p15,
 			ff:      []int{J8p11, J8p12},
 		}, ch, w}
-	// !!! check J8p15 and J8p16 are looped
-	return &pi, nil
-}
-
-func bytesToString(a []byte) string {
-	n := bytes.IndexByte(a, 0)
-	if n == -1 {
-		return string(a)
+	// check J8p15 and J8p16 are tied
+	r, err := ch.RequestLine(J8p15,
+		gpiod.WithConsumer("gpiod-test-r"))
+	defer r.Close()
+	if err != nil {
+		return nil, err
 	}
-	return string(a[:n])
+	v, _ := r.Value()
+	if v != 1 {
+		return nil, errors.New("J8p15 and J8p16 must be tied")
+	}
+	w.SetValue(0)
+	v, _ = r.Value()
+	if v != 0 {
+		return nil, errors.New("J8p15 and J8p16 must be tied")
+	}
+	return &pi, nil
 }
 
 func (c *RaspberryPi) TriggerIntr(value int) {
@@ -509,8 +529,13 @@ func (c *Mockup) Close() {
 }
 
 func detectPlatform() {
-	if pi, err := newPi("/dev/gpiochip0"); err == nil {
-		platform = pi
+	path := "/dev/gpiochip0"
+	if isPi(path) == nil {
+		if pi, err := newPi(path); err == nil {
+			platform = pi
+		} else {
+			setupError = err
+		}
 		return
 	}
 	mock, err := newMockup()
@@ -551,5 +576,4 @@ const (
 	J8p22
 	J8p37
 	J8p13
-	MaxGPIOPin
 )
