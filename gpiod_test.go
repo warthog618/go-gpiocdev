@@ -438,35 +438,42 @@ func getChip(t *testing.T) *gpiod.Chip {
 	return c
 }
 
-type chip struct {
+type gpiochip struct {
 	name    string
 	label   string
 	devpath string
 	lines   int
-	intr    int
-	ff      []int
+	// line triggered by TriggerIntr.
+	intro int
+	outo  int
+	// floating lines - can be harmlessly set to outputs.
+	ff []int
 }
 
-func (c *chip) Name() string {
+func (c *gpiochip) Name() string {
 	return c.name
 }
 
-func (c *chip) Label() string {
+func (c *gpiochip) Label() string {
 	return c.label
 }
-func (c *chip) Devpath() string {
+func (c *gpiochip) Devpath() string {
 	return c.devpath
 }
 
-func (c *chip) Lines() int {
+func (c *gpiochip) Lines() int {
 	return c.lines
 }
 
-func (c *chip) IntrLine() int {
-	return c.intr
+func (c *gpiochip) IntrLine() int {
+	return c.intro
 }
 
-func (c *chip) FloatingLines() []int {
+func (c *gpiochip) OutLine() int {
+	return c.outo
+}
+
+func (c *gpiochip) FloatingLines() []int {
 	return c.ff
 }
 
@@ -477,8 +484,10 @@ type Platform interface {
 	Devpath() string
 	Lines() int
 	IntrLine() int
+	OutLine() int
 	FloatingLines() []int
 	TriggerIntr(int)
+	ReadOut() int
 	Close()
 }
 
@@ -490,8 +499,8 @@ func requirePlatform(t *testing.T) {
 }
 
 type RaspberryPi struct {
-	chip
-	c     *gpiod.Chip
+	gpiochip
+	chip  *gpiod.Chip
 	wline *gpiod.Line
 }
 
@@ -527,24 +536,31 @@ func newPi(path string) (*RaspberryPi, error) {
 			ch.Close()
 		}
 	}()
-	w, err := ch.RequestLine(J8p16, gpiod.AsOutput(1),
-		gpiod.WithConsumer("gpiod-test-w"))
 	pi := RaspberryPi{
-		chip{
+		gpiochip: gpiochip{
 			name:    "gpiochip0",
 			label:   "pinctrl-bcm2835",
 			devpath: path,
 			lines:   int(ch.Lines()),
-			intr:    J8p15,
+			intro:   J8p15,
+			outo:    J8p16,
 			ff:      []int{J8p11, J8p12},
-		}, ch, w}
+		},
+		chip: ch,
+	}
 	// check J8p15 and J8p16 are tied
-	r, err := ch.RequestLine(J8p15,
-		gpiod.WithConsumer("gpiod-test-r"))
-	defer r.Close()
+	w, err := ch.RequestLine(pi.outo, gpiod.AsOutput(1),
+		gpiod.WithConsumer("gpiod-test-w"))
 	if err != nil {
 		return nil, err
 	}
+	defer w.Close()
+	r, err := ch.RequestLine(pi.intro,
+		gpiod.WithConsumer("gpiod-test-r"))
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
 	v, _ := r.Value()
 	if v != 1 {
 		return nil, errors.New("J8p15 and J8p16 must be tied")
@@ -557,23 +573,54 @@ func newPi(path string) (*RaspberryPi, error) {
 	return &pi, nil
 }
 
-func (c *RaspberryPi) TriggerIntr(value int) {
-	c.wline.SetValue(value)
-}
-
 func (c *RaspberryPi) Close() {
-	c.wline.Close()
+	if c.wline != nil {
+		c.wline.Close()
+		c.wline = nil
+	}
 	// revert intr trigger line to input
-	l, _ := c.c.RequestLine(J8p16)
+	l, _ := c.chip.RequestLine(c.outo)
 	l.Close()
 	// revert floating lines to inputs
-	ll, _ := c.c.RequestLines(platform.FloatingLines())
+	ll, _ := c.chip.RequestLines(platform.FloatingLines())
 	ll.Close()
-	c.c.Close()
+	c.chip.Close()
+}
+
+func (c *RaspberryPi) OutLine() int {
+	if c.wline != nil {
+		c.wline.Close()
+		c.wline = nil
+	}
+	return c.outo
+}
+
+func (c *RaspberryPi) ReadOut() int {
+	r, err := c.chip.RequestLine(c.intro,
+		gpiod.WithConsumer("gpiod-test-r"))
+	if err != nil {
+		return -1
+	}
+	defer r.Close()
+	v, err := r.Value()
+	if err != nil {
+		return -1
+	}
+	return v
+}
+
+func (c *RaspberryPi) TriggerIntr(value int) {
+	if c.wline != nil {
+		c.wline.SetValue(value)
+		return
+	}
+	w, _ := c.chip.RequestLine(c.outo, gpiod.AsOutput(value),
+		gpiod.WithConsumer("gpiod-test-w"))
+	c.wline = w
 }
 
 type Mockup struct {
-	chip
+	gpiochip
 	m *mockup.Mockup
 	c *mockup.Chip
 }
@@ -588,22 +635,28 @@ func newMockup() (*Mockup, error) {
 		return nil, err
 	}
 	return &Mockup{
-		chip{
+		gpiochip{
 			name:    c.Name,
 			label:   c.Label,
 			devpath: c.DevPath,
 			lines:   20,
-			intr:    10,
+			intro:   10,
+			outo:    9,
 			ff:      []int{11, 12},
 		}, m, c}, nil
 }
 
-func (c *Mockup) TriggerIntr(value int) {
-	c.c.SetValue(c.intr, value)
-}
-
 func (c *Mockup) Close() {
 	c.m.Close()
+}
+
+func (c *Mockup) ReadOut() int {
+	v, _ := c.c.Value(c.outo)
+	return v
+}
+
+func (c *Mockup) TriggerIntr(value int) {
+	c.c.SetValue(c.intro, value)
 }
 
 func detectPlatform() {

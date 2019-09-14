@@ -92,8 +92,8 @@ type OutputOption struct {
 }
 
 // AsOutput indicates that a line or lines be requested as an output.
-// The initial values for the line(s) can be provided.
-// If fewer defaults are provided than lines then the remaining lines default to
+// The initial active state for the line(s) can optionally be provided.
+// If fewer values are provided than lines then the remaining lines default to
 // inactive.
 //
 // This option overrides and clears any previous Input, RisingEdge, FallingEdge,

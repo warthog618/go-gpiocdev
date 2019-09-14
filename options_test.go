@@ -190,7 +190,25 @@ func TestAsActiveLow(t *testing.T) {
 	assert.Nil(t, err)
 
 	// output - Value and SetValue are reverse polarity
-	// need platform to have a loopback or raw read of floating line??
+	l, err = c.RequestLine(platform.OutLine(),
+		gpiod.AsActiveLow(),
+		gpiod.AsOutput(1))
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	inf, err = c.LineInfo(platform.OutLine())
+	assert.Nil(t, err)
+	assert.True(t, inf.ActiveLow)
+	v = platform.ReadOut()
+	assert.Equal(t, 0, v)
+	err = l.SetValue(0)
+	assert.Nil(t, err)
+	v = platform.ReadOut()
+	assert.Equal(t, 1, v)
+	err = l.SetValue(1)
+	assert.Nil(t, err)
+	v = platform.ReadOut()
+	assert.Equal(t, 0, v)
 }
 
 func TestAsOpenDrain(t *testing.T) {
