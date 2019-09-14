@@ -198,7 +198,7 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 			}
 			err = c.addRequest(request{o, fd, lo.eh})
 			if err != nil {
-				// this should never happen, but just in case...
+				// in case of a race with Chip.Close
 				unix.Close(int(fd))
 				c.removeRequests(offsets[:i]...)
 				return nil, err
@@ -225,13 +225,14 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 		ll.vfd = uintptr(hr.Fd)
 		err = c.addRequest(request{offsets[0], ll.vfd, lo.eh})
 		if err != nil {
-			// this should never happen, but just in case...
+			// in case of a race with Chip.Close
 			return nil, err
 		}
 	}
 	for i, o := range offsets {
 		inf, err := c.LineInfo(o)
 		if err != nil {
+			// in case of a race with Chip.Close
 			ll.Close()
 			return nil, err
 		}
@@ -249,7 +250,7 @@ type request struct {
 func (c *Chip) addRequest(r request) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	// just in case of a race on Chip.Close and Chip.GetLine(s)
+	// in case of a race between Chip.Close and Chip.RequestLines
 	if c.closed {
 		return ErrClosed
 	}

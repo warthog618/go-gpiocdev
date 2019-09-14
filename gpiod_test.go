@@ -100,7 +100,6 @@ func TestChipClose(t *testing.T) {
 func TestChipLineInfo(t *testing.T) {
 	requirePlatform(t)
 	c := getChip(t)
-	defer c.Close()
 	xli := gpiod.LineInfo{}
 
 	// out of range
@@ -112,6 +111,13 @@ func TestChipLineInfo(t *testing.T) {
 	li, err = c.LineInfo(1)
 	assert.Nil(t, err)
 	xli.Offset = 1
+	assert.Equal(t, xli, li)
+
+	// closed
+	c.Close()
+	li, err = c.LineInfo(1)
+	assert.NotNil(t, err)
+	xli = gpiod.LineInfo{}
 	assert.Equal(t, xli, li)
 }
 
@@ -373,6 +379,11 @@ func TestLinesValues(t *testing.T) {
 	assert.Equal(t, 1, vv[0])
 
 	l.Close()
+
+	// after close
+	vv, err = l.Values()
+	assert.NotNil(t, err)
+	assert.Nil(t, vv)
 
 	// output
 	lines = platform.FloatingLines()
@@ -651,7 +662,10 @@ func (c *Mockup) Close() {
 }
 
 func (c *Mockup) ReadOut() int {
-	v, _ := c.c.Value(c.outo)
+	v, err := c.c.Value(c.outo)
+	if err != nil {
+		return -1
+	}
 	return v
 }
 

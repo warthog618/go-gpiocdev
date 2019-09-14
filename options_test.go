@@ -189,7 +189,7 @@ func TestAsActiveLow(t *testing.T) {
 	err = l.Close()
 	assert.Nil(t, err)
 
-	// output - Value and SetValue are reverse polarity
+	// output - initial value and SetValue are reverse polarity
 	l, err = c.RequestLine(platform.OutLine(),
 		gpiod.AsActiveLow(),
 		gpiod.AsOutput(1))
