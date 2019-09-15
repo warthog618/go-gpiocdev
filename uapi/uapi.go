@@ -16,6 +16,8 @@ import (
 )
 
 // GetChipInfo returns the ChipInfo for the GPIO character device.
+//
+// The fd is an open GPIO character device.
 func GetChipInfo(fd uintptr) (ChipInfo, error) {
 	var ci ChipInfo
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
@@ -29,7 +31,9 @@ func GetChipInfo(fd uintptr) (ChipInfo, error) {
 }
 
 // GetLineInfo returns the LineInfo for one line from the GPIO character device.
-// Offsets are zero based.
+//
+// The fd is an open GPIO character device.
+// The offset is zero based.
 func GetLineInfo(fd uintptr, offset int) (LineInfo, error) {
 	var li LineInfo
 	li.Offset = uint32(offset)
@@ -45,6 +49,10 @@ func GetLineInfo(fd uintptr, offset int) (LineInfo, error) {
 
 // GetLineEvent requests a line from the GPIO character device with event
 // reporting enabled.
+//
+// The fd is an open GPIO character device.
+// The line must be an input and must not already be requested.
+// If successful, the fd for the line is returned in the request.fd.
 func GetLineEvent(fd uintptr, request *EventRequest) error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		fd,
@@ -57,7 +65,12 @@ func GetLineEvent(fd uintptr, request *EventRequest) error {
 }
 
 // GetLineHandle requests a line from the GPIO character device.
+//
 // This request is without event reporting.
+// The fd is an open GPIO character device.
+// The lines must not already be requested.
+// The flags in the request will be applied to all lines in the request.
+// If successful, the fd for the line is returned in the request.fd.
 func GetLineHandle(fd uintptr, request *HandleRequest) error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		fd,
@@ -70,6 +83,8 @@ func GetLineHandle(fd uintptr, request *HandleRequest) error {
 }
 
 // GetLineValues returns the values of a set of requested lines.
+//
+// The fd is a requested line, as returned by GetLineHandle or GetLineEvent.
 func GetLineValues(fd uintptr, values *HandleData) error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		fd,
@@ -82,6 +97,8 @@ func GetLineValues(fd uintptr, values *HandleData) error {
 }
 
 // SetLineValues sets the values of a set of requested lines.
+//
+// The fd is a requested line, as returned by GetLineHandle or GetLineEvent.
 func SetLineValues(fd uintptr, values HandleData) error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		fd,
@@ -110,6 +127,9 @@ func (fd eventReader) Read(b []byte) (int, error) {
 }
 
 // ReadEvent reads a single event from a requested line.
+//
+// The fd is a requested line, as returned by GetLineEvent.
+//
 // This function is blocking and should only be called when the fd is known to
 // be ready to read.
 func ReadEvent(fd uintptr) (EventData, error) {
@@ -155,16 +175,29 @@ func init() {
 
 // ChipInfo contains the details of a GPIO chip.
 type ChipInfo struct {
-	Name  [nameSize]byte
+	// The system name of the device.
+	Name [nameSize]byte
+
+	// An identifying label added by the device driver.
 	Label [nameSize]byte
+
+	// The number of lines supported by this chip.
 	Lines uint32
 }
 
 // LineInfo contains the details of a single line of a GPIO chip.
 type LineInfo struct {
-	Offset   uint32
-	Flags    LineFlag
-	Name     [nameSize]byte
+	// The offset of the line within the chip.
+	Offset uint32
+
+	// The line flags applied to this line.
+	Flags LineFlag
+
+	// The system name for this line.
+	Name [nameSize]byte
+
+	// If requested, a string added by the requester to identify the
+	// owner of the request.
 	Consumer [nameSize]byte
 }
 
@@ -222,12 +255,24 @@ func (f LineFlag) IsOpenSource() bool {
 // HandleRequest is a request for control of a set of lines.
 // The lines must all be on the same GPIO chip.
 type HandleRequest struct {
-	Offsets       [HandlesMax]uint32
-	Flags         HandleFlag
+	// The lines to be requested.
+	Offsets [HandlesMax]uint32
+
+	// The flags to be applied to the lines.
+	Flags HandleFlag
+
+	// The default values to be applied to output lines.
 	DefaultValues [HandlesMax]uint8
-	Consumer      [nameSize]byte
-	Lines         uint32
-	Fd            int32
+
+	// The string identifying the requester to be applied to the lines.
+	Consumer [nameSize]byte
+
+	// The number of lines being requested.
+	Lines uint32
+
+	// The file handle for the requested lines.
+	// Set if the request is successful.
+	Fd int32
 }
 
 // HandleFlag contains the
@@ -291,11 +336,21 @@ type HandleData [HandlesMax]uint8
 
 // EventRequest is a request for control of a line with event reporting enabled.
 type EventRequest struct {
-	Offset      uint32
+	// The line to be requested.
+	Offset uint32
+
+	// The line flags applied to this line.
 	HandleFlags HandleFlag
-	EventFlags  EventFlag
-	Consumer    [nameSize]byte
-	Fd          int32
+
+	// The type of events to report.
+	EventFlags EventFlag
+
+	// The string identifying the requester to be applied to the line.
+	Consumer [nameSize]byte
+
+	// The file handle for the requested line.
+	// Set if the request is successful.
+	Fd int32
 }
 
 // EventFlag indicates the types of events that will be reported.
@@ -344,8 +399,10 @@ func (f EventFlag) IsBothEdges() bool {
 type EventData struct {
 	// The time the event was detected.
 	Timestamp uint64
+
 	// The type of event detected.
 	ID uint32
+	
 	// pad
 	_ uint32
 }
