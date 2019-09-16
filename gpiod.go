@@ -12,7 +12,9 @@ import (
 	"errors"
 	"fmt"
 	"gpiod/uapi"
+	"io/ioutil"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -50,14 +52,53 @@ type Chip struct {
 // LineInfo contains a summary of publicly available information about the
 // line.
 type LineInfo struct {
-	Offset     int
-	Name       string
-	Consumer   string
-	Requested  bool
-	IsOut      bool
-	ActiveLow  bool
-	OpenDrain  bool
+	// The line offset within the chip.
+	Offset int
+
+	// The system name for the line.
+	Name string
+
+	// A string identifying the requester of the line, if requested.
+	Consumer string
+
+	// True if the line is requested.
+	Requested bool
+
+	// True if the line was requested as an output.
+	IsOut bool
+
+	// True if the line was requested as active low.
+	ActiveLow bool
+
+	// True if the line was requested as open drain.
+	//
+	// Only valid for outputs.
+	OpenDrain bool
+
+	// True if the line was requested as open source.
+	//
+	// Only valid for outputs.
 	OpenSource bool
+}
+
+// Chips returns the paths of the available GPIO devices.
+func Chips() []string {
+	ee, err := ioutil.ReadDir("/dev")
+	if err != nil {
+		return nil
+	}
+	cc := []string(nil)
+	for _, e := range ee {
+		name := e.Name()
+		if !strings.HasPrefix(name, "gpiochip") {
+			continue
+		}
+		name = "/dev/" + name
+		if IsChip(name) == nil {
+			cc = append(cc, name)
+		}
+	}
+	return cc
 }
 
 // NewChip opens a GPIO character device.
@@ -117,6 +158,7 @@ func (c *Chip) Close() error {
 }
 
 // LineInfo returns the publicly available information on the line.
+//
 // This is always available and does not require requesting the line.
 func (c *Chip) LineInfo(offset int) (LineInfo, error) {
 	if offset < 0 || offset >= c.lines {
@@ -144,6 +186,7 @@ func (c *Chip) Lines() int {
 }
 
 // RequestLine requests control of a single line on the chip.
+//
 // If granted, control is maintained until either the Line or Chip are closed.
 func (c *Chip) RequestLine(offset int, options ...LineOption) (*Line, error) {
 	ll, err := c.RequestLines([]int{offset}, options...)
@@ -308,9 +351,11 @@ func (l *Line) Offset() int {
 }
 
 // Info returns the information about the line.
-// The line info is immuatble for the lifetime of the line request.
-// This is a snapshot of the info taken when the line was requested and provides a
-// convenient method to check the options requested on the line.
+//
+// The line info is immutable for the lifetime of the line request.
+//
+// This is a snapshot of the info taken when the line was requested and provides
+// a convenient method to check the options requested on the line.
 func (l *Line) Info() LineInfo {
 	return l.info
 }
@@ -323,6 +368,7 @@ func (l *Line) Value() (int, error) {
 }
 
 // SetValue sets the current active state of the line.
+//
 // Only valid for output lines.
 func (l *Line) SetValue(value int) error {
 	if l.canset == false {
@@ -381,7 +427,9 @@ func (l *Lines) Offsets() []int {
 }
 
 // Info returns the information about the lines.
+//
 // The line info is immuatble for the lifetime of the lines request.
+//
 // This is a snapshot of the info taken when the lines were requested and provides a
 // convenient method to check the options requested on the lines.
 func (l *Lines) Info() []LineInfo {
@@ -404,7 +452,9 @@ func (l *Lines) Values() ([]int, error) {
 }
 
 // SetValues sets the current active state of the collection of lines.
+//
 // Only valid for output lines.
+//
 // All lines in the set are set at once.  If insufficient values are provided
 // then the remaining lines are set to inactive.
 func (l *Lines) SetValues(values ...int) error {
@@ -422,6 +472,7 @@ func (l *Lines) SetValues(values ...int) error {
 }
 
 // LineEventType indicates the type of change to the line active state.
+//
 // Note that for active low lines a low line level results in a high active
 // state.
 type LineEventType int
@@ -449,6 +500,7 @@ type LineEvent struct {
 }
 
 // IsChip checks if the device at path is an accessible GPIO character device.
+//
 // Returns an error if not.
 func IsChip(path string) error {
 	fi, err := os.Lstat(path)
@@ -487,10 +539,13 @@ func IsChip(path string) error {
 var (
 	// ErrClosed indicates the chip or line has already been closed.
 	ErrClosed = errors.New("already closed")
+
 	// ErrInvalidOffset indicates a line offset is invalid.
 	ErrInvalidOffset = errors.New("invalid offset")
+
 	// ErrNotCharacterDevice indicates the device is not a character device.
 	ErrNotCharacterDevice = errors.New("not a character device")
+
 	// ErrPermissionDenied indicates caller does not have required permissions
 	// for the operation.
 	ErrPermissionDenied = errors.New("permission denied")
