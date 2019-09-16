@@ -55,7 +55,7 @@ The following is a brief example of the usage of each of the major functions:
         // wait on er.fd for events...
 
         // read event
-        evt := uapi.ReadEvent(er.fd)
+        evt, _ := uapi.ReadEvent(er.fd)
     }
 
     // get values
