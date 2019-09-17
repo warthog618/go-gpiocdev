@@ -33,8 +33,11 @@ func main() {
 			"active-low": false,
 			"as-is":      false,
 		}))
+	boolFlags := []string{"active-low", "as-is"}
 	flags := pflag.New(pflag.WithShortFlags(shortFlags),
-		pflag.WithKeyReplacer(keys.NullReplacer()))
+		pflag.WithKeyReplacer(keys.NullReplacer()),
+		pflag.WithBooleanFlags(boolFlags),
+	)
 	cfg := config.New(flags, config.WithDefault(defaults))
 	if v, err := cfg.Get("help"); err == nil && v.Bool() {
 		printHelp()

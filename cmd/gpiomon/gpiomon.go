@@ -41,8 +41,12 @@ func main() {
 			"falling-edge": false,
 			"rising-edge":  false,
 		}))
+	boolFlags := []string{
+		"active-low", "silent", "falling-edge", "rising-edge"}
 	flags := pflag.New(pflag.WithShortFlags(shortFlags),
-		pflag.WithKeyReplacer(keys.NullReplacer()))
+		pflag.WithKeyReplacer(keys.NullReplacer()),
+		pflag.WithBooleanFlags(boolFlags),
+	)
 	cfg := config.New(flags, config.WithDefault(defaults))
 	if v, err := cfg.Get("help"); err == nil && v.Bool() {
 		printHelp()
