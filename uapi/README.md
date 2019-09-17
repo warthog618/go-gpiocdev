@@ -7,7 +7,9 @@ GPIOD UAPI is a thin layer over the system ioctl calls that comprise the Linux G
 
 This library is used by **[gpiod](https://github.com/warthog618/gpiod)** to interact with the Linux kernel.
 
-**gpiod** provides a higher level of abstraction, so you probably want to be using that.
+The library is exposed to allow for testing of the UAPI with the minimal amount of Go in the way.
+
+**gpiod** provides a higher level of abstraction, so for general use you probably want to be using that.
 
 ## API
 
@@ -18,7 +20,7 @@ IOCTL | Scope | Description
 [GetChipInfo](https://godoc.org/github.com/warthog618/gpiod/uapi#GetChipInfo) | chip | Returns information about the chip itself.
 [GetLineInfo](https://godoc.org/github.com/warthog618/gpiod/uapi#GetLineInfo) | chip | Returns information about a particular line on the chip.
 [GetLineHandle](https://godoc.org/github.com/warthog618/gpiod/uapi#GetLineHandle) | chip | Requests a set of lines, and returns a file handle for ioctl commands.  The set may be any subset of the lines supported by the chip, including a single line.  This may be used for both input and output lines.  The lines remain reserved by the caller until the returned fd is closed.
-[GetLineEvent](https://godoc.org/github.com/warthog618/gpiod/uapi#GetLineEvent) | chip | Requests an individual input line with edge detection enabled, and returns a file handle for ioctl commands and to return edge events.  The line remains reserved by the caller until the returned fd is closed.
+[GetLineEvent](https://godoc.org/github.com/warthog618/gpiod/uapi#GetLineEvent) | chip | Requests an individual input line with edge detection enabled, and returns a file handle for ioctl commands and to return edge events.  Events can only be requested on input lines.  The line remains reserved by the caller until the returned fd is closed.
 [GetLineValues](https://godoc.org/github.com/warthog618/gpiod/uapi#GetLineValues) | line | Returns the current value of a set of lines.
 [SetLineValues](https://godoc.org/github.com/warthog618/gpiod/uapi#SetLineValues) | line | Sets the current value of a set of lines.
 
@@ -68,6 +70,6 @@ The following is a brief example of the usage of each of the major functions:
 
 ```
 
-Error handling and other tedious bits omitted for brevity.
+Error handling and other tedious bits, such as initialising the arrays in the requests, omitted for brevity.
 
 Refer to **[gpiod](https://github.com/warthog618/gpiod)** for a concrete example of uapi usage.
