@@ -457,7 +457,7 @@ func (l *Lines) Values() ([]int, error) {
 //
 // All lines in the set are set at once.  If insufficient values are provided
 // then the remaining lines are set to inactive.
-func (l *Lines) SetValues(values ...int) error {
+func (l *Lines) SetValues(values []int) error {
 	if l.canset == false {
 		return ErrPermissionDenied
 	}

@@ -117,7 +117,7 @@ func main() {
 		die("error requesting GPIO lines:" + err.Error())
 	}
 	defer l.Close()
-	err = l.SetValues(vv...)
+	err = l.SetValues(vv)
 	if err != nil {
 		die("error setting GPIO values:" + err.Error())
 	}

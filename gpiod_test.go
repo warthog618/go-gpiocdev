@@ -407,7 +407,7 @@ func TestLinesSetValues(t *testing.T) {
 	l, err := c.RequestLines(platform.FloatingLines())
 	assert.Nil(t, err)
 	require.NotNil(t, l)
-	err = l.SetValues(0, 1)
+	err = l.SetValues([]int{0, 1})
 	assert.Equal(t, gpiod.ErrPermissionDenied, err)
 	l.Close()
 
@@ -416,11 +416,11 @@ func TestLinesSetValues(t *testing.T) {
 		gpiod.AsOutput(0))
 	assert.Nil(t, err)
 	require.NotNil(t, l)
-	err = l.SetValues(1, 0)
+	err = l.SetValues([]int{1, 0})
 	assert.Nil(t, err)
 
 	// too many values
-	err = l.SetValues(1, 1, 1)
+	err = l.SetValues([]int{1, 1, 1})
 	assert.Equal(t, gpiod.ErrInvalidOffset, err)
 
 	l.Close()

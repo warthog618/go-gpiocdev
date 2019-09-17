@@ -90,7 +90,7 @@ Request a bunch of lines as output and set initial values, then change later:
 ```go
     ll, _ := c.RequestLines([]int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1))
     // ...
-    ll.SetValues(0, 1, 1, 0)
+    ll.SetValues([]int{0, 1, 1, 0})
 ```
 
 Get the values of a set of lines (which must be requested first):

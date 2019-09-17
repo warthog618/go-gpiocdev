@@ -63,8 +63,10 @@ func BenchmarkLinesSetValues(b *testing.B) {
 	require.Nil(b, err)
 	require.NotNil(b, ll)
 	defer ll.Close()
+	vv := []int{0, 0}
 	for i := 0; i < b.N; i++ {
-		ll.SetValues(i, 0)
+		vv[0] = i
+		ll.SetValues(vv)
 	}
 }
 
