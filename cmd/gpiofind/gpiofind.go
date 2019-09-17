@@ -44,16 +44,13 @@ func main() {
 			logErr(err)
 			continue
 		}
-		for o := 0; o < c.Lines(); o++ {
-			li, err := c.LineInfo(o)
-			if err != nil {
-				logErr(err)
-				continue
-			}
-			if li.Name == linename {
-				fmt.Printf("%s %d\n", c.Name, o)
-				os.Exit(0)
-			}
+		o, err := c.FindLine(linename)
+		if err == nil {
+			fmt.Printf("%s %d\n", c.Name, o)
+			os.Exit(0)
+		}
+		if err != gpiod.ErrLineNotFound {
+			logErr(err)
 		}
 		c.Close()
 	}

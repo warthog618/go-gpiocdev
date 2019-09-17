@@ -49,7 +49,7 @@ type Chip struct {
 	w *watcher
 }
 
-// LineInfo contains a summary of publicly available information about the
+// LineInfo contains a summary of publically available information about the
 // line.
 type LineInfo struct {
 	// The line offset within the chip.
@@ -161,7 +161,35 @@ func (c *Chip) Close() error {
 	return c.f.Close()
 }
 
-// LineInfo returns the publicly available information on the line.
+// FindLine returns the offset of the named line, or an error if not found.
+func (c *Chip) FindLine(name string) (int, error) {
+	for o := 0; o < c.lines; o++ {
+		inf, err := c.LineInfo(o)
+		if err != nil {
+			return 0, err
+		}
+		if inf.Name == name {
+			return o, nil
+		}
+	}
+	return 0, ErrLineNotFound
+}
+
+// FindLines returns the offsets of the named lines, or an error unless all are
+// found.
+func (c *Chip) FindLines(names ...string) ([]int, error) {
+	ll := make([]int, len(names))
+	for i, name := range names {
+		o, err := c.FindLine(name)
+		if err != nil {
+			return nil, err
+		}
+		ll[i] = o
+	}
+	return ll, nil
+}
+
+// LineInfo returns the publically available information on the line.
 //
 // This is always available and does not require requesting the line.
 func (c *Chip) LineInfo(offset int) (LineInfo, error) {
@@ -549,6 +577,9 @@ var (
 
 	// ErrNotCharacterDevice indicates the device is not a character device.
 	ErrNotCharacterDevice = errors.New("not a character device")
+
+	// ErrLineNotFound indicates the line was not found.
+	ErrLineNotFound = errors.New("line not found")
 
 	// ErrPermissionDenied indicates caller does not have required permissions
 	// for the operation.

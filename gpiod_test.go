@@ -111,6 +111,31 @@ func TestChipClose(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestChipFindLine(t *testing.T) {
+	requirePlatform(t)
+	c := getChip(t)
+	n, err := c.FindLine(platform.IntrName())
+	assert.Nil(t, err)
+	assert.Equal(t, platform.IntrLine(), n)
+
+	n, err = c.FindLine("nonexistent")
+	assert.Equal(t, gpiod.ErrLineNotFound, err)
+	assert.Equal(t, 0, n)
+}
+
+func TestChipFindLines(t *testing.T) {
+	requirePlatform(t)
+	c := getChip(t)
+	nn, err := c.FindLines(platform.IntrName(), platform.IntrName())
+	assert.Nil(t, err)
+	intr := platform.IntrLine()
+	assert.Equal(t, []int{intr, intr}, nn)
+
+	nn, err = c.FindLines(platform.IntrName(), "nonexistent")
+	assert.Equal(t, gpiod.ErrLineNotFound, err)
+	assert.Equal(t, []int(nil), nn)
+}
+
 func TestChipLineInfo(t *testing.T) {
 	requirePlatform(t)
 	c := getChip(t)
@@ -122,9 +147,10 @@ func TestChipLineInfo(t *testing.T) {
 	assert.Equal(t, xli, li)
 
 	// valid
-	li, err = c.LineInfo(1)
+	li, err = c.LineInfo(platform.IntrLine())
 	assert.Nil(t, err)
-	xli.Offset = 1
+	xli.Offset = platform.IntrLine()
+	xli.Name = platform.IntrName()
 	assert.Equal(t, xli, li)
 
 	// closed
@@ -442,7 +468,7 @@ func TestLinesSetValues(t *testing.T) {
 
 func TestIsChip(t *testing.T) {
 	// nonexistent
-	err := gpiod.IsChip("/dev/nosuch")
+	err := gpiod.IsChip("/dev/nonexistent")
 	assert.NotNil(t, err)
 
 	// wrong mode
@@ -469,8 +495,9 @@ type gpiochip struct {
 	devpath string
 	lines   int
 	// line triggered by TriggerIntr.
-	intro int
-	outo  int
+	intro     int
+	introName string
+	outo      int
 	// floating lines - can be harmlessly set to outputs.
 	ff []int
 }
@@ -494,6 +521,10 @@ func (c *gpiochip) IntrLine() int {
 	return c.intro
 }
 
+func (c *gpiochip) IntrName() string {
+	return c.introName
+}
+
 func (c *gpiochip) OutLine() int {
 	return c.outo
 }
@@ -509,6 +540,7 @@ type Platform interface {
 	Devpath() string
 	Lines() int
 	IntrLine() int
+	IntrName() string
 	OutLine() int
 	FloatingLines() []int
 	TriggerIntr(int)
@@ -563,13 +595,14 @@ func newPi(path string) (*RaspberryPi, error) {
 	}()
 	pi := RaspberryPi{
 		gpiochip: gpiochip{
-			name:    "gpiochip0",
-			label:   "pinctrl-bcm2835",
-			devpath: path,
-			lines:   int(ch.Lines()),
-			intro:   J8p15,
-			outo:    J8p16,
-			ff:      []int{J8p11, J8p12},
+			name:      "gpiochip0",
+			label:     "pinctrl-bcm2835",
+			devpath:   path,
+			lines:     int(ch.Lines()),
+			intro:     J8p15,
+			introName: "unnamed",
+			outo:      J8p16,
+			ff:        []int{J8p11, J8p12},
 		},
 		chip: ch,
 	}
@@ -651,7 +684,7 @@ type Mockup struct {
 }
 
 func newMockup() (*Mockup, error) {
-	m, err := mockup.New([]int{20}, false)
+	m, err := mockup.New([]int{20}, true)
 	if err != nil {
 		return nil, err
 	}
@@ -661,13 +694,14 @@ func newMockup() (*Mockup, error) {
 	}
 	return &Mockup{
 		gpiochip{
-			name:    c.Name,
-			label:   c.Label,
-			devpath: c.DevPath,
-			lines:   20,
-			intro:   10,
-			outo:    9,
-			ff:      []int{11, 12},
+			name:      c.Name,
+			label:     c.Label,
+			devpath:   c.DevPath,
+			lines:     20,
+			intro:     10,
+			introName: "gpio-mockup-A-10",
+			outo:      9,
+			ff:        []int{11, 12},
 		}, m, c}, nil
 }
 

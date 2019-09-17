@@ -35,7 +35,7 @@ The following provides a quick overview of common use cases using **gpiod**:
 Get a chip and set the default label to apply to requested lines:
 
 ```go
-    c, _ := gpiod.NewChip("/dev/gpiochip0", gpiod.WithConsumer("gpiodetect"))
+    c, _ := gpiod.NewChip("gpiochip0", gpiod.WithConsumer("gpiodetect"))
 ```
 
 Get info about a line:
