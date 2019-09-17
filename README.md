@@ -107,7 +107,7 @@ The API consists of three major objects - the Chip and the Line/Lines.
 
 The [Chip](https://godoc.org/github.com/warthog618/gpiod#Chip) represents the GPIO chip itself.  The Chip is the source of chip and line info and the constructor of Line/Lines.
 
-Lines must be requested from the Chip before you can do anything useful with them, such as setting or getting values, or detecting edges.
+Lines must be requested from the Chip before you can do anything useful with them, such as setting or getting values, or detecting edges.  Also note that, as per the underlying UAPI, the majority of line attributes, including input/output, active low, and open drain/source, can only be set at request time, and are immutable while the request is held.
 
 The [Line](https://godoc.org/github.com/warthog618/gpiod#Line) and [Lines](https://godoc.org/github.com/warthog618/gpiod#Lines) are essentially the same.  They both represent a requested set of lines, but in the case of the Line that set is one.  The Line API is slightly simplified as it only has to deal with the one line, not a larger set.
 
