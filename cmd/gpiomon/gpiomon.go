@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/warthog618/config"
@@ -61,9 +60,6 @@ func main() {
 	}
 
 	path := flags.Args()[0]
-	if !strings.HasPrefix(path, "/dev/") {
-		path = "/dev/" + path
-	}
 	c, err := gpiod.NewChip(path, gpiod.WithConsumer("gpiomon"))
 	if err != nil {
 		die(err.Error())

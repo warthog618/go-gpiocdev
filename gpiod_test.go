@@ -49,6 +49,13 @@ func TestNewChip(t *testing.T) {
 	err = c.Close()
 	assert.Nil(t, err)
 
+	// name
+	c, err = gpiod.NewChip(platform.Name())
+	assert.Nil(t, err)
+	require.NotNil(t, c)
+	err = c.Close()
+	assert.Nil(t, err)
+
 	// option
 	c, err = gpiod.NewChip(platform.Devpath(),
 		gpiod.WithConsumer("gpiod_test"))
@@ -65,7 +72,7 @@ func TestChips(t *testing.T) {
 
 	cc := gpiod.Chips()
 	require.Equal(t, 1, len(cc))
-	assert.Equal(t, platform.Devpath(), cc[0])
+	assert.Equal(t, platform.Name(), cc[0])
 }
 func TestChipClose(t *testing.T) {
 	requirePlatform(t)

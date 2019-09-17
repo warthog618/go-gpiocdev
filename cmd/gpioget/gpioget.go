@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/warthog618/config"
 	"github.com/warthog618/config/dict"
@@ -53,9 +52,6 @@ func main() {
 	}
 
 	path := flags.Args()[0]
-	if !strings.HasPrefix(path, "/dev/") {
-		path = "/dev/" + path
-	}
 	c, err := gpiod.NewChip(path, gpiod.WithConsumer("gpioget"))
 	if err != nil {
 		die(err.Error())

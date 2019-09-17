@@ -81,7 +81,7 @@ type LineInfo struct {
 	OpenSource bool
 }
 
-// Chips returns the paths of the available GPIO devices.
+// Chips returns the names of the available GPIO devices.
 func Chips() []string {
 	ee, err := ioutil.ReadDir("/dev")
 	if err != nil {
@@ -93,8 +93,8 @@ func Chips() []string {
 		if !strings.HasPrefix(name, "gpiochip") {
 			continue
 		}
-		name = "/dev/" + name
-		if IsChip(name) == nil {
+		path := "/dev/" + name
+		if IsChip(path) == nil {
 			cc = append(cc, name)
 		}
 	}
@@ -102,7 +102,11 @@ func Chips() []string {
 }
 
 // NewChip opens a GPIO character device.
-func NewChip(path string, options ...ChipOption) (*Chip, error) {
+func NewChip(name string, options ...ChipOption) (*Chip, error) {
+	path := name
+	if !strings.HasPrefix(path, "/dev/") {
+		path = "/dev/" + path
+	}
 	err := IsChip(path)
 	if err != nil {
 		return nil, err

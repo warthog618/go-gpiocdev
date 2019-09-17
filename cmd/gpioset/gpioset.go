@@ -76,9 +76,6 @@ func main() {
 	}
 
 	path := flags.Args()[0]
-	if !strings.HasPrefix(path, "/dev/") {
-		path = "/dev/" + path
-	}
 	c, err := gpiod.NewChip(path, gpiod.WithConsumer("gpioset"))
 	if err != nil {
 		die(err.Error())

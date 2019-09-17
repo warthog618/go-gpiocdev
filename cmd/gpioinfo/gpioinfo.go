@@ -37,9 +37,6 @@ func main() {
 	rc := 0
 	cc := []string(nil)
 	for _, d := range flags.Args() {
-		if !strings.HasPrefix(d, "/dev/") {
-			d = "/dev/" + d
-		}
 		cc = append(cc, d)
 	}
 	if len(cc) == 0 {
