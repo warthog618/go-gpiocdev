@@ -65,7 +65,7 @@ func BenchmarkLinesSetValues(b *testing.B) {
 	defer ll.Close()
 	vv := []int{0, 0}
 	for i := 0; i < b.N; i++ {
-		vv[0] = i
+		vv[0] = i & 1
 		ll.SetValues(vv)
 	}
 }
