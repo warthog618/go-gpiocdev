@@ -60,6 +60,13 @@ func TestNewChip(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestChips(t *testing.T) {
+	requirePlatform(t)
+
+	cc := gpiod.Chips()
+	require.Equal(t, 1, len(cc))
+	assert.Equal(t, platform.Devpath(), cc[0])
+}
 func TestChipClose(t *testing.T) {
 	requirePlatform(t)
 
