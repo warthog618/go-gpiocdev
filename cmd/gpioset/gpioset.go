@@ -10,7 +10,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"gpiod"
 	"os"
 	"os/signal"
 	"strconv"
@@ -21,6 +20,7 @@ import (
 	"github.com/warthog618/config/dict"
 	"github.com/warthog618/config/keys"
 	"github.com/warthog618/config/pflag"
+	"github.com/warthog618/gpiod"
 )
 
 var version = "undefined"

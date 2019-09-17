@@ -7,7 +7,7 @@
 // Package mockup provides GPIO mockups using the Linux gpio-mockup kernel
 // module.
 // This is intended for GPIO testing of gpiod, but could also be used for
-// testing by users of gpiod.
+// testing by users of their own code that uses gpiod.
 package mockup
 
 import (

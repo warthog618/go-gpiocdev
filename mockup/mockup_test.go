@@ -7,12 +7,12 @@
 package mockup_test
 
 import (
-	"gpiod/mockup"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/warthog618/gpiod/mockup"
 	"golang.org/x/sys/unix"
 )
 

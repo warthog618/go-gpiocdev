@@ -9,10 +9,10 @@ package gpiod
 
 import (
 	"fmt"
-	"gpiod/uapi"
 	"sync"
 	"time"
 
+	"github.com/warthog618/gpiod/uapi"
 	"golang.org/x/sys/unix"
 )
 

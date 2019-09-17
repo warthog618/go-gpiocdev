@@ -11,13 +11,13 @@ package gpiod
 import (
 	"errors"
 	"fmt"
-	"gpiod/uapi"
 	"io/ioutil"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/warthog618/gpiod/uapi"
 	"golang.org/x/sys/unix"
 )
 

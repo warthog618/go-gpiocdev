@@ -9,14 +9,14 @@ package gpiod_test
 import (
 	"errors"
 	"fmt"
-	"gpiod"
-	"gpiod/mockup"
-	"gpiod/uapi"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/warthog618/gpiod"
+	"github.com/warthog618/gpiod/mockup"
+	"github.com/warthog618/gpiod/uapi"
 	"golang.org/x/sys/unix"
 )
 

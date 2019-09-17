@@ -7,12 +7,12 @@
 package gpiod_test
 
 import (
-	"gpiod"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/warthog618/gpiod"
 )
 
 func TestWithConsumer(t *testing.T) {

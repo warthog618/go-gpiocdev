@@ -9,11 +9,11 @@ package main
 
 import (
 	"fmt"
-	"gpiod"
 	"os"
 
 	"github.com/warthog618/config"
 	"github.com/warthog618/config/pflag"
+	"github.com/warthog618/gpiod"
 )
 
 var version = "undefined"

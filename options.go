@@ -6,7 +6,7 @@
 
 package gpiod
 
-import "gpiod/uapi"
+import "github.com/warthog618/gpiod/uapi"
 
 // ChipOption defines the interface required to provide a Chip option.
 type ChipOption interface {

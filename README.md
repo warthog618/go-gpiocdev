@@ -26,6 +26,10 @@ Note that setting pull up/down is not supported.  This a limitation of the curre
 
 ## Usage
 
+```go
+import "github.com/warthog618/gpiod"
+```
+
 The following provides a quick overview of common use cases using **gpiod**:
 
 Get a chip and set the default label to apply to requested lines:

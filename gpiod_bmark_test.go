@@ -7,10 +7,10 @@
 package gpiod_test
 
 import (
-	"gpiod"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/warthog618/gpiod"
 )
 
 func BenchmarkLineValue(b *testing.B) {
