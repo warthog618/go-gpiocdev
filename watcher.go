@@ -9,7 +9,6 @@ package gpiod
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/warthog618/gpiod/uapi"
@@ -19,11 +18,12 @@ import (
 type watcher struct {
 	epfd    int
 	donefds []int
-	mu      sync.Mutex
-	hh      map[int32]*request
+	evtfds  map[int]int // fd to offset mapping
+	eh      eventHandler
+	donech  chan struct{}
 }
 
-func newWatcher() (*watcher, error) {
+func newWatcher(fds map[int]int, eh eventHandler) (*watcher, error) {
 	epfd, err := unix.EpollCreate1(unix.EPOLL_CLOEXEC)
 	if err != nil {
 		return nil, err
@@ -35,39 +35,31 @@ func newWatcher() (*watcher, error) {
 	}
 	epv := unix.EpollEvent{Events: unix.EPOLLIN, Fd: int32(p[0])}
 	unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, int(p[0]), &epv)
+	for fd := range fds {
+		epv.Fd = int32(fd)
+		unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, fd, &epv)
+	}
 	w := watcher{
 		epfd:    epfd,
-		hh:      make(map[int32]*request),
 		donefds: p,
+		evtfds:  fds,
+		eh:      eh,
+		donech:  make(chan struct{}),
 	}
 	go w.watch()
 	return &w, nil
 }
 
-func (w *watcher) add(r *request) {
-	w.mu.Lock()
-	w.hh[int32(r.fd)] = r
-	w.mu.Unlock()
-	epv := unix.EpollEvent{Events: unix.EPOLLIN, Fd: int32(r.fd)}
-	unix.EpollCtl(w.epfd, unix.EPOLL_CTL_ADD, int(r.fd), &epv)
-}
-
-func (w *watcher) del(r *request) {
-	unix.EpollCtl(w.epfd, unix.EPOLL_CTL_DEL, int(r.fd), nil)
-	w.mu.Lock()
-	delete(w.hh, int32(r.fd))
-	w.mu.Unlock()
-}
-
 func (w *watcher) close() {
 	unix.Write(w.donefds[1], []byte("bye"))
+	<-w.donech
 	unix.Close(w.donefds[1])
 }
 
 func (w *watcher) watch() {
-	var epollEvents [6]unix.EpollEvent
+	epollEvents := make([]unix.EpollEvent, len(w.evtfds))
 	for {
-		_, err := unix.EpollWait(w.epfd, epollEvents[:], -1)
+		n, err := unix.EpollWait(w.epfd, epollEvents[:], -1)
 		if err != nil {
 			if err == unix.EBADF || err == unix.EINVAL {
 				// fd closed so exit
@@ -78,30 +70,28 @@ func (w *watcher) watch() {
 			}
 			panic(fmt.Sprintf("EpollWait unexpected error: %v", err))
 		}
-		for _, ev := range epollEvents {
+		for i := 0; i < n; i++ {
+			ev := epollEvents[i]
 			fd := ev.Fd
 			if fd == int32(w.donefds[0]) {
 				unix.Close(w.epfd)
 				unix.Close(w.donefds[0])
+				for fd := range w.evtfds {
+					unix.Close(fd)
+				}
+				close(w.donech)
 				return
 			}
-			w.mu.Lock()
-			req := w.hh[fd]
-			w.mu.Unlock()
-			if req == nil {
-				continue
-			}
-			evt, err := uapi.ReadEvent(uintptr(req.fd))
+			evt, err := uapi.ReadEvent(uintptr(fd))
 			if err != nil {
 				continue
 			}
 			le := LineEvent{
-				Offset:    req.offset,
+				Offset:    w.evtfds[int(fd)],
 				Timestamp: time.Duration(evt.Timestamp),
 				Type:      LineEventType(evt.ID),
 			}
-			// run the handler in a goroutine in case it is badly behaved
-			go req.eh(le)
+			w.eh(le)
 		}
 	}
 }
