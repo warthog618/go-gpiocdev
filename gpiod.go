@@ -511,10 +511,10 @@ type LineEventType int
 
 const (
 	_ LineEventType = iota
-	// LineEventRisingEdge indicates a low to high event.
+	// LineEventRisingEdge indicates an inactive to active event.
 	LineEventRisingEdge
 
-	// LineEventFallingEdge indicates a high to low event.
+	// LineEventFallingEdge indicates an active to inactive event.
 	LineEventFallingEdge
 )
 
