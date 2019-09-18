@@ -116,7 +116,12 @@ func TestChipFindLine(t *testing.T) {
 	c := getChip(t)
 	n, err := c.FindLine(platform.IntrName())
 	assert.Nil(t, err)
-	assert.Equal(t, platform.IntrLine(), n)
+	intr := platform.IntrLine()
+	// hacky workaround for unnamed lines on RPi
+	if len(platform.IntrName()) == 0 {
+		intr = 0
+	}
+	assert.Equal(t, intr, n)
 
 	n, err = c.FindLine("nonexistent")
 	assert.Equal(t, gpiod.ErrLineNotFound, err)
@@ -129,6 +134,10 @@ func TestChipFindLines(t *testing.T) {
 	nn, err := c.FindLines(platform.IntrName(), platform.IntrName())
 	assert.Nil(t, err)
 	intr := platform.IntrLine()
+	// hacky workaround for unnamed lines on RPi
+	if len(platform.IntrName()) == 0 {
+		intr = 0
+	}
 	assert.Equal(t, []int{intr, intr}, nn)
 
 	nn, err = c.FindLines(platform.IntrName(), "nonexistent")
@@ -600,7 +609,7 @@ func newPi(path string) (*RaspberryPi, error) {
 			devpath:   path,
 			lines:     int(ch.Lines()),
 			intro:     J8p15,
-			introName: "unnamed",
+			introName: "",
 			outo:      J8p16,
 			ff:        []int{J8p11, J8p12},
 		},
