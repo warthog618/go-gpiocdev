@@ -263,6 +263,11 @@ func TestWithFallingEdge(t *testing.T) {
 	waitEvent(t, ich, gpiod.LineEventFallingEdge, start)
 	platform.TriggerIntr(1)
 	waitNoEvent(t, ich)
+	start = time.Now()
+	platform.TriggerIntr(0)
+	waitEvent(t, ich, gpiod.LineEventFallingEdge, start)
+	platform.TriggerIntr(1)
+	waitNoEvent(t, ich)
 }
 
 func TestWithRisingEdge(t *testing.T) {
@@ -283,6 +288,11 @@ func TestWithRisingEdge(t *testing.T) {
 	waitEvent(t, ich, gpiod.LineEventRisingEdge, start)
 	platform.TriggerIntr(0)
 	waitNoEvent(t, ich)
+	start = time.Now()
+	platform.TriggerIntr(1)
+	waitEvent(t, ich, gpiod.LineEventRisingEdge, start)
+	platform.TriggerIntr(0)
+	waitNoEvent(t, ich)
 }
 
 func TestWithBothEdges(t *testing.T) {
@@ -291,7 +301,8 @@ func TestWithBothEdges(t *testing.T) {
 	c := getChip(t)
 	defer c.Close()
 	ich := make(chan gpiod.LineEvent)
-	r, err := c.RequestLine(platform.IntrLine(),
+	lines := append(platform.FloatingLines(), platform.IntrLine())
+	r, err := c.RequestLines(lines,
 		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
 			ich <- evt
 		}))
@@ -299,6 +310,12 @@ func TestWithBothEdges(t *testing.T) {
 	require.NotNil(t, r)
 	defer r.Close()
 	start := time.Now()
+	platform.TriggerIntr(1)
+	waitEvent(t, ich, gpiod.LineEventRisingEdge, start)
+	start = time.Now()
+	platform.TriggerIntr(0)
+	waitEvent(t, ich, gpiod.LineEventFallingEdge, start)
+	start = time.Now()
 	platform.TriggerIntr(1)
 	waitEvent(t, ich, gpiod.LineEventRisingEdge, start)
 	start = time.Now()
