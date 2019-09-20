@@ -74,6 +74,24 @@ func TestChips(t *testing.T) {
 	require.Equal(t, 1, len(cc))
 	assert.Equal(t, platform.Name(), cc[0])
 }
+
+func TestFindLine(t *testing.T) {
+	requirePlatform(t)
+	cname, n, err := gpiod.FindLine(platform.IntrName())
+	assert.Nil(t, err)
+	intr := platform.IntrLine()
+	// hacky workaround for unnamed lines on RPi
+	if len(platform.IntrName()) == 0 {
+		intr = 0
+	}
+	assert.Equal(t, intr, n)
+	assert.Equal(t, platform.Name(), cname)
+
+	cname, n, err = gpiod.FindLine("nonexistent")
+	assert.Equal(t, gpiod.ErrLineNotFound, err)
+	assert.Equal(t, 0, n)
+}
+
 func TestChipClose(t *testing.T) {
 	requirePlatform(t)
 

@@ -37,22 +37,10 @@ func main() {
 		die("exactly one GPIO line name must be specified")
 	}
 	linename := flags.Args()[0]
-	cc := gpiod.Chips()
-	for _, path := range cc {
-		c, err := gpiod.NewChip(path)
-		if err != nil {
-			logErr(err)
-			continue
-		}
-		o, err := c.FindLine(linename)
-		if err == nil {
-			fmt.Printf("%s %d\n", c.Name, o)
-			os.Exit(0)
-		}
-		if err != gpiod.ErrLineNotFound {
-			logErr(err)
-		}
-		c.Close()
+	cname, offset, err := gpiod.FindLine(linename)
+	if err == nil {
+		fmt.Printf("%s %d\n", cname, offset)
+		os.Exit(0)
 	}
 	os.Exit(1)
 }

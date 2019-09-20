@@ -78,30 +78,30 @@ type LineInfo struct {
 
 // Chips returns the names of the available GPIO devices.
 func Chips() []string {
-	ee, err := ioutil.ReadDir("/dev")
-	if err != nil {
-		return nil
-	}
 	cc := []string(nil)
-	for _, e := range ee {
-		name := e.Name()
-		if !strings.HasPrefix(name, "gpiochip") {
-			continue
-		}
-		path := "/dev/" + name
-		if IsChip(path) == nil {
+	for _, name := range chipNames() {
+		if IsChip(name) == nil {
 			cc = append(cc, name)
 		}
 	}
 	return cc
 }
 
+// FindLine finds the chip and offset of the named line.
+//
+// Returns an error if the line cannot be found.
+func FindLine(lname string) (string, int, error) {
+	c, o, err := findLine(lname)
+	if err != nil {
+		return "", 0, err
+	}
+	c.Close()
+	return c.Name, o, nil
+}
+
 // NewChip opens a GPIO character device.
 func NewChip(name string, options ...ChipOption) (*Chip, error) {
-	path := name
-	if !strings.HasPrefix(path, "/dev/") {
-		path = "/dev/" + path
-	}
+	path := nameToPath(name)
 	err := IsChip(path)
 	if err != nil {
 		return nil, err
@@ -457,10 +457,11 @@ type LineEvent struct {
 	Type LineEventType
 }
 
-// IsChip checks if the device at path is an accessible GPIO character device.
+// IsChip checks if the named device is an accessible GPIO character device.
 //
 // Returns an error if not.
-func IsChip(path string) error {
+func IsChip(name string) error {
+	path := nameToPath(name)
 	fi, err := os.Lstat(path)
 	if err != nil {
 		return err
@@ -492,6 +493,48 @@ func IsChip(path string) error {
 		return ErrNotCharacterDevice
 	}
 	return nil
+}
+
+// chipNames returns the name of potential gpiochips.
+//
+// Does not open them or check if they are valid.
+func chipNames() []string {
+	ee, err := ioutil.ReadDir("/dev")
+	if err != nil {
+		return nil
+	}
+	cc := []string(nil)
+	for _, e := range ee {
+		name := e.Name()
+		if strings.HasPrefix(name, "gpiochip") {
+			cc = append(cc, name)
+		}
+	}
+	return cc
+}
+
+// helper that finds the chip and offset corresponding to a named line.
+//
+// If found returns the chip and offset, else an error.
+func findLine(lname string) (*Chip, int, error) {
+	for _, name := range chipNames() {
+		c, err := NewChip(name)
+		if err != nil {
+			continue
+		}
+		o, err := c.FindLine(lname)
+		if err == nil {
+			return c, o, nil
+		}
+	}
+	return nil, 0, ErrLineNotFound
+}
+
+func nameToPath(name string) string {
+	if strings.HasPrefix(name, "/dev/") {
+		return name
+	}
+	return "/dev/" + name
 }
 
 var (
