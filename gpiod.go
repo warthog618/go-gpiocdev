@@ -218,7 +218,7 @@ func (c *Chip) RequestLine(offset int, options ...LineOption) (*Line, error) {
 		offsets: ll.offsets,
 		vfd:     ll.vfd,
 		canset:  ll.canset,
-		chip:    c,
+		chip:    c.Name,
 		info:    ll.info,
 		w:       ll.w,
 	}}
@@ -241,7 +241,7 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 	ll := Lines{baseLine{
 		offsets: append([]int(nil), offsets...),
 		canset:  lo.HandleFlags.IsOutput(),
-		chip:    c,
+		chip:    c.Name,
 		info:    make([]LineInfo, len(offsets)),
 	}}
 	if lo.eh != nil {
@@ -307,15 +307,15 @@ type baseLine struct {
 	offsets []int
 	vfd     uintptr
 	canset  bool
-	chip    *Chip
+	chip    string
 	info    []LineInfo
 	mu      sync.Mutex
 	closed  bool
 	w       *watcher
 }
 
-// Chip returns the chip from which the line was requested.
-func (l *baseLine) Chip() *Chip {
+// Chip returns the name of the chip from which the line was requested.
+func (l *baseLine) Chip() string {
 	return l.chip
 }
 

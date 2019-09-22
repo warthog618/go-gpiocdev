@@ -284,8 +284,8 @@ func TestLineChip(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	defer l.Close()
-	lc := l.Chip()
-	assert.Equal(t, c, lc)
+	cname := l.Chip()
+	assert.Equal(t, c.Name, cname)
 }
 
 func TestLineClose(t *testing.T) {
