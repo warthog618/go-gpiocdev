@@ -402,7 +402,7 @@ type EventData struct {
 
 	// The type of event detected.
 	ID uint32
-	
+
 	// pad
 	_ uint32
 }
