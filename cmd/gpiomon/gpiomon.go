@@ -127,7 +127,13 @@ func loadConfig() (*config.Config, *pflag.Getter) {
 			"rising-edge":  false,
 		}))
 	boolFlags := []string{
-		"active-low", "silent", "falling-edge", "rising-edge"}
+		"help",
+		"version",
+		"active-low",
+		"silent",
+		"falling-edge",
+		"rising-edge",
+	}
 	flags := pflag.New(pflag.WithShortFlags(shortFlags),
 		pflag.WithKeyReplacer(keys.NullReplacer()),
 		pflag.WithBooleanFlags(boolFlags),

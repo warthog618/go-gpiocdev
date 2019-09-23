@@ -103,7 +103,7 @@ func parseLineValue(arg string) (int, int) {
 	if err != nil {
 		die(fmt.Sprintf("can't parse value '%s'", arg))
 	}
-	return int(v), int(o)
+	return int(o), int(v)
 }
 
 func loadConfig() (*config.Config, *pflag.Getter) {
@@ -126,7 +126,13 @@ func loadConfig() (*config.Config, *pflag.Getter) {
 			"sec":         0,
 			"usec":        0,
 		}))
-	boolFlags := []string{"active-low", "open-drain", "open-source"}
+	boolFlags := []string{
+		"help",
+		"version",
+		"active-low",
+		"open-drain",
+		"open-source",
+	}
 
 	flags := pflag.New(pflag.WithShortFlags(shortFlags),
 		pflag.WithKeyReplacer(keys.NullReplacer()),

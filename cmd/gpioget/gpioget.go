@@ -87,7 +87,11 @@ func loadConfig() (*config.Config, *pflag.Getter) {
 			"active-low": false,
 			"as-is":      false,
 		}))
-	boolFlags := []string{"active-low", "as-is"}
+	boolFlags := []string{
+		"help",
+		"version",
+		"active-low",
+		"as-is"}
 	flags := pflag.New(pflag.WithShortFlags(shortFlags),
 		pflag.WithKeyReplacer(keys.NullReplacer()),
 		pflag.WithBooleanFlags(boolFlags),
