@@ -90,6 +90,7 @@ func TestFindLine(t *testing.T) {
 	cname, n, err = gpiod.FindLine("nonexistent")
 	assert.Equal(t, gpiod.ErrLineNotFound, err)
 	assert.Equal(t, 0, n)
+	assert.Equal(t, 0, len(cname))
 }
 
 func TestChipClose(t *testing.T) {
@@ -379,7 +380,7 @@ func TestLinesChip(t *testing.T) {
 	require.NotNil(t, l)
 	defer l.Close()
 	lc := l.Chip()
-	assert.Equal(t, c, lc)
+	assert.Equal(t, c.Name, lc)
 }
 
 func TestLinesClose(t *testing.T) {
