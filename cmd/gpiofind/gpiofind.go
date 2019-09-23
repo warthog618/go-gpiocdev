@@ -34,7 +34,13 @@ func loadConfig() *pflag.Getter {
 		'h': "help",
 		'v': "version",
 	}
-	flags := pflag.New(pflag.WithShortFlags(shortFlags))
+	boolFlags := []string{
+		"help",
+		"version",
+	}
+	flags := pflag.New(pflag.WithShortFlags(shortFlags),
+		pflag.WithBooleanFlags(boolFlags),
+	)
 	cfg := config.New(flags)
 	if v, err := cfg.Get("help"); err == nil && v.Bool() {
 		printHelp()
