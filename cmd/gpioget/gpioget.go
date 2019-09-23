@@ -22,6 +22,60 @@ import (
 var version = "undefined"
 
 func main() {
+	cfg, flags := loadConfig()
+	name := flags.Args()[0]
+	c, err := gpiod.NewChip(name, gpiod.WithConsumer("gpioget"))
+	if err != nil {
+		die(err.Error())
+	}
+	defer c.Close()
+	oo := parseOffsets(flags.Args()[1:])
+	opts := makeOpts(cfg)
+	l, err := c.RequestLines(oo, opts...)
+	if err != nil {
+		die("error requesting GPIO lines:" + err.Error())
+	}
+	defer l.Close()
+	vv, err := l.Values()
+	if err != nil {
+		die("error reading GPIO values:" + err.Error())
+	}
+	vstr := fmt.Sprintf("%d", vv[0])
+	for _, v := range vv[1:] {
+		vstr += fmt.Sprintf(" %d", v)
+	}
+	fmt.Println(vstr)
+}
+
+func makeOpts(cfg *config.Config) []gpiod.LineOption {
+	opts := []gpiod.LineOption{}
+	if cfg.MustGet("active-low").Bool() {
+		opts = append(opts, gpiod.AsActiveLow())
+	}
+	if !cfg.MustGet("as-is").Bool() {
+		opts = append(opts, gpiod.AsInput())
+	}
+	return opts
+}
+
+func parseOffsets(args []string) []int {
+	oo := []int(nil)
+	for _, arg := range args {
+		o := parseLineOffset(arg)
+		oo = append(oo, o)
+	}
+	return oo
+}
+
+func parseLineOffset(arg string) int {
+	o, err := strconv.ParseUint(arg, 10, 64)
+	if err != nil {
+		die(fmt.Sprintf("can't parse offset '%s'", arg))
+	}
+	return int(o)
+}
+
+func loadConfig() (*config.Config, *pflag.Getter) {
 	shortFlags := map[byte]string{
 		'h': "help",
 		'v': "version",
@@ -53,42 +107,7 @@ func main() {
 	case 1:
 		die("at least one GPIO line offset must be specified")
 	}
-
-	path := flags.Args()[0]
-	c, err := gpiod.NewChip(path, gpiod.WithConsumer("gpioget"))
-	if err != nil {
-		die(err.Error())
-	}
-	defer c.Close()
-	ll := []int(nil)
-	for _, o := range flags.Args()[1:] {
-		v, err := strconv.ParseUint(o, 10, 64)
-		if err != nil {
-			die(fmt.Sprintf("can't parse offset '%s'", o))
-		}
-		ll = append(ll, int(v))
-	}
-	opts := []gpiod.LineOption{}
-	if cfg.MustGet("active-low").Bool() {
-		opts = append(opts, gpiod.AsActiveLow())
-	}
-	if !cfg.MustGet("as-is").Bool() {
-		opts = append(opts, gpiod.AsInput())
-	}
-	l, err := c.RequestLines(ll, opts...)
-	if err != nil {
-		die("error requesting GPIO lines:" + err.Error())
-	}
-	defer l.Close()
-	vv, err := l.Values()
-	if err != nil {
-		die("error reading GPIO values:" + err.Error())
-	}
-	vstr := fmt.Sprintf("%d", vv[0])
-	for _, v := range vv[1:] {
-		vstr += fmt.Sprintf(" %d", v)
-	}
-	fmt.Println(vstr)
+	return cfg, flags
 }
 
 func die(reason string) {

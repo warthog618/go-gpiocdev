@@ -19,19 +19,7 @@ import (
 var version = "undefined"
 
 func main() {
-	shortFlags := map[byte]string{
-		'h': "help",
-		'v': "version",
-	}
-	cfg := config.New(pflag.New(pflag.WithShortFlags(shortFlags)))
-	if v, err := cfg.Get("help"); err == nil && v.Bool() {
-		printHelp()
-		os.Exit(0)
-	}
-	if v, err := cfg.Get("version"); err == nil && v.Bool() {
-		printVersion()
-		os.Exit(0)
-	}
+	loadConfig()
 	rc := 0
 	cc := gpiod.Chips()
 	for _, path := range cc {
@@ -45,6 +33,22 @@ func main() {
 		c.Close()
 	}
 	os.Exit(rc)
+}
+
+func loadConfig() {
+	shortFlags := map[byte]string{
+		'h': "help",
+		'v': "version",
+	}
+	cfg := config.New(pflag.New(pflag.WithShortFlags(shortFlags)))
+	if v, err := cfg.Get("help"); err == nil && v.Bool() {
+		printHelp()
+		os.Exit(0)
+	}
+	if v, err := cfg.Get("version"); err == nil && v.Bool() {
+		printVersion()
+		os.Exit(0)
+	}
 }
 
 func logErr(err error) {

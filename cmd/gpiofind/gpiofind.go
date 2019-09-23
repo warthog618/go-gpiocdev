@@ -19,6 +19,17 @@ import (
 var version = "undefined"
 
 func main() {
+	flags := loadConfig()
+	linename := flags.Args()[0]
+	cname, offset, err := gpiod.FindLine(linename)
+	if err == nil {
+		fmt.Printf("%s %d\n", cname, offset)
+		os.Exit(0)
+	}
+	os.Exit(1)
+}
+
+func loadConfig() *pflag.Getter {
 	shortFlags := map[byte]string{
 		'h': "help",
 		'v': "version",
@@ -36,13 +47,7 @@ func main() {
 	if flags.NArg() != 1 {
 		die("exactly one GPIO line name must be specified")
 	}
-	linename := flags.Args()[0]
-	cname, offset, err := gpiod.FindLine(linename)
-	if err == nil {
-		fmt.Printf("%s %d\n", cname, offset)
-		os.Exit(0)
-	}
-	os.Exit(1)
+	return flags
 }
 
 func die(reason string) {

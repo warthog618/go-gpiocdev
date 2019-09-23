@@ -26,6 +26,87 @@ import (
 var version = "undefined"
 
 func main() {
+	cfg, flags := loadConfig()
+	name := flags.Args()[0]
+	c, err := gpiod.NewChip(name, gpiod.WithConsumer("gpioset"))
+	if err != nil {
+		die(err.Error())
+	}
+	defer c.Close()
+	ll := []int(nil)
+	vv := []int(nil)
+	for _, arg := range flags.Args()[1:] {
+		o, v := parseLineValue(arg)
+		ll = append(ll, o)
+		vv = append(vv, v)
+	}
+	opts := makeOpts(cfg)
+	l, err := c.RequestLines(ll, opts...)
+	if err != nil {
+		die("error requesting GPIO lines:" + err.Error())
+	}
+	defer l.Close()
+	err = l.SetValues(vv)
+	if err != nil {
+		die("error setting GPIO values:" + err.Error())
+	}
+	wait(cfg)
+	os.Exit(0)
+}
+
+func wait(cfg *config.Config) {
+	mode := cfg.MustGet("mode").String()
+	switch mode {
+	case "wait":
+		fmt.Println("Press enter to exit...")
+		reader := bufio.NewReader(os.Stdin)
+		reader.ReadLine()
+	case "time":
+		sec := cfg.MustGet("sec").Int()
+		usec := cfg.MustGet("usec").Int()
+		duration := time.Duration(sec)*time.Second + time.Duration(usec)*time.Microsecond
+		fmt.Printf("Waiting for %s...\n", duration)
+		time.Sleep(duration)
+	case "signal":
+		sigdone := make(chan os.Signal, 1)
+		signal.Notify(sigdone, os.Interrupt, os.Kill)
+		defer signal.Stop(sigdone)
+		fmt.Println("Waiting for signal...")
+		<-sigdone
+	}
+}
+
+func makeOpts(cfg *config.Config) []gpiod.LineOption {
+	opts := []gpiod.LineOption{gpiod.AsOutput()}
+	if cfg.MustGet("active-low").Bool() {
+		opts = append(opts, gpiod.AsActiveLow())
+	}
+	if cfg.MustGet("open-drain").Bool() {
+		opts = append(opts, gpiod.AsOpenDrain())
+	}
+	if cfg.MustGet("open-source").Bool() {
+		opts = append(opts, gpiod.AsOpenSource())
+	}
+	return opts
+}
+
+func parseLineValue(arg string) (int, int) {
+	aa := strings.Split(arg, "=")
+	if len(aa) != 2 {
+		die(fmt.Sprintf("invalid offset<->value mapping: %s", arg))
+	}
+	o, err := strconv.ParseUint(aa[0], 10, 64)
+	if err != nil {
+		die(fmt.Sprintf("can't parse offset '%s'", arg))
+	}
+	v, err := strconv.ParseInt(aa[1], 10, 64)
+	if err != nil {
+		die(fmt.Sprintf("can't parse value '%s'", arg))
+	}
+	return int(v), int(o)
+}
+
+func loadConfig() (*config.Config, *pflag.Getter) {
 	shortFlags := map[byte]string{
 		'h': "help",
 		'v': "version",
@@ -78,69 +159,7 @@ func main() {
 	case 1:
 		die("at least one GPIO line offset to value mapping must be specified")
 	}
-
-	path := flags.Args()[0]
-	c, err := gpiod.NewChip(path, gpiod.WithConsumer("gpioset"))
-	if err != nil {
-		die(err.Error())
-	}
-	defer c.Close()
-	ll := []int(nil)
-	vv := []int(nil)
-	for _, arg := range flags.Args()[1:] {
-		aa := strings.Split(arg, "=")
-		if len(aa) != 2 {
-			die(fmt.Sprintf("invalid offset<->value mapping: %s", arg))
-		}
-		o, err := strconv.ParseUint(aa[0], 10, 64)
-		if err != nil {
-			die(fmt.Sprintf("can't parse offset '%s'", arg))
-		}
-		ll = append(ll, int(o))
-		v, err := strconv.ParseInt(aa[1], 10, 64)
-		if err != nil {
-			die(fmt.Sprintf("can't parse value '%s'", arg))
-		}
-		vv = append(vv, int(v))
-	}
-	opts := []gpiod.LineOption{gpiod.AsOutput()}
-	if cfg.MustGet("active-low").Bool() {
-		opts = append(opts, gpiod.AsActiveLow())
-	}
-	if cfg.MustGet("open-drain").Bool() {
-		opts = append(opts, gpiod.AsOpenDrain())
-	}
-	if cfg.MustGet("open-source").Bool() {
-		opts = append(opts, gpiod.AsOpenSource())
-	}
-	l, err := c.RequestLines(ll, opts...)
-	if err != nil {
-		die("error requesting GPIO lines:" + err.Error())
-	}
-	defer l.Close()
-	err = l.SetValues(vv)
-	if err != nil {
-		die("error setting GPIO values:" + err.Error())
-	}
-	switch mode {
-	case "wait":
-		fmt.Println("Press enter to exit...")
-		reader := bufio.NewReader(os.Stdin)
-		reader.ReadLine()
-	case "time":
-		sec := cfg.MustGet("sec").Int()
-		usec := cfg.MustGet("usec").Int()
-		duration := time.Duration(sec)*time.Second + time.Duration(usec)*time.Microsecond
-		fmt.Printf("Waiting for %s...\n", duration)
-		time.Sleep(duration)
-	case "signal":
-		sigdone := make(chan os.Signal, 1)
-		signal.Notify(sigdone, os.Interrupt, os.Kill)
-		defer signal.Stop(sigdone)
-		fmt.Println("Waiting for signal...")
-		<-sigdone
-	}
-	os.Exit(0)
+	return cfg, flags
 }
 
 func die(reason string) {

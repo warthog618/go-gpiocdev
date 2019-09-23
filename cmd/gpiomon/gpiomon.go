@@ -24,6 +24,91 @@ import (
 var version = "undefined"
 
 func main() {
+	cfg, flags := loadConfig()
+	name := flags.Args()[0]
+	c, err := gpiod.NewChip(name, gpiod.WithConsumer("gpiomon"))
+	if err != nil {
+		die(err.Error())
+	}
+	defer c.Close()
+	oo := parseOffsets(flags.Args()[1:])
+	evtchan := make(chan gpiod.LineEvent)
+	eh := func(evt gpiod.LineEvent) {
+		evtchan <- evt
+	}
+	opts := makeOpts(cfg, eh)
+	l, err := c.RequestLines(oo, opts...)
+	if err != nil {
+		die("error requesting GPIO lines:" + err.Error())
+	}
+	defer l.Close()
+	wait(cfg, evtchan)
+}
+
+func wait(cfg *config.Config, evtchan <-chan gpiod.LineEvent) {
+	sigdone := make(chan os.Signal, 1)
+	signal.Notify(sigdone, os.Interrupt, os.Kill)
+	defer signal.Stop(sigdone)
+	count := int64(0)
+	num := cfg.MustGet("num-events").Int()
+	silent := cfg.MustGet("silent").Bool()
+	for {
+		select {
+		case evt := <-evtchan:
+			if !silent {
+				t := time.Unix(0, evt.Timestamp.Nanoseconds())
+				edge := "rising"
+				if evt.Type == gpiod.LineEventFallingEdge {
+					edge = "falling"
+				}
+				fmt.Printf("event:%3d %-7s %s\n", evt.Offset, edge, t.Format(time.RFC3339Nano))
+			}
+			count++
+			if num > 0 && count >= num {
+				return
+			}
+		case <-sigdone:
+			return
+		}
+	}
+}
+
+func makeOpts(cfg *config.Config, eh gpiod.EventHandler) []gpiod.LineOption {
+	opts := []gpiod.LineOption{}
+	if cfg.MustGet("active-low").Bool() {
+		opts = append(opts, gpiod.AsActiveLow())
+	}
+	falling := cfg.MustGet("falling-edge").Bool()
+	rising := cfg.MustGet("rising-edge").Bool()
+	switch {
+	case rising == falling:
+		opts = append(opts, gpiod.WithBothEdges(eh))
+	case rising:
+		opts = append(opts, gpiod.WithRisingEdge(eh))
+	case falling:
+		opts = append(opts, gpiod.WithFallingEdge(eh))
+	}
+	return opts
+}
+
+func parseOffsets(args []string) []int {
+	oo := []int(nil)
+	for _, arg := range args {
+		o := parseLineOffset(arg)
+		oo = append(oo, o)
+	}
+	return oo
+}
+
+func parseLineOffset(arg string) int {
+	o, err := strconv.ParseUint(arg, 10, 64)
+	if err != nil {
+		die(fmt.Sprintf("can't parse offset '%s'", arg))
+	}
+	return int(o)
+}
+
+func loadConfig() (*config.Config, *pflag.Getter) {
 	shortFlags := map[byte]string{
 		'h': "help",
 		'v': "version",
@@ -62,69 +147,7 @@ func main() {
 	case 1:
 		die("at least one GPIO line offset must be specified")
 	}
-
-	path := flags.Args()[0]
-	c, err := gpiod.NewChip(path, gpiod.WithConsumer("gpiomon"))
-	if err != nil {
-		die(err.Error())
-	}
-	defer c.Close()
-	ll := []int(nil)
-	for _, o := range flags.Args()[1:] {
-		v, err := strconv.ParseUint(o, 10, 64)
-		if err != nil {
-			die(fmt.Sprintf("can't parse offset '%s'", o))
-		}
-		ll = append(ll, int(v))
-	}
-	opts := []gpiod.LineOption{}
-	if cfg.MustGet("active-low").Bool() {
-		opts = append(opts, gpiod.AsActiveLow())
-	}
-	falling := cfg.MustGet("falling-edge").Bool()
-	rising := cfg.MustGet("rising-edge").Bool()
-	evtchan := make(chan gpiod.LineEvent)
-	eh := func(evt gpiod.LineEvent) {
-		evtchan <- evt
-	}
-	switch {
-	case rising == falling:
-		opts = append(opts, gpiod.WithBothEdges(eh))
-	case rising:
-		opts = append(opts, gpiod.WithRisingEdge(eh))
-	case falling:
-		opts = append(opts, gpiod.WithFallingEdge(eh))
-	}
-	l, err := c.RequestLines(ll, opts...)
-	if err != nil {
-		die("error requesting GPIO lines:" + err.Error())
-	}
-	defer l.Close()
-	sigdone := make(chan os.Signal, 1)
-	signal.Notify(sigdone, os.Interrupt, os.Kill)
-	defer signal.Stop(sigdone)
-	count := int64(0)
-	num := cfg.MustGet("num-events").Int()
-	silent := cfg.MustGet("silent").Bool()
-	for {
-		select {
-		case evt := <-evtchan:
-			if !silent {
-				t := time.Unix(0, evt.Timestamp.Nanoseconds())
-				edge := "rising"
-				if evt.Type == gpiod.LineEventFallingEdge {
-					edge = "falling"
-				}
-				fmt.Printf("event:%3d %-7s %s\n", evt.Offset, edge, t.Format(time.RFC3339Nano))
-			}
-			count++
-			if num > 0 && count >= num {
-				return
-			}
-		case <-sigdone:
-			return
-		}
-	}
+	return cfg, flags
 }
 
 func die(reason string) {
