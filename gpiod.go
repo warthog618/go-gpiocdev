@@ -244,53 +244,21 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 		chip:    c.Name,
 		info:    make([]LineInfo, len(offsets)),
 	}}
+	var (
+		fd  uintptr
+		w   *watcher
+		err error
+	)
 	if lo.eh != nil {
-		fds := make(map[int]int)
-		for i, o := range offsets {
-			er := uapi.EventRequest{
-				Offset:      uint32(o),
-				HandleFlags: lo.HandleFlags,
-				EventFlags:  lo.EventFlags,
-			}
-			copy(er.Consumer[:], lo.consumer)
-			err := uapi.GetLineEvent(c.f.Fd(), &er)
-			if err != nil {
-				return nil, err
-			}
-			fd := uintptr(er.Fd)
-			if i == 0 {
-				ll.vfd = fd
-			}
-			fds[int(fd)] = o
-		}
-		w, err := newWatcher(fds, lo.eh)
-		if err != nil {
-			for fd := range fds {
-				unix.Close(fd)
-			}
-			return nil, err
-		}
-		ll.w = w
+		fd, w, err = c.getEventRequest(ll.offsets, lo)
 	} else {
-		hr := uapi.HandleRequest{
-			Lines: uint32(len(offsets)),
-			Flags: lo.HandleFlags,
-		}
-		copy(hr.Consumer[:], lo.consumer)
-		//copy(hr.Offsets[:], ll.offsets) - with cast
-		for i, o := range ll.offsets {
-			hr.Offsets[i] = uint32(o)
-		}
-		//copy(hr.DefaultValues[:], lo.DefaultValues) - with cast
-		for i, v := range lo.DefaultValues {
-			hr.DefaultValues[i] = uint8(v)
-		}
-		err := uapi.GetLineHandle(c.f.Fd(), &hr)
-		if err != nil {
-			return nil, err
-		}
-		ll.vfd = uintptr(hr.Fd)
+		fd, err = c.getHandleRequest(ll.offsets, lo)
 	}
+	if err != nil {
+		return nil, err
+	}
+	ll.vfd = fd
+	ll.w = w
 	for i, o := range offsets {
 		inf, err := c.LineInfo(o)
 		if err != nil {
@@ -301,6 +269,57 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 		ll.info[i] = inf
 	}
 	return &ll, nil
+}
+
+func (c *Chip) getEventRequest(offsets []int, lo LineOptions) (uintptr, *watcher, error) {
+	var vfd uintptr
+	fds := make(map[int]int)
+	for i, o := range offsets {
+		er := uapi.EventRequest{
+			Offset:      uint32(o),
+			HandleFlags: lo.HandleFlags,
+			EventFlags:  lo.EventFlags,
+		}
+		copy(er.Consumer[:], lo.consumer)
+		err := uapi.GetLineEvent(c.f.Fd(), &er)
+		if err != nil {
+			return 0, nil, err
+		}
+		fd := uintptr(er.Fd)
+		if i == 0 {
+			vfd = fd
+		}
+		fds[int(fd)] = o
+	}
+	w, err := newWatcher(fds, lo.eh)
+	if err != nil {
+		for fd := range fds {
+			unix.Close(fd)
+		}
+		return 0, nil, err
+	}
+	return vfd, w, nil
+}
+
+func (c *Chip) getHandleRequest(offsets []int, lo LineOptions) (uintptr, error) {
+	hr := uapi.HandleRequest{
+		Lines: uint32(len(offsets)),
+		Flags: lo.HandleFlags,
+	}
+	copy(hr.Consumer[:], lo.consumer)
+	//copy(hr.Offsets[:], ll.offsets) - with cast
+	for i, o := range offsets {
+		hr.Offsets[i] = uint32(o)
+	}
+	//copy(hr.DefaultValues[:], lo.DefaultValues) - with cast
+	for i, v := range lo.DefaultValues {
+		hr.DefaultValues[i] = uint8(v)
+	}
+	err := uapi.GetLineHandle(c.f.Fd(), &hr)
+	if err != nil {
+		return 0, err
+	}
+	return uintptr(hr.Fd), nil
 }
 
 type baseLine struct {
