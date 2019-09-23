@@ -167,15 +167,15 @@ func (c *Chip) FindLine(name string) (int, error) {
 // FindLines returns the offsets of the named lines, or an error unless all are
 // found.
 func (c *Chip) FindLines(names ...string) ([]int, error) {
-	ll := make([]int, len(names))
+	oo := make([]int, len(names))
 	for i, name := range names {
 		o, err := c.FindLine(name)
 		if err != nil {
 			return nil, err
 		}
-		ll[i] = o
+		oo[i] = o
 	}
-	return ll, nil
+	return oo, nil
 }
 
 // LineInfo returns the publically available information on the line.
@@ -307,7 +307,7 @@ func (c *Chip) getHandleRequest(offsets []int, lo LineOptions) (uintptr, error) 
 		Flags: lo.HandleFlags,
 	}
 	copy(hr.Consumer[:], lo.consumer)
-	//copy(hr.Offsets[:], ll.offsets) - with cast
+	//copy(hr.Offsets[:], offsets) - with cast
 	for i, o := range offsets {
 		hr.Offsets[i] = uint32(o)
 	}
