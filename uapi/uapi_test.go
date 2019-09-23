@@ -134,7 +134,11 @@ func TestGetLineEvent(t *testing.T) {
 			copy(er.Consumer[:], p.name)
 			err = uapi.GetLineEvent(f.Fd(), &er)
 			assert.Equal(t, p.err, err)
+			if p.offset > uint32(c.Lines) {
+				return
+			}
 			li, err := uapi.GetLineInfo(f.Fd(), int(p.offset))
+			assert.Nil(t, err)
 			if p.err != nil {
 				assert.False(t, li.Flags.IsRequested())
 				return
@@ -191,8 +195,12 @@ func TestGetLineHandle(t *testing.T) {
 			copy(hr.Consumer[:], p.name)
 			err = uapi.GetLineHandle(f.Fd(), &hr)
 			assert.Equal(t, p.err, err)
+			if p.offsets[0] > uint32(c.Lines) {
+				return
+			}
 			// check line info
 			li, err := uapi.GetLineInfo(f.Fd(), int(p.offsets[0]))
+			assert.Nil(t, err)
 			if p.err != nil {
 				assert.False(t, li.Flags.IsRequested())
 				return
