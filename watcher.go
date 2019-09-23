@@ -19,11 +19,11 @@ type watcher struct {
 	epfd    int
 	donefds []int
 	evtfds  map[int]int // fd to offset mapping
-	eh      eventHandler
+	eh      EventHandler
 	donech  chan struct{}
 }
 
-func newWatcher(fds map[int]int, eh eventHandler) (*watcher, error) {
+func newWatcher(fds map[int]int, eh EventHandler) (*watcher, error) {
 	epfd, err := unix.EpollCreate1(unix.EPOLL_CLOEXEC)
 	if err != nil {
 		return nil, err

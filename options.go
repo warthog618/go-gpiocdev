@@ -49,11 +49,11 @@ type LineOptions struct {
 	DefaultValues []int
 	EventFlags    uapi.EventFlag
 	HandleFlags   uapi.HandleFlag
-	eh            eventHandler
+	eh            EventHandler
 }
 
-// eventHandler is a receiver for line events.
-type eventHandler func(LineEvent)
+// EventHandler is a receiver for line events.
+type EventHandler func(LineEvent)
 
 // AsIsOption indicates the line direction should be left as is.
 type AsIsOption struct{}
@@ -161,7 +161,7 @@ func (o OpenSourceOption) applyLineOption(l *LineOptions) {
 // FallingEdgeOption indicates that a line will generate events when its active
 // state transitions from high to low.
 type FallingEdgeOption struct {
-	e eventHandler
+	e EventHandler
 }
 
 // WithFallingEdge indicates that a line will generate events when its active
@@ -170,7 +170,7 @@ type FallingEdgeOption struct {
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
 func WithFallingEdge(e func(LineEvent)) FallingEdgeOption {
-	return FallingEdgeOption{eventHandler(e)}
+	return FallingEdgeOption{EventHandler(e)}
 }
 
 func (o FallingEdgeOption) applyLineOption(l *LineOptions) {
@@ -185,7 +185,7 @@ func (o FallingEdgeOption) applyLineOption(l *LineOptions) {
 // RisingEdgeOption indicates that a line will generate events when its active
 // state transitions from low to high.
 type RisingEdgeOption struct {
-	e eventHandler
+	e EventHandler
 }
 
 // WithRisingEdge indicates that a line will generate events when its active
@@ -194,7 +194,7 @@ type RisingEdgeOption struct {
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
 func WithRisingEdge(e func(LineEvent)) RisingEdgeOption {
-	return RisingEdgeOption{eventHandler(e)}
+	return RisingEdgeOption{EventHandler(e)}
 }
 
 func (o RisingEdgeOption) applyLineOption(l *LineOptions) {
@@ -209,7 +209,7 @@ func (o RisingEdgeOption) applyLineOption(l *LineOptions) {
 // BothEdgesOption indicates that a line will generate events when its active
 // state transitions from low to high and from high to low.
 type BothEdgesOption struct {
-	e eventHandler
+	e EventHandler
 }
 
 // WithBothEdges indicates that a line will generate events when its active
@@ -218,7 +218,7 @@ type BothEdgesOption struct {
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
 func WithBothEdges(e func(LineEvent)) BothEdgesOption {
-	return BothEdgesOption{eventHandler(e)}
+	return BothEdgesOption{EventHandler(e)}
 }
 
 func (o BothEdgesOption) applyLineOption(l *LineOptions) {
