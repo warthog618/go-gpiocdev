@@ -4,7 +4,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/warthog618/gpiod)](https://goreportcard.com/report/github.com/warthog618/gpiod)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/warthog618/gpiod/blob/master/LICENSE)
 
-A native Go GPIO library for Linux.
+A native Go library for Linux GPIO.
 
 The goal of this library is to provide the Go equivalent of **[libgpiod](https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/)**.
 

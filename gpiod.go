@@ -219,7 +219,6 @@ func (c *Chip) RequestLine(offset int, options ...LineOption) (*Line, error) {
 		vfd:     ll.vfd,
 		canset:  ll.canset,
 		chip:    c.Name,
-		info:    ll.info,
 		w:       ll.w,
 	}}
 	return &l, nil
@@ -242,31 +241,15 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 		offsets: append([]int(nil), offsets...),
 		canset:  lo.HandleFlags.IsOutput(),
 		chip:    c.Name,
-		info:    make([]LineInfo, len(offsets)),
 	}}
-	var (
-		fd  uintptr
-		w   *watcher
-		err error
-	)
+	var err error
 	if lo.eh != nil {
-		fd, w, err = c.getEventRequest(ll.offsets, lo)
+		ll.vfd, ll.w, err = c.getEventRequest(ll.offsets, lo)
 	} else {
-		fd, err = c.getHandleRequest(ll.offsets, lo)
+		ll.vfd, err = c.getHandleRequest(ll.offsets, lo)
 	}
 	if err != nil {
 		return nil, err
-	}
-	ll.vfd = fd
-	ll.w = w
-	for i, o := range offsets {
-		inf, err := c.LineInfo(o)
-		if err != nil {
-			// in case of a race with Chip.Close
-			ll.Close()
-			return nil, err
-		}
-		ll.info[i] = inf
 	}
 	return &ll, nil
 }
@@ -327,8 +310,8 @@ type baseLine struct {
 	vfd     uintptr
 	canset  bool
 	chip    string
-	info    []LineInfo
 	mu      sync.Mutex
+	info    []*LineInfo
 	closed  bool
 	w       *watcher
 }
@@ -365,13 +348,23 @@ func (l *Line) Offset() int {
 }
 
 // Info returns the information about the line.
-//
-// The line info is immutable for the lifetime of the line request.
-//
-// This is a snapshot of the info taken when the line was requested and provides
-// a convenient method to check the options requested on the line.
-func (l *Line) Info() LineInfo {
-	return l.info[0]
+func (l *Line) Info() (*LineInfo, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.info != nil {
+		return l.info[0], nil
+	}
+	c, err := NewChip(l.chip)
+	if err != nil {
+		return nil, err
+	}
+	defer c.Close()
+	inf, err := c.LineInfo(l.offsets[0])
+	if err != nil {
+		return nil, err
+	}
+	l.info = []*LineInfo{&inf}
+	return l.info[0], nil
 }
 
 // Value returns the current value (active state) of the line.
@@ -404,13 +397,27 @@ func (l *Lines) Offsets() []int {
 }
 
 // Info returns the information about the lines.
-//
-// The line info is immuatble for the lifetime of the lines request.
-//
-// This is a snapshot of the info taken when the lines were requested and provides a
-// convenient method to check the options requested on the lines.
-func (l *Lines) Info() []LineInfo {
-	return l.info
+func (l *Lines) Info() ([]*LineInfo, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.info != nil {
+		return l.info, nil
+	}
+	c, err := NewChip(l.chip)
+	if err != nil {
+		return nil, err
+	}
+	defer c.Close()
+	info := make([]*LineInfo, len(l.offsets))
+	for i, o := range l.offsets {
+		inf, err := c.LineInfo(o)
+		if err != nil {
+			return nil, err
+		}
+		info[i] = &inf
+	}
+	l.info = info
+	return l.info, nil
 }
 
 // Values returns the current values (active state) of the collection of

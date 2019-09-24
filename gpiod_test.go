@@ -313,8 +313,10 @@ func TestLineInfo(t *testing.T) {
 	defer l.Close()
 	cli, err := c.LineInfo(platform.IntrLine())
 	assert.Nil(t, err)
-	li := l.Info()
-	assert.Equal(t, cli, li)
+	li, err := l.Info()
+	assert.Nil(t, err)
+	require.NotNil(t, li)
+	assert.Equal(t, cli, *li)
 }
 
 func TestLineOffset(t *testing.T) {
@@ -405,11 +407,15 @@ func TestLinesInfo(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	defer l.Close()
-	li := l.Info()
+	li, err := l.Info()
+	assert.Nil(t, err)
 	for i, o := range platform.FloatingLines() {
 		cli, err := c.LineInfo(o)
 		assert.Nil(t, err)
-		assert.Equal(t, cli, li[i])
+		assert.NotNil(t, li[i])
+		if li[0] != nil {
+			assert.Equal(t, cli, *li[i])
+		}
 	}
 }
 
