@@ -422,17 +422,22 @@ func (l *Lines) Info() ([]*LineInfo, error) {
 
 // Values returns the current values (active state) of the collection of
 // lines.
-func (l *Lines) Values() ([]int, error) {
+//
+// Gets as many values from the set, in order, as can be fit in vv, up to the full set.
+func (l *Lines) Values(vv []int) error {
 	var values uapi.HandleData
 	err := uapi.GetLineValues(l.vfd, &values)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	vv := make([]int, len(l.offsets))
-	for i := 0; i < len(l.offsets); i++ {
+	lines := len(l.offsets)
+	if len(vv) < lines {
+		lines = len(vv)
+	}
+	for i := 0; i < lines; i++ {
 		vv[i] = int(values[i])
 	}
-	return vv, nil
+	return nil
 }
 
 // SetValues sets the current active state of the collection of lines.

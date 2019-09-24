@@ -442,31 +442,28 @@ func TestLinesValues(t *testing.T) {
 	l, err := c.RequestLines(lines)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
-	vv, err := l.Values()
+	vv := make([]int, len(lines))
+	err = l.Values(vv)
 	assert.Nil(t, err)
-	assert.Equal(t, len(lines), len(vv))
 	assert.Equal(t, 0, vv[0])
 	platform.TriggerIntr(1)
-	vv, err = l.Values()
+	err = l.Values(vv)
 	assert.Nil(t, err)
-	assert.Equal(t, len(lines), len(vv))
 	assert.Equal(t, 1, vv[0])
 
 	l.Close()
 
 	// after close
-	vv, err = l.Values()
+	err = l.Values(vv)
 	assert.NotNil(t, err)
-	assert.Nil(t, vv)
 
 	// output
 	lines = platform.FloatingLines()
 	l, err = c.RequestLines(lines, gpiod.AsOutput(0))
 	assert.Nil(t, err)
 	require.NotNil(t, l)
-	vv, err = l.Values()
+	err = l.Values(vv)
 	assert.Nil(t, err)
-	assert.Equal(t, len(lines), len(vv))
 	// actual values are indeterminate
 
 	l.Close()
