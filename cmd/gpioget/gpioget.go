@@ -36,7 +36,8 @@ func main() {
 		die("error requesting GPIO lines:" + err.Error())
 	}
 	defer l.Close()
-	vv, err := l.Values()
+	vv := make([]int, len(l.Offsets()))
+	err = l.Values(vv)
 	if err != nil {
 		die("error reading GPIO values:" + err.Error())
 	}
