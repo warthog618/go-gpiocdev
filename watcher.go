@@ -51,6 +51,10 @@ func newWatcher(fds map[int]int, eh EventHandler) (*watcher, error) {
 }
 
 func (w *watcher) close() {
+	for fd := range w.evtfds {
+		unix.EpollCtl(w.epfd, unix.EPOLL_CTL_DEL, fd, nil)
+		unix.Close(fd)
+	}
 	unix.Write(w.donefds[1], []byte("bye"))
 	<-w.donech
 	unix.Close(w.donefds[1])
@@ -58,6 +62,7 @@ func (w *watcher) close() {
 
 func (w *watcher) watch() {
 	epollEvents := make([]unix.EpollEvent, len(w.evtfds))
+	defer close(w.donech)
 	for {
 		n, err := unix.EpollWait(w.epfd, epollEvents[:], -1)
 		if err != nil {
@@ -76,10 +81,6 @@ func (w *watcher) watch() {
 			if fd == int32(w.donefds[0]) {
 				unix.Close(w.epfd)
 				unix.Close(w.donefds[0])
-				for fd := range w.evtfds {
-					unix.Close(fd)
-				}
-				close(w.donech)
 				return
 			}
 			evt, err := uapi.ReadEvent(uintptr(fd))
