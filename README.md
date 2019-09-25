@@ -176,11 +176,11 @@ $ ./gpiod.test -test.bench=.*
 goos: linux
 goarch: arm
 pkg: gpiod
-BenchmarkLineValue              248344          5659 ns/op
-BenchmarkLinesValues            142282          8377 ns/op
-BenchmarkLineSetValue           178704          6632 ns/op
-BenchmarkLinesSetValues         135058          7875 ns/op
-BenchmarkInterruptLatency         2040        530332 ns/op
+BenchmarkLineValue             157851          7160 ns/op
+BenchmarkLinesValues           152865          7599 ns/op
+BenchmarkLineSetValue          171585          6782 ns/op
+BenchmarkLinesSetValues        155041          7995 ns/op
+BenchmarkInterruptLatency        2041        581938 ns/op
 PASS
 ```
 
