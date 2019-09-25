@@ -169,7 +169,6 @@ func TestAsActiveLow(t *testing.T) {
 		}))
 	assert.Nil(t, err)
 	require.NotNil(t, l)
-	defer l.Close()
 	inf, err := c.LineInfo(platform.IntrLine())
 	assert.Nil(t, err)
 	assert.True(t, inf.ActiveLow)
@@ -258,6 +257,7 @@ func TestWithFallingEdge(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, r)
 	defer r.Close()
+	waitNoEvent(t, ich)
 	start := time.Now()
 	platform.TriggerIntr(0)
 	waitEvent(t, ich, gpiod.LineEventFallingEdge, start)
@@ -283,6 +283,7 @@ func TestWithRisingEdge(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, r)
 	defer r.Close()
+	waitNoEvent(t, ich)
 	start := time.Now()
 	platform.TriggerIntr(1)
 	waitEvent(t, ich, gpiod.LineEventRisingEdge, start)
@@ -309,6 +310,7 @@ func TestWithBothEdges(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, r)
 	defer r.Close()
+	waitNoEvent(t, ich)
 	start := time.Now()
 	platform.TriggerIntr(1)
 	waitEvent(t, ich, gpiod.LineEventRisingEdge, start)
@@ -321,6 +323,7 @@ func TestWithBothEdges(t *testing.T) {
 	start = time.Now()
 	platform.TriggerIntr(0)
 	waitEvent(t, ich, gpiod.LineEventFallingEdge, start)
+	waitNoEvent(t, ich)
 }
 
 func waitEvent(t *testing.T, ch chan gpiod.LineEvent, etype gpiod.LineEventType, start time.Time) {
