@@ -22,12 +22,6 @@ var rootCmd = &cobra.Command{
 	Version: version,
 }
 
-func init() {
-}
-
-func initConfig() {
-}
-
 func main() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
