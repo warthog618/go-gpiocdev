@@ -33,8 +33,8 @@ func init() {
 
 var extendedSetHelp = `
 Times:
-  A time is a possibly signed sequence of decimal numbers, each with optional
-  fraction and a unit suffix, such as "300ms", "-1.5h" or "2h45m".
+  A time is a sequence of decimal numbers, each with optional fraction
+  and a mandatory unit suffix, such as "300ms", "1.5h" or "2h45m".
 
   Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
 
@@ -63,9 +63,12 @@ var (
 
 func preset(cmd *cobra.Command, args []string) error {
 	if len(setOpts.Time) != 0 {
-		_, err := time.ParseDuration(setOpts.Time)
+		d, err := time.ParseDuration(setOpts.Time)
 		if err != nil {
 			return err
+		}
+		if d < 0 {
+			return fmt.Errorf("time (%s) must be positive", setOpts.Time)
 		}
 	}
 	if setOpts.OpenDrain && setOpts.OpenSource {
