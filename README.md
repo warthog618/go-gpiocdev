@@ -132,9 +132,10 @@ Both Chip and Line/Lines are safe to call from different goroutines.
 
 ## Tools
 
-A command line tool, **gpiod**, can be found in the cmd directory and is
-provided to allow manual or scripted manipulation of GPIO lines.  This tool
-combines all the **libgpiod** command line tools into a single tool.
+A command line utility, **gpiodctl**, can be found in the cmd directory and is
+provided to allow manual or scripted manipulation of GPIO lines.  This utility
+combines the Go equivalent of all the **libgpiod** command line tools into a
+single tool.
 
 The Go equivalent of each of the **libgpiod** command line tools can also be
 found in the cmd directory.
