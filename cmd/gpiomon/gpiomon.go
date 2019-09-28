@@ -49,7 +49,7 @@ func wait(cfg *config.Config, evtchan <-chan gpiod.LineEvent) {
 	sigdone := make(chan os.Signal, 1)
 	signal.Notify(sigdone, os.Interrupt, os.Kill)
 	defer signal.Stop(sigdone)
-	count := int64(0)
+	count := 0
 	num := cfg.MustGet("num-events").Int()
 	silent := cfg.MustGet("silent").Bool()
 	for {
@@ -109,14 +109,14 @@ func parseLineOffset(arg string) int {
 }
 
 func loadConfig() (*config.Config, *pflag.Getter) {
-	shortFlags := map[byte]string{
-		'h': "help",
-		'v': "version",
-		'l': "active-low",
-		'n': "num-events",
-		's': "silent",
-		'f': "falling-edge",
-		'r': "rising-edge",
+	ff := []pflag.Flag{
+		{Short: 'h', Name: "help", Options: pflag.IsBool},
+		{Short: 'v', Name: "version", Options: pflag.IsBool},
+		{Short: 'l', Name: "active-low", Options: pflag.IsBool},
+		{Short: 's', Name: "silent", Options: pflag.IsBool},
+		{Short: 'f', Name: "falling-edge", Options: pflag.IsBool},
+		{Short: 'r', Name: "rising-edge", Options: pflag.IsBool},
+		{Short: 'n', Name: "num-events"},
 	}
 	defaults := dict.New(dict.WithMap(
 		map[string]interface{}{
@@ -126,17 +126,8 @@ func loadConfig() (*config.Config, *pflag.Getter) {
 			"falling-edge": false,
 			"rising-edge":  false,
 		}))
-	boolFlags := []string{
-		"help",
-		"version",
-		"active-low",
-		"silent",
-		"falling-edge",
-		"rising-edge",
-	}
-	flags := pflag.New(pflag.WithShortFlags(shortFlags),
+	flags := pflag.New(pflag.WithFlags(ff),
 		pflag.WithKeyReplacer(keys.NullReplacer()),
-		pflag.WithBooleanFlags(boolFlags),
 	)
 	cfg := config.New(flags, config.WithDefault(defaults))
 	if v, err := cfg.Get("help"); err == nil && v.Bool() {

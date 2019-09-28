@@ -77,25 +77,19 @@ func parseLineOffset(arg string) int {
 }
 
 func loadConfig() (*config.Config, *pflag.Getter) {
-	shortFlags := map[byte]string{
-		'h': "help",
-		'v': "version",
-		'l': "active-low",
-		'a': "as-is",
+	ff := []pflag.Flag{
+		{Short: 'h', Name: "help", Options: pflag.IsBool},
+		{Short: 'v', Name: "version", Options: pflag.IsBool},
+		{Short: 'l', Name: "active-low", Options: pflag.IsBool},
+		{Short: 'a', Name: "as-is", Options: pflag.IsBool},
 	}
 	defaults := dict.New(dict.WithMap(
 		map[string]interface{}{
 			"active-low": false,
 			"as-is":      false,
 		}))
-	boolFlags := []string{
-		"help",
-		"version",
-		"active-low",
-		"as-is"}
-	flags := pflag.New(pflag.WithShortFlags(shortFlags),
+	flags := pflag.New(pflag.WithFlags(ff),
 		pflag.WithKeyReplacer(keys.NullReplacer()),
-		pflag.WithBooleanFlags(boolFlags),
 	)
 	cfg := config.New(flags, config.WithDefault(defaults))
 	if v, err := cfg.Get("help"); err == nil && v.Bool() {

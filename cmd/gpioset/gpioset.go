@@ -107,15 +107,15 @@ func parseLineValue(arg string) (int, int) {
 }
 
 func loadConfig() (*config.Config, *pflag.Getter) {
-	shortFlags := map[byte]string{
-		'h': "help",
-		'v': "version",
-		'l': "active-low",
-		'D': "open-drain",
-		'S': "open-source",
-		'm': "mode",
-		's': "sec",
-		'u': "usec",
+	ff := []pflag.Flag{
+		{Short: 'h', Name: "help", Options: pflag.IsBool},
+		{Short: 'v', Name: "version", Options: pflag.IsBool},
+		{Short: 'l', Name: "active-low", Options: pflag.IsBool},
+		{Short: 'D', Name: "open-drain", Options: pflag.IsBool},
+		{Short: 'S', Name: "open-source", Options: pflag.IsBool},
+		{Short: 'm', Name: "mode"},
+		{Short: 's', Name: "sec"},
+		{Short: 'u', Name: "usec"},
 	}
 	defaults := dict.New(dict.WithMap(
 		map[string]interface{}{
@@ -126,17 +126,8 @@ func loadConfig() (*config.Config, *pflag.Getter) {
 			"sec":         0,
 			"usec":        0,
 		}))
-	boolFlags := []string{
-		"help",
-		"version",
-		"active-low",
-		"open-drain",
-		"open-source",
-	}
-
-	flags := pflag.New(pflag.WithShortFlags(shortFlags),
+	flags := pflag.New(pflag.WithFlags(ff),
 		pflag.WithKeyReplacer(keys.NullReplacer()),
-		pflag.WithBooleanFlags(boolFlags),
 	)
 	cfg := config.New(flags, config.WithDefault(defaults))
 	if v, err := cfg.Get("help"); err == nil && v.Bool() {

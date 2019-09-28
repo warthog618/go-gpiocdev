@@ -36,11 +36,11 @@ func main() {
 }
 
 func loadConfig() {
-	shortFlags := map[byte]string{
-		'h': "help",
-		'v': "version",
+	ff := []pflag.Flag{
+		{Short: 'h', Name: "help", Options: pflag.IsBool},
+		{Short: 'v', Name: "version", Options: pflag.IsBool},
 	}
-	cfg := config.New(pflag.New(pflag.WithShortFlags(shortFlags)))
+	cfg := config.New(pflag.New(pflag.WithFlags(ff)))
 	if v, err := cfg.Get("help"); err == nil && v.Bool() {
 		printHelp()
 		os.Exit(0)
