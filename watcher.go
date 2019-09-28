@@ -16,11 +16,11 @@ import (
 )
 
 type watcher struct {
-	epfd    int
-	donefds []int
-	evtfds  map[int]int // fd to offset mapping
-	eh      EventHandler
-	donech  chan struct{}
+	epfd     int
+	donefds  []int
+	evtfds   map[int]int // fd to offset mapping
+	eh       EventHandler
+	closedCh chan struct{}
 }
 
 func newWatcher(fds map[int]int, eh EventHandler) (*watcher, error) {
@@ -40,11 +40,11 @@ func newWatcher(fds map[int]int, eh EventHandler) (*watcher, error) {
 		unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, fd, &epv)
 	}
 	w := watcher{
-		epfd:    epfd,
-		donefds: p,
-		evtfds:  fds,
-		eh:      eh,
-		donech:  make(chan struct{}),
+		epfd:     epfd,
+		donefds:  p,
+		evtfds:   fds,
+		eh:       eh,
+		closedCh: make(chan struct{}),
 	}
 	go w.watch()
 	return &w, nil
@@ -56,13 +56,13 @@ func (w *watcher) close() {
 		unix.Close(fd)
 	}
 	unix.Write(w.donefds[1], []byte("bye"))
-	<-w.donech
+	<-w.closedCh
 	unix.Close(w.donefds[1])
 }
 
 func (w *watcher) watch() {
 	epollEvents := make([]unix.EpollEvent, len(w.evtfds))
-	defer close(w.donech)
+	defer close(w.closedCh)
 	for {
 		n, err := unix.EpollWait(w.epfd, epollEvents[:], -1)
 		if err != nil {
