@@ -41,11 +41,11 @@ func loadConfig() {
 		{Short: 'v', Name: "version", Options: pflag.IsBool},
 	}
 	cfg := config.New(pflag.New(pflag.WithFlags(ff)))
-	if v, err := cfg.Get("help"); err == nil && v.Bool() {
+	if v, _ := cfg.Get("help"); v.Bool() {
 		printHelp()
 		os.Exit(0)
 	}
-	if v, err := cfg.Get("version"); err == nil && v.Bool() {
+	if v, _ := cfg.Get("version"); v.Bool() {
 		printVersion()
 		os.Exit(0)
 	}

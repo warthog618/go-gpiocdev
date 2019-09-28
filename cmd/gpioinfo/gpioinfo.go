@@ -58,11 +58,11 @@ func loadConfig() *pflag.Getter {
 	}
 	flags := pflag.New(pflag.WithFlags(ff))
 	cfg := config.New(flags)
-	if v, err := cfg.Get("help"); err == nil && v.Bool() {
+	if v, _ := cfg.Get("help"); v.Bool() {
 		printHelp()
 		os.Exit(0)
 	}
-	if v, err := cfg.Get("version"); err == nil && v.Bool() {
+	if v, _ := cfg.Get("version"); v.Bool() {
 		printVersion()
 		os.Exit(0)
 	}

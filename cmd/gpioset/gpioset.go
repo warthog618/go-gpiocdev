@@ -119,6 +119,8 @@ func loadConfig() (*config.Config, *pflag.Getter) {
 	}
 	defaults := dict.New(dict.WithMap(
 		map[string]interface{}{
+			"help":        false,
+			"version":     false,
 			"active-low":  false,
 			"open-drain":  false,
 			"open-source": false,
@@ -130,11 +132,11 @@ func loadConfig() (*config.Config, *pflag.Getter) {
 		pflag.WithKeyReplacer(keys.NullReplacer()),
 	)
 	cfg := config.New(flags, config.WithDefault(defaults))
-	if v, err := cfg.Get("help"); err == nil && v.Bool() {
+	if cfg.MustGet("help").Bool() {
 		printHelp()
 		os.Exit(0)
 	}
-	if v, err := cfg.Get("version"); err == nil && v.Bool() {
+	if cfg.MustGet("version").Bool() {
 		printVersion()
 		os.Exit(0)
 	}
