@@ -4,3 +4,4 @@ gpiofind/gpiofind
 gpioget/gpioget
 gpioset/gpioset
 gpiomon/gpiomon
+gpiodctl/gpiodctl
