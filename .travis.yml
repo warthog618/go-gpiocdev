@@ -1,0 +1,21 @@
+language: go
+
+go:
+  - "1.x"
+  - "1.13"
+  - tip
+
+os:
+  - linux
+
+matrix:
+  allow_failures:
+    - go: tip
+  fast_finish: true
+
+install:
+  - go get -v ./...
+
+script:
+  - go vet ./...
+  - make
