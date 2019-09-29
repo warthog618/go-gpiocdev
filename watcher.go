@@ -1,7 +1,6 @@
-// Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
+// SPDX-License-Identifier: MIT
 //
-// Use of this source code is governed by an MIT-style
-// license that can be found in the LICENSE file.
+// Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
 
 // +build linux
 
@@ -16,11 +15,19 @@ import (
 )
 
 type watcher struct {
-	epfd     int
-	donefds  []int
-	evtfds   map[int]int // fd to offset mapping
-	eh       EventHandler
-	closedCh chan struct{}
+	epfd int
+
+	// fd to offset mapping
+	evtfds map[int]int
+
+	// the handler for detected events
+	eh EventHandler
+
+	// pipe to signal watcher to shutdown
+	donefds []int
+
+	// closed once watcher exits
+	doneCh chan struct{}
 }
 
 func newWatcher(fds map[int]int, eh EventHandler) (*watcher, error) {
@@ -40,11 +47,11 @@ func newWatcher(fds map[int]int, eh EventHandler) (*watcher, error) {
 		unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, fd, &epv)
 	}
 	w := watcher{
-		epfd:     epfd,
-		donefds:  p,
-		evtfds:   fds,
-		eh:       eh,
-		closedCh: make(chan struct{}),
+		epfd:    epfd,
+		donefds: p,
+		evtfds:  fds,
+		eh:      eh,
+		doneCh:  make(chan struct{}),
 	}
 	go w.watch()
 	return &w, nil
@@ -56,13 +63,13 @@ func (w *watcher) close() {
 		unix.Close(fd)
 	}
 	unix.Write(w.donefds[1], []byte("bye"))
-	<-w.closedCh
+	<-w.doneCh
 	unix.Close(w.donefds[1])
 }
 
 func (w *watcher) watch() {
 	epollEvents := make([]unix.EpollEvent, len(w.evtfds))
-	defer close(w.closedCh)
+	defer close(w.doneCh)
 	for {
 		n, err := unix.EpollWait(w.epfd, epollEvents[:], -1)
 		if err != nil {
