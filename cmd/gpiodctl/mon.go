@@ -105,7 +105,7 @@ func monWait(evtchan <-chan gpiod.LineEvent) {
 func makeMonOpts(eh gpiod.EventHandler) []gpiod.LineOption {
 	opts := []gpiod.LineOption{}
 	if monOpts.ActiveLow {
-		opts = append(opts, gpiod.AsActiveLow())
+		opts = append(opts, gpiod.AsActiveLow)
 	}
 	switch {
 	case monOpts.RisingEdge == monOpts.FallingEdge:

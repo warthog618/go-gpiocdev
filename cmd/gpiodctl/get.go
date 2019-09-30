@@ -67,10 +67,10 @@ func get(cmd *cobra.Command, args []string) error {
 func makeGetOpts() []gpiod.LineOption {
 	opts := []gpiod.LineOption{}
 	if getOpts.ActiveLow {
-		opts = append(opts, gpiod.AsActiveLow())
+		opts = append(opts, gpiod.AsActiveLow)
 	}
 	if !getOpts.AsIs {
-		opts = append(opts, gpiod.AsInput())
+		opts = append(opts, gpiod.AsInput)
 	}
 	return opts
 }

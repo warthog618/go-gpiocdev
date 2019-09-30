@@ -58,7 +58,7 @@ Request a line as is, so not altering direction settings:
 Request a line as input, so altering direction settings:
 
 ```go
-    l, _ = c.RequestLine(2, gpiod.AsInput())
+    l, _ = c.RequestLine(2, gpiod.AsInput)
 ```
 
 Request a line as output - initially set active, then set inactive:
@@ -75,7 +75,7 @@ is the case here.
 Request a line as an open-drain output:
 
 ```go
-    l, _ = c.RequestLine(3, gpiod.AsOpenDrain())
+    l, _ = c.RequestLine(3, gpiod.AsOpenDrain)
 ```
 
 Get the value of a line (which must be requested first):

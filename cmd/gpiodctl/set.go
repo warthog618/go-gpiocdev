@@ -94,16 +94,12 @@ func set(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	defer c.Close()
-	opts := makeSetOpts()
+	opts := makeSetOpts(vv)
 	l, err := c.RequestLines(ll, opts...)
 	if err != nil {
 		return fmt.Errorf("error requesting GPIO line: %s", err)
 	}
 	defer l.Close()
-	err = l.SetValues(vv)
-	if err != nil {
-		return fmt.Errorf("error setting GPIO state: %s", err)
-	}
 	setWait()
 	return nil
 }
@@ -139,16 +135,16 @@ func setWait() {
 	<-done
 }
 
-func makeSetOpts() []gpiod.LineOption {
-	opts := []gpiod.LineOption{gpiod.AsOutput()}
+func makeSetOpts(vv []int) []gpiod.LineOption {
+	opts := []gpiod.LineOption{gpiod.AsOutput(vv...)}
 	if setOpts.ActiveLow {
-		opts = append(opts, gpiod.AsActiveLow())
+		opts = append(opts, gpiod.AsActiveLow)
 	}
 	if setOpts.OpenDrain {
-		opts = append(opts, gpiod.AsOpenDrain())
+		opts = append(opts, gpiod.AsOpenDrain)
 	}
 	if setOpts.OpenSource {
-		opts = append(opts, gpiod.AsOpenSource())
+		opts = append(opts, gpiod.AsOpenSource)
 	}
 	return opts
 }

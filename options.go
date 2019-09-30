@@ -61,9 +61,7 @@ type AsIsOption struct{}
 // AsIs indicates that a line be requested as neither an input or output.
 // That is its direction is left as is. This option overrides and clears any
 // previous Input or Output options.
-func AsIs() AsIsOption {
-	return AsIsOption{}
-}
+var AsIs = AsIsOption{}
 
 func (o AsIsOption) applyLineOption(l *LineOptions) {
 	l.HandleFlags &= ^(uapi.HandleRequestOutput | uapi.HandleRequestInput)
@@ -75,9 +73,7 @@ type InputOption struct{}
 // AsInput indicates that a line be requested as an input.
 // This option overrides and clears any previous Output, OpenDrain, or
 // OpenSource options.
-func AsInput() InputOption {
-	return InputOption{}
-}
+var AsInput = InputOption{}
 
 func (o InputOption) applyLineOption(l *LineOptions) {
 	l.HandleFlags &= ^(uapi.HandleRequestOutput |
@@ -116,9 +112,7 @@ type ActiveLowOption struct{}
 
 // AsActiveLow indicates that a line be considered active when the line level
 // is low.
-func AsActiveLow() ActiveLowOption {
-	return ActiveLowOption{}
-}
+var AsActiveLow = ActiveLowOption{}
 
 func (o ActiveLowOption) applyLineOption(l *LineOptions) {
 	l.HandleFlags |= uapi.HandleRequestActiveLow
@@ -131,9 +125,7 @@ type OpenDrainOption struct{}
 // AsOpenDrain indicates that a line be driven low but left floating for high.
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, or OpenSource options.
-func AsOpenDrain() OpenDrainOption {
-	return OpenDrainOption{}
-}
+var AsOpenDrain = OpenDrainOption{}
 
 func (o OpenDrainOption) applyLineOption(l *LineOptions) {
 	l.HandleFlags &= ^(uapi.HandleRequestInput | uapi.HandleRequestOpenSource)
@@ -148,9 +140,7 @@ type OpenSourceOption struct{}
 // AsOpenSource indicates that a line be driven low but left floating for hign.
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, or OpenDrain options.
-func AsOpenSource() OpenSourceOption {
-	return OpenSourceOption{}
-}
+var AsOpenSource = OpenSourceOption{}
 
 func (o OpenSourceOption) applyLineOption(l *LineOptions) {
 	l.HandleFlags &= ^(uapi.HandleRequestInput | uapi.HandleRequestOpenDrain)

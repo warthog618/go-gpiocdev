@@ -40,16 +40,12 @@ func main() {
 		ll = append(ll, o)
 		vv = append(vv, v)
 	}
-	opts := makeOpts(cfg)
+	opts := makeOpts(cfg, vv)
 	l, err := c.RequestLines(ll, opts...)
 	if err != nil {
 		die("error requesting GPIO lines:" + err.Error())
 	}
 	defer l.Close()
-	err = l.SetValues(vv)
-	if err != nil {
-		die("error setting GPIO values:" + err.Error())
-	}
 	wait(cfg)
 	os.Exit(0)
 }
@@ -76,16 +72,16 @@ func wait(cfg *config.Config) {
 	}
 }
 
-func makeOpts(cfg *config.Config) []gpiod.LineOption {
-	opts := []gpiod.LineOption{gpiod.AsOutput()}
+func makeOpts(cfg *config.Config, vv []int) []gpiod.LineOption {
+	opts := []gpiod.LineOption{gpiod.AsOutput(vv...)}
 	if cfg.MustGet("active-low").Bool() {
-		opts = append(opts, gpiod.AsActiveLow())
+		opts = append(opts, gpiod.AsActiveLow)
 	}
 	if cfg.MustGet("open-drain").Bool() {
-		opts = append(opts, gpiod.AsOpenDrain())
+		opts = append(opts, gpiod.AsOpenDrain)
 	}
 	if cfg.MustGet("open-source").Bool() {
-		opts = append(opts, gpiod.AsOpenSource())
+		opts = append(opts, gpiod.AsOpenSource)
 	}
 	return opts
 }

@@ -50,14 +50,14 @@ func TestAsIs(t *testing.T) {
 	defer c.Close()
 
 	// leave input as input
-	l, err := c.RequestLine(platform.FloatingLines()[0], gpiod.AsInput())
+	l, err := c.RequestLine(platform.FloatingLines()[0], gpiod.AsInput)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	inf, err := c.LineInfo(platform.FloatingLines()[0])
 	assert.Nil(t, err)
 	assert.False(t, inf.IsOut)
 	l.Close()
-	l, err = c.RequestLine(platform.FloatingLines()[0], gpiod.AsIs())
+	l, err = c.RequestLine(platform.FloatingLines()[0], gpiod.AsIs)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	inf, err = c.LineInfo(platform.FloatingLines()[0])
@@ -73,7 +73,7 @@ func TestAsIs(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, inf.IsOut)
 	l.Close()
-	l, err = c.RequestLine(platform.FloatingLines()[0], gpiod.AsIs())
+	l, err = c.RequestLine(platform.FloatingLines()[0], gpiod.AsIs)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	l.Close()
@@ -90,14 +90,14 @@ func TestAsInput(t *testing.T) {
 	defer c.Close()
 
 	// leave input as input
-	l, err := c.RequestLine(platform.FloatingLines()[0], gpiod.AsInput())
+	l, err := c.RequestLine(platform.FloatingLines()[0], gpiod.AsInput)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	inf, err := c.LineInfo(platform.FloatingLines()[0])
 	assert.Nil(t, err)
 	assert.False(t, inf.IsOut)
 	l.Close()
-	l, err = c.RequestLine(platform.FloatingLines()[0], gpiod.AsInput())
+	l, err = c.RequestLine(platform.FloatingLines()[0], gpiod.AsInput)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	inf, err = c.LineInfo(platform.FloatingLines()[0])
@@ -113,7 +113,7 @@ func TestAsInput(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, inf.IsOut)
 	l.Close()
-	l, err = c.RequestLine(platform.FloatingLines()[0], gpiod.AsInput())
+	l, err = c.RequestLine(platform.FloatingLines()[0], gpiod.AsInput)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	l.Close()
@@ -129,7 +129,7 @@ func TestAsOutput(t *testing.T) {
 	defer c.Close()
 
 	// change input to output
-	l, err := c.RequestLine(platform.FloatingLines()[0], gpiod.AsInput())
+	l, err := c.RequestLine(platform.FloatingLines()[0], gpiod.AsInput)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	inf, err := c.LineInfo(platform.FloatingLines()[0])
@@ -163,7 +163,7 @@ func TestAsActiveLow(t *testing.T) {
 	platform.TriggerIntr(0)
 	ich := make(chan gpiod.LineEvent)
 	l, err := c.RequestLine(platform.IntrLine(),
-		gpiod.AsActiveLow(),
+		gpiod.AsActiveLow,
 		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
 			ich <- evt
 		}))
@@ -190,7 +190,7 @@ func TestAsActiveLow(t *testing.T) {
 
 	// output - initial value and SetValue are reverse polarity
 	l, err = c.RequestLine(platform.OutLine(),
-		gpiod.AsActiveLow(),
+		gpiod.AsActiveLow,
 		gpiod.AsOutput(1))
 	assert.Nil(t, err)
 	require.NotNil(t, l)
@@ -216,7 +216,7 @@ func TestAsOpenDrain(t *testing.T) {
 	defer c.Close()
 
 	l, err := c.RequestLine(platform.FloatingLines()[0],
-		gpiod.AsOpenDrain())
+		gpiod.AsOpenDrain)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	defer l.Close()
@@ -233,7 +233,7 @@ func TestAsOpenSource(t *testing.T) {
 	defer c.Close()
 
 	l, err := c.RequestLine(platform.FloatingLines()[0],
-		gpiod.AsOpenSource())
+		gpiod.AsOpenSource)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	defer l.Close()

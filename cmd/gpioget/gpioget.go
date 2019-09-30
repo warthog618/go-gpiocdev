@@ -51,10 +51,10 @@ func main() {
 func makeOpts(cfg *config.Config) []gpiod.LineOption {
 	opts := []gpiod.LineOption{}
 	if cfg.MustGet("active-low").Bool() {
-		opts = append(opts, gpiod.AsActiveLow())
+		opts = append(opts, gpiod.AsActiveLow)
 	}
 	if !cfg.MustGet("as-is").Bool() {
-		opts = append(opts, gpiod.AsInput())
+		opts = append(opts, gpiod.AsInput)
 	}
 	return opts
 }

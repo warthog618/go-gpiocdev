@@ -76,7 +76,7 @@ func wait(cfg *config.Config, evtchan <-chan gpiod.LineEvent) {
 func makeOpts(cfg *config.Config, eh gpiod.EventHandler) []gpiod.LineOption {
 	opts := []gpiod.LineOption{}
 	if cfg.MustGet("active-low").Bool() {
-		opts = append(opts, gpiod.AsActiveLow())
+		opts = append(opts, gpiod.AsActiveLow)
 	}
 	falling := cfg.MustGet("falling-edge").Bool()
 	rising := cfg.MustGet("rising-edge").Bool()
