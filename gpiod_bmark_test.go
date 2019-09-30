@@ -8,6 +8,7 @@ package gpiod_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/warthog618/gpiod"
@@ -76,7 +77,7 @@ func BenchmarkInterruptLatency(b *testing.B) {
 	require.Nil(b, err)
 	require.NotNil(b, c)
 	defer c.Close()
-	platform.TriggerIntr(0)
+	platform.TriggerIntr(1)
 	ich := make(chan int)
 	r, err := c.RequestLine(platform.IntrLine(),
 		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
@@ -84,7 +85,12 @@ func BenchmarkInterruptLatency(b *testing.B) {
 		}))
 	require.Nil(b, err)
 	require.NotNil(b, r)
-	for i := 1; i < b.N+1; i++ {
+	// absorb any pending interrupt
+	select {
+	case <-ich:
+	case <-time.After(time.Millisecond):
+	}
+	for i := 0; i < b.N; i++ {
 		platform.TriggerIntr(i & 1)
 		<-ich
 	}
