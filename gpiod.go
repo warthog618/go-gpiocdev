@@ -424,18 +424,18 @@ func (l *Lines) Info() ([]*LineInfo, error) {
 // lines.
 //
 // Gets as many values from the set, in order, as can be fit in vv, up to the full set.
-func (l *Lines) Values(vv []int) error {
-	var values uapi.HandleData
-	err := uapi.GetLineValues(l.vfd, &values)
+func (l *Lines) Values(values []int) error {
+	var uvv uapi.HandleData
+	err := uapi.GetLineValues(l.vfd, &uvv)
 	if err != nil {
 		return err
 	}
 	lines := len(l.offsets)
-	if len(vv) < lines {
-		lines = len(vv)
+	if len(values) < lines {
+		lines = len(values)
 	}
 	for i := 0; i < lines; i++ {
-		vv[i] = int(values[i])
+		values[i] = int(uvv[i])
 	}
 	return nil
 }

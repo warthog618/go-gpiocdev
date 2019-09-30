@@ -117,11 +117,29 @@ The [Chip](https://godoc.org/github.com/warthog618/gpiod#Chip) represents the
 GPIO chip itself.  The Chip is the source of chip and line info and the
 constructor of Line/Lines.
 
-Lines must be requested from the Chip before you can do anything useful with
-them, such as setting or getting values, or detecting edges.  Also note that, as
-per the underlying UAPI, the majority of line attributes, including
-input/output, active low, and open drain/source, can only be set at request
-time, and are immutable while the request is held.
+Lines must be requested from the Chip, using
+[Chip.RequestLine](https://godoc.org/github.com/warthog618/gpiod#Chip.RequestLine)
+or
+[ChipRequestLines](https://godoc.org/github.com/warthog618/gpiod#Chip.RequestLines),
+before you can do anything useful with them, such as setting or getting values,
+or detecting edges.  Also note that, as per the underlying UAPI, the majority of
+line attributes, including input/output, active low, and open drain/source, can
+only be set at request time, and are immutable while the request is
+held.
+
+Line attributes are set via options to RequestLine(s).  The line options are:
+
+Option | Description
+---|---
+AsActiveLow|Treat a low physical line level as active (default is active high)
+AsInput|Request lines as input
+AsIs|Request lines in their current input/output state (default)
+AsOutput(\<values\>...)|Request lines as output with initial values (default to inactive)
+AsOpenDrain|Request lines as open drain outputs
+AsOpenSource|Request lines as open source outputs
+WithFallingEdge(eh)|Request lines with falling edge detection, with events passed to the provided event handler
+WithRisingEdge(eh)|Request lines with rising edge detection, with events passed to the provided event handler
+WithBothEdges(eh)|Request lines with rising and falling edge detection, with events passed to the provided event handler
 
 The [Line](https://godoc.org/github.com/warthog618/gpiod#Line) and
 [Lines](https://godoc.org/github.com/warthog618/gpiod#Lines) are essentially the
@@ -129,7 +147,7 @@ same.  They both represent a requested set of lines, but in the case of the Line
 that set is one.  The Line API is slightly simplified as it only has to deal
 with the one line, not a larger set.
 
-Both Chip and Line/Lines are safe to call from different goroutines.
+Both Chip and Line/Lines methods are safe to call from different goroutines.
 
 ## Tools
 

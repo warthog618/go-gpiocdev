@@ -106,52 +106,55 @@ func (o OutputOption) applyLineOption(l *LineOptions) {
 	l.DefaultValues = o.defaultValues
 }
 
-// ActiveLowOption indicates the line be considered active when the line level
-// is low.
-type ActiveLowOption struct{}
+// FlagOption applies particular line handle flags.
+type FlagOption struct {
+	flag uapi.HandleFlag
+}
+
+func (o FlagOption) applyLineOption(l *LineOptions) {
+	l.HandleFlags |= o.flag
+}
 
 // AsActiveLow indicates that a line be considered active when the line level
 // is low.
-var AsActiveLow = ActiveLowOption{}
+var AsActiveLow = FlagOption{uapi.HandleRequestActiveLow}
 
-func (o ActiveLowOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags |= uapi.HandleRequestActiveLow
+// DrainageOption indicates that a line is open drain or open source.
+type DrainageOption struct {
+	flag uapi.HandleFlag
 }
 
-// OpenDrainOption indicates that a line be driven low but left floating for
-// high.
-type OpenDrainOption struct{}
+func (o DrainageOption) applyLineOption(l *LineOptions) {
+	l.HandleFlags &= ^(uapi.HandleRequestInput |
+		uapi.HandleRequestOpenDrain |
+		uapi.HandleRequestOpenSource)
+	l.HandleFlags |= (o.flag | uapi.HandleRequestOutput)
+	l.EventFlags = 0
+}
 
 // AsOpenDrain indicates that a line be driven low but left floating for high.
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, or OpenSource options.
-var AsOpenDrain = OpenDrainOption{}
-
-func (o OpenDrainOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^(uapi.HandleRequestInput | uapi.HandleRequestOpenSource)
-	l.HandleFlags |= (uapi.HandleRequestOpenDrain | uapi.HandleRequestOutput)
-	l.EventFlags = 0
-}
-
-// OpenSourceOption indicates that a line be driven high but left floating for
-// low.
-type OpenSourceOption struct{}
+var AsOpenDrain = DrainageOption{uapi.HandleRequestOpenDrain}
 
 // AsOpenSource indicates that a line be driven low but left floating for hign.
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, or OpenDrain options.
-var AsOpenSource = OpenSourceOption{}
+var AsOpenSource = DrainageOption{uapi.HandleRequestOpenSource}
 
-func (o OpenSourceOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^(uapi.HandleRequestInput | uapi.HandleRequestOpenDrain)
-	l.HandleFlags |= (uapi.HandleRequestOpenSource | uapi.HandleRequestOutput)
-	l.EventFlags = 0
+// EdgeOption indicates that a line will generate events when edges are detected.
+type EdgeOption struct {
+	e    EventHandler
+	edge uapi.EventFlag
 }
 
-// FallingEdgeOption indicates that a line will generate events when its active
-// state transitions from high to low.
-type FallingEdgeOption struct {
-	e EventHandler
+func (o EdgeOption) applyLineOption(l *LineOptions) {
+	l.HandleFlags &= ^(uapi.HandleRequestOutput |
+		uapi.HandleRequestOpenDrain |
+		uapi.HandleRequestOpenSource)
+	l.HandleFlags |= uapi.HandleRequestInput
+	l.EventFlags = o.edge
+	l.eh = o.e
 }
 
 // WithFallingEdge indicates that a line will generate events when its active
@@ -159,23 +162,8 @@ type FallingEdgeOption struct {
 // Events are forwarded to the provided handler function.
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
-func WithFallingEdge(e func(LineEvent)) FallingEdgeOption {
-	return FallingEdgeOption{EventHandler(e)}
-}
-
-func (o FallingEdgeOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^(uapi.HandleRequestOutput |
-		uapi.HandleRequestOpenDrain |
-		uapi.HandleRequestOpenSource)
-	l.HandleFlags |= uapi.HandleRequestInput
-	l.EventFlags |= uapi.EventRequestFallingEdge
-	l.eh = o.e
-}
-
-// RisingEdgeOption indicates that a line will generate events when its active
-// state transitions from low to high.
-type RisingEdgeOption struct {
-	e EventHandler
+func WithFallingEdge(e func(LineEvent)) EdgeOption {
+	return EdgeOption{EventHandler(e), uapi.EventRequestFallingEdge}
 }
 
 // WithRisingEdge indicates that a line will generate events when its active
@@ -183,23 +171,8 @@ type RisingEdgeOption struct {
 // Events are forwarded to the provided handler function.
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
-func WithRisingEdge(e func(LineEvent)) RisingEdgeOption {
-	return RisingEdgeOption{EventHandler(e)}
-}
-
-func (o RisingEdgeOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^(uapi.HandleRequestOutput |
-		uapi.HandleRequestOpenDrain |
-		uapi.HandleRequestOpenSource)
-	l.HandleFlags |= uapi.HandleRequestInput
-	l.EventFlags |= uapi.EventRequestRisingEdge
-	l.eh = o.e
-}
-
-// BothEdgesOption indicates that a line will generate events when its active
-// state transitions from low to high and from high to low.
-type BothEdgesOption struct {
-	e EventHandler
+func WithRisingEdge(e func(LineEvent)) EdgeOption {
+	return EdgeOption{EventHandler(e), uapi.EventRequestRisingEdge}
 }
 
 // WithBothEdges indicates that a line will generate events when its active
@@ -207,15 +180,6 @@ type BothEdgesOption struct {
 // Events are forwarded to the provided handler function.
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
-func WithBothEdges(e func(LineEvent)) BothEdgesOption {
-	return BothEdgesOption{EventHandler(e)}
-}
-
-func (o BothEdgesOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^(uapi.HandleRequestOutput |
-		uapi.HandleRequestOpenDrain |
-		uapi.HandleRequestOpenSource)
-	l.HandleFlags |= uapi.HandleRequestInput
-	l.EventFlags |= uapi.EventRequestBothEdges
-	l.eh = o.e
+func WithBothEdges(e func(LineEvent)) EdgeOption {
+	return EdgeOption{EventHandler(e), uapi.EventRequestBothEdges}
 }
