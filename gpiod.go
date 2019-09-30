@@ -294,8 +294,8 @@ func (c *Chip) getHandleRequest(offsets []int, lo LineOptions) (uintptr, error) 
 	for i, o := range offsets {
 		hr.Offsets[i] = uint32(o)
 	}
-	//copy(hr.DefaultValues[:], lo.DefaultValues) - with cast
-	for i, v := range lo.DefaultValues {
+	//copy(hr.DefaultValues[:], lo.InitialValues) - with cast
+	for i, v := range lo.InitialValues {
 		hr.DefaultValues[i] = uint8(v)
 	}
 	err := uapi.GetLineHandle(c.f.Fd(), &hr)

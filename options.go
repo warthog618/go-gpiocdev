@@ -46,7 +46,7 @@ type LineOption interface {
 // LineOptions contains the options for a Line or Lines.
 type LineOptions struct {
 	consumer      string
-	DefaultValues []int
+	InitialValues []int
 	EventFlags    uapi.EventFlag
 	HandleFlags   uapi.HandleFlag
 	eh            EventHandler
@@ -84,7 +84,7 @@ func (o InputOption) applyLineOption(l *LineOptions) {
 
 // OutputOption indicates the line direction should be set to an output.
 type OutputOption struct {
-	defaultValues []int
+	initialValues []int
 }
 
 // AsOutput indicates that a line or lines be requested as an output.
@@ -103,7 +103,7 @@ func (o OutputOption) applyLineOption(l *LineOptions) {
 	l.HandleFlags &= ^uapi.HandleRequestInput
 	l.HandleFlags |= uapi.HandleRequestOutput
 	l.EventFlags = 0
-	l.DefaultValues = o.defaultValues
+	l.InitialValues = o.initialValues
 }
 
 // FlagOption applies particular line handle flags.
@@ -119,12 +119,12 @@ func (o FlagOption) applyLineOption(l *LineOptions) {
 // is low.
 var AsActiveLow = FlagOption{uapi.HandleRequestActiveLow}
 
-// DrainageOption indicates that a line is open drain or open source.
-type DrainageOption struct {
+// OutputModeOption indicates that a line is open drain or open source.
+type OutputModeOption struct {
 	flag uapi.HandleFlag
 }
 
-func (o DrainageOption) applyLineOption(l *LineOptions) {
+func (o OutputModeOption) applyLineOption(l *LineOptions) {
 	l.HandleFlags &= ^(uapi.HandleRequestInput |
 		uapi.HandleRequestOpenDrain |
 		uapi.HandleRequestOpenSource)
@@ -135,12 +135,12 @@ func (o DrainageOption) applyLineOption(l *LineOptions) {
 // AsOpenDrain indicates that a line be driven low but left floating for high.
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, or OpenSource options.
-var AsOpenDrain = DrainageOption{uapi.HandleRequestOpenDrain}
+var AsOpenDrain = OutputModeOption{uapi.HandleRequestOpenDrain}
 
 // AsOpenSource indicates that a line be driven low but left floating for hign.
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, or OpenDrain options.
-var AsOpenSource = DrainageOption{uapi.HandleRequestOpenSource}
+var AsOpenSource = OutputModeOption{uapi.HandleRequestOpenSource}
 
 // EdgeOption indicates that a line will generate events when edges are detected.
 type EdgeOption struct {
