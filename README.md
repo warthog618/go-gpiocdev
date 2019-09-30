@@ -191,8 +191,8 @@ run them on hardware where any of those pins is being externally driven.
 
 The test user must have access to the **/dev/gpiochip0** character device.
 
-Tests have been run successfully on Raspberry Pi Zero W.  The library should
-also work on other Raspberry Pi variants, I just haven't gotten around to
+Tests have been run successfully on Raspberry Pi Zero W and Pi 4B.  The library
+should also work on other Raspberry Pi variants, I just haven't gotten around to
 testing them yet.
 
 The tests can be cross-compiled from other platforms using:
