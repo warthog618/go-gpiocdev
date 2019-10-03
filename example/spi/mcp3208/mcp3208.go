@@ -20,7 +20,7 @@ import (
 )
 
 // This example reads both channels from an MCP3208 connected to the RPI by four
-// data lines - SSZ, SCLK, MOSI, and MISO. The default pin assignments are defined in
+// data lines - CSZ, CLK, DI, and DO. The default pin assignments are defined in
 // loadConfig, but can be altered via configuration (env, flag or config file).
 // All pins other than DO are outputs so do not run this example on a board
 // where those pins serve other purposes.
@@ -100,34 +100,4 @@ const (
 	J8p22
 	J8p37
 	J8p13
-)
-
-// GPIO aliases to J8 pins
-const (
-	GPIO2  = J8p3
-	GPIO3  = J8p5
-	GPIO4  = J8p7
-	GPIO5  = J8p29
-	GPIO6  = J8p31
-	GPIO7  = J8p26
-	GPIO8  = J8p24
-	GPIO9  = J8p21
-	GPIO10 = J8p19
-	GPIO11 = J8p23
-	GPIO12 = J8p32
-	GPIO13 = J8p33
-	GPIO14 = J8p8
-	GPIO15 = J8p10
-	GPIO16 = J8p36
-	GPIO17 = J8p11
-	GPIO18 = J8p12
-	GPIO19 = J8p35
-	GPIO20 = J8p38
-	GPIO21 = J8p40
-	GPIO22 = J8p15
-	GPIO23 = J8p16
-	GPIO24 = J8p18
-	GPIO25 = J8p22
-	GPIO26 = J8p37
-	GPIO27 = J8p13
 )
