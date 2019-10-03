@@ -24,8 +24,8 @@ type ADC0832 struct {
 }
 
 // New creates a ADC0832.
-func New(tclk, tset time.Duration, sclk, ssz, mosi, miso int) (*ADC0832, error) {
-	s, err := spi.New(tclk, sclk, ssz, mosi, miso, nil)
+func New(tclk, tset time.Duration, clk, csz, di, do int) (*ADC0832, error) {
+	s, err := spi.New(tclk, clk, csz, di, do, nil)
 	if err != nil {
 		return nil, err
 	}

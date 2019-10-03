@@ -28,8 +28,8 @@ type MCP3w0c struct {
 }
 
 // New creates a MCP3w0c.
-func New(tclk time.Duration, sclk, ssz, mosi, miso int, width uint) (*MCP3w0c, error) {
-	s, err := spi.New(tclk, sclk, ssz, mosi, miso, nil)
+func New(tclk time.Duration, clk, csz, di, do int, width uint) (*MCP3w0c, error) {
+	s, err := spi.New(tclk, clk, csz, di, do, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -37,13 +37,13 @@ func New(tclk time.Duration, sclk, ssz, mosi, miso int, width uint) (*MCP3w0c, e
 }
 
 // NewMCP3008 creates a MCP3008.
-func NewMCP3008(tclk time.Duration, sclk, ssz, mosi, miso int) (*MCP3w0c, error) {
-	return New(tclk, sclk, ssz, mosi, miso, 10)
+func NewMCP3008(tclk time.Duration, clk, csz, di, do int) (*MCP3w0c, error) {
+	return New(tclk, clk, csz, di, do, 10)
 }
 
 // NewMCP3208 creates a MCP3208.
-func NewMCP3208(tclk time.Duration, sclk, ssz, mosi, miso int) (*MCP3w0c, error) {
-	return New(tclk, sclk, ssz, mosi, miso, 12)
+func NewMCP3208(tclk time.Duration, clk, csz, di, do int) (*MCP3w0c, error) {
+	return New(tclk, clk, csz, di, do, 12)
 }
 
 // Close releases all resources allocated to the ADC.
