@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/warthog618/config"
 	"github.com/warthog618/config/blob"
@@ -35,6 +36,10 @@ func main() {
 		cfg.MustGet("csz").Int(),
 		cfg.MustGet("di").Int(),
 		cfg.MustGet("do").Int())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "adc0832: %s\n", err)
+		os.Exit(1)
+	}
 	defer a.Close()
 	ch0, err := a.Read(0)
 	if err != nil {
