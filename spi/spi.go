@@ -27,15 +27,7 @@ type SPI struct {
 }
 
 // New creates a SPI.
-func New(tclk time.Duration, sclk, ssz, mosi, miso int, c *gpiod.Chip) (*SPI, error) {
-	var err error
-	if c == nil {
-		c, err = gpiod.NewChip("gpiochip0")
-		if err != nil {
-			return nil, err
-		}
-		defer c.Close()
-	}
+func New(c *gpiod.Chip, tclk time.Duration, sclk, ssz, mosi, miso int) (*SPI, error) {
 	lines := []struct {
 		offset int
 		option gpiod.LineOption

@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/warthog618/gpiod"
 	"github.com/warthog618/gpiod/spi"
 )
 
@@ -24,8 +25,8 @@ type ADC0832 struct {
 }
 
 // New creates a ADC0832.
-func New(tclk, tset time.Duration, clk, csz, di, do int) (*ADC0832, error) {
-	s, err := spi.New(tclk, clk, csz, di, do, nil)
+func New(c *gpiod.Chip, tclk, tset time.Duration, clk, csz, di, do int) (*ADC0832, error) {
+	s, err := spi.New(c, tclk, clk, csz, di, do)
 	if err != nil {
 		return nil, err
 	}

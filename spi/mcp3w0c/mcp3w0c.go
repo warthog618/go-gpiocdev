@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/warthog618/gpiod"
 	"github.com/warthog618/gpiod/spi"
 )
 
@@ -28,8 +29,8 @@ type MCP3w0c struct {
 }
 
 // New creates a MCP3w0c.
-func New(tclk time.Duration, clk, csz, di, do int, width uint) (*MCP3w0c, error) {
-	s, err := spi.New(tclk, clk, csz, di, do, nil)
+func New(c *gpiod.Chip, tclk time.Duration, clk, csz, di, do int, width uint) (*MCP3w0c, error) {
+	s, err := spi.New(c, tclk, clk, csz, di, do)
 	if err != nil {
 		return nil, err
 	}
@@ -37,13 +38,13 @@ func New(tclk time.Duration, clk, csz, di, do int, width uint) (*MCP3w0c, error)
 }
 
 // NewMCP3008 creates a MCP3008.
-func NewMCP3008(tclk time.Duration, clk, csz, di, do int) (*MCP3w0c, error) {
-	return New(tclk, clk, csz, di, do, 10)
+func NewMCP3008(c *gpiod.Chip, tclk time.Duration, clk, csz, di, do int) (*MCP3w0c, error) {
+	return New(c, tclk, clk, csz, di, do, 10)
 }
 
 // NewMCP3208 creates a MCP3208.
-func NewMCP3208(tclk time.Duration, clk, csz, di, do int) (*MCP3w0c, error) {
-	return New(tclk, clk, csz, di, do, 12)
+func NewMCP3208(c *gpiod.Chip, tclk time.Duration, clk, csz, di, do int) (*MCP3w0c, error) {
+	return New(c, tclk, clk, csz, di, do, 12)
 }
 
 // Close releases all resources allocated to the ADC.
