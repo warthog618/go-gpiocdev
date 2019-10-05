@@ -4,6 +4,12 @@
 
 package rpi
 
+import (
+	"errors"
+	"strconv"
+	"strings"
+)
+
 // Convenience mapping from J8 pinouts to BCM pinouts.
 const (
 	J8p27 = iota
@@ -34,35 +40,113 @@ const (
 	J8p22
 	J8p37
 	J8p13
-	MaxGPIOPin
 )
 
 // GPIO aliases to J8 pins
 const (
-	GPIO2  = J8p3
-	GPIO3  = J8p5
-	GPIO4  = J8p7
-	GPIO5  = J8p29
-	GPIO6  = J8p31
-	GPIO7  = J8p26
-	GPIO8  = J8p24
-	GPIO9  = J8p21
-	GPIO10 = J8p19
-	GPIO11 = J8p23
-	GPIO12 = J8p32
-	GPIO13 = J8p33
-	GPIO14 = J8p8
-	GPIO15 = J8p10
-	GPIO16 = J8p36
-	GPIO17 = J8p11
-	GPIO18 = J8p12
-	GPIO19 = J8p35
-	GPIO20 = J8p38
-	GPIO21 = J8p40
-	GPIO22 = J8p15
-	GPIO23 = J8p16
-	GPIO24 = J8p18
-	GPIO25 = J8p22
-	GPIO26 = J8p37
-	GPIO27 = J8p13
+	_ = iota
+	_
+	GPIO2
+	GPIO3
+	GPIO4
+	GPIO5
+	GPIO6
+	GPIO7
+	GPIO8
+	GPIO9
+	GPIO10
+	GPIO11
+	GPIO12
+	GPIO13
+	GPIO14
+	GPIO15
+	GPIO16
+	GPIO17
+	GPIO18
+	GPIO19
+	GPIO20
+	GPIO21
+	GPIO22
+	GPIO23
+	GPIO24
+	GPIO25
+	GPIO26
+	GPIO27
+	MaxGPIOPin
 )
+
+var j8Names = map[string]int{
+	"3":  J8p3,
+	"5":  J8p5,
+	"7":  J8p7,
+	"8":  J8p8,
+	"10": J8p10,
+	"11": J8p11,
+	"12": J8p12,
+	"13": J8p13,
+	"15": J8p15,
+	"16": J8p16,
+	"18": J8p18,
+	"19": J8p19,
+	"21": J8p21,
+	"22": J8p22,
+	"23": J8p23,
+	"24": J8p24,
+	"26": J8p26,
+	"27": J8p27,
+	"28": J8p28,
+	"29": J8p29,
+	"31": J8p31,
+	"32": J8p32,
+	"33": J8p33,
+	"35": J8p35,
+	"36": J8p36,
+	"37": J8p37,
+	"38": J8p38,
+	"40": J8p40,
+}
+
+// ErrInvalid indicates the pin name does not match a known pin.
+var ErrInvalid = errors.New("invalid pin name")
+
+func rangeCheck(p int) (int, error) {
+	if p < GPIO2 || p >= MaxGPIOPin {
+		return 0, ErrInvalid
+	}
+	return p, nil
+}
+
+// Pin maps a pin string name to a pin number.
+func Pin(s string) (int, error) {
+	s = strings.ToLower(s)
+	switch {
+	case strings.HasPrefix(s, "j8p"):
+		v, ok := j8Names[s[3:]]
+		if !ok {
+			return 0, ErrInvalid
+		}
+		return v, nil
+	case strings.HasPrefix(s, "gpio"):
+		v, err := strconv.ParseInt(s[4:], 10, 8)
+		if err != nil {
+			return 0, err
+		}
+		return rangeCheck(int(v))
+	default:
+		v, err := strconv.ParseInt(s, 10, 8)
+		if err != nil {
+			return 0, err
+		}
+		return rangeCheck(int(v))
+	}
+}
+
+// MustPin converts the string to the corresponding pin number or panics if that
+// is not possible.
+func MustPin(s string) int {
+	v, err := Pin(s)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
