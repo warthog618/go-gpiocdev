@@ -117,6 +117,8 @@ func rangeCheck(p int) (int, error) {
 }
 
 // Pin maps a pin string name to a pin number.
+//
+// Pin names are case insensitive and may be of the form J8pX, GPIOX, or X.
 func Pin(s string) (int, error) {
 	s = strings.ToLower(s)
 	switch {
