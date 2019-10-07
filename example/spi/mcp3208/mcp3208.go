@@ -2,8 +2,6 @@
 //
 // Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
 
-// +build linux
-
 package main
 
 import (
@@ -29,6 +27,12 @@ import (
 func main() {
 	cfg := loadConfig()
 	tclk := cfg.MustGet("tclk").Duration()
+	tset := cfg.MustGet("tset").Duration()
+	if tset < tclk {
+		tset = 0
+	} else {
+		tset -= tclk
+	}
 	chip := cfg.MustGet("gpiochip").String()
 	c, err := gpiod.NewChip(chip, gpiod.WithConsumer("mcp3208"))
 	if err != nil {
@@ -37,11 +41,13 @@ func main() {
 	}
 	adc, err := mcp3w0c.NewMCP3208(
 		c,
-		tclk,
 		cfg.MustGet("clk").Int(),
 		cfg.MustGet("csz").Int(),
 		cfg.MustGet("di").Int(),
-		cfg.MustGet("do").Int())
+		cfg.MustGet("do").Int(),
+		mcp3w0c.WithTclk(tclk),
+		mcp3w0c.WithTset(tset),
+	)
 	c.Close()
 	if err != nil {
 		fmt.Printf("mcp3208: %s\n", err)
@@ -62,6 +68,7 @@ func loadConfig() *config.Config {
 	defaultConfig := map[string]interface{}{
 		"gpiochip": "gpiochip0",
 		"tclk":     "500ns",
+		"tset":     "750ns",
 		"clk":      rpi.J8p36,
 		"csz":      rpi.J8p37,
 		"di":       rpi.J8p38,

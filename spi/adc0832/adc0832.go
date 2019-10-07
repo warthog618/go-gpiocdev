@@ -2,8 +2,6 @@
 //
 // Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
 
-// +build linux
-
 // Package adc0832 provides a bit bashed device driver ADC0832s.
 package adc0832
 
@@ -25,12 +23,16 @@ type ADC0832 struct {
 }
 
 // New creates a ADC0832.
-func New(c *gpiod.Chip, tclk, tset time.Duration, clk, csz, di, do int) (*ADC0832, error) {
-	s, err := spi.New(c, tclk, clk, csz, di, do)
+func New(c *gpiod.Chip, clk, csz, di, do int, options ...Option) (*ADC0832, error) {
+	s, err := spi.New(c, clk, csz, di, do, spi.WithTclk(2500*time.Nanosecond))
 	if err != nil {
 		return nil, err
 	}
-	return &ADC0832{s: s, tset: tset}, nil
+	a := ADC0832{s: s}
+	for _, option := range options {
+		option(&a)
+	}
+	return &a, nil
 }
 
 // Close releases all resources allocated by the ADC.
@@ -73,6 +75,10 @@ func (adc *ADC0832) read(ch int, sgl int) (uint8, error) {
 	if err != nil {
 		return 0, err
 	}
+	if s.Mosi == s.Miso {
+		panic("setting line direction not currently supported")
+		// !!! s.Mosi.Output(1)
+	}
 	err = s.Mosi.SetValue(1)
 	if err != nil {
 		return 0, err
@@ -100,11 +106,16 @@ func (adc *ADC0832) read(ch int, sgl int) (uint8, error) {
 		return 0, err
 	}
 	// mux settling
+	if s.Mosi == s.Miso {
+		panic("setting line direction not currently supported")
+		// !!! s.Miso.Input()
+	}
 	time.Sleep(adc.tset)
-	err = s.Sclk.SetValue(1)
+	_, err = s.ClockIn() // sample time - junk
 	if err != nil {
 		return 0, err
 	}
+
 	// MSB first byte
 	var d uint8
 	for i := uint(0); i < 8; i++ {
@@ -123,4 +134,23 @@ func (adc *ADC0832) read(ch int, sgl int) (uint8, error) {
 		return 0, err
 	}
 	return d, nil
+}
+
+// Option specifies a construction option for the ADC.
+type Option func(*ADC0832)
+
+// WithTclk sets the clock period for the ADC.
+//
+// Note that this is the half-cycle period.
+func WithTclk(tclk time.Duration) Option {
+	return func(a *ADC0832) {
+		a.s.Tclk = tclk
+	}
+}
+
+// WithTset sets the settling period for the ADC.
+func WithTset(tset time.Duration) Option {
+	return func(a *ADC0832) {
+		a.tset = tset
+	}
 }

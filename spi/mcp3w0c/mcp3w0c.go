@@ -2,8 +2,6 @@
 //
 // Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
 
-// +build linux
-
 // Package mcp3w0c provides bit bashed device drivers for MCP3004/3008/3204/3208
 // SPI ADCs.
 package mcp3w0c
@@ -26,25 +24,31 @@ type MCP3w0c struct {
 	mu    sync.Mutex
 	s     *spi.SPI
 	width uint
+	// time to allow mux to settle after clocking out channel
+	tset time.Duration
 }
 
 // New creates a MCP3w0c.
-func New(c *gpiod.Chip, tclk time.Duration, clk, csz, di, do int, width uint) (*MCP3w0c, error) {
-	s, err := spi.New(c, tclk, clk, csz, di, do)
+func New(c *gpiod.Chip, clk, csz, di, do int, width uint, options ...Option) (*MCP3w0c, error) {
+	s, err := spi.New(c, clk, csz, di, do, spi.WithTclk(500*time.Nanosecond))
 	if err != nil {
 		return nil, err
 	}
-	return &MCP3w0c{s: s, width: width}, nil
+	a := MCP3w0c{s: s, width: width}
+	for _, option := range options {
+		option(&a)
+	}
+	return &a, nil
 }
 
 // NewMCP3008 creates a MCP3008.
-func NewMCP3008(c *gpiod.Chip, tclk time.Duration, clk, csz, di, do int) (*MCP3w0c, error) {
-	return New(c, tclk, clk, csz, di, do, 10)
+func NewMCP3008(c *gpiod.Chip, clk, csz, di, do int, options ...Option) (*MCP3w0c, error) {
+	return New(c, clk, csz, di, do, 10, options...)
 }
 
 // NewMCP3208 creates a MCP3208.
-func NewMCP3208(c *gpiod.Chip, tclk time.Duration, clk, csz, di, do int) (*MCP3w0c, error) {
-	return New(c, tclk, clk, csz, di, do, 12)
+func NewMCP3208(c *gpiod.Chip, clk, csz, di, do int, options ...Option) (*MCP3w0c, error) {
+	return New(c, clk, csz, di, do, 12, options...)
 }
 
 // Close releases all resources allocated to the ADC.
@@ -87,6 +91,10 @@ func (adc *MCP3w0c) read(ch int, sgl int) (uint16, error) {
 	if err != nil {
 		return 0, err
 	}
+	if s.Mosi == s.Miso {
+		panic("setting line direction not currently supported")
+		// !!! s.Mosi.Output(1)
+	}
 	err = s.Mosi.SetValue(1)
 	if err != nil {
 		return 0, err
@@ -116,11 +124,16 @@ func (adc *MCP3w0c) read(ch int, sgl int) (uint16, error) {
 		}
 	}
 	// mux settling
-	time.Sleep(s.Tclk)
-	err = s.Sclk.SetValue(1)
+	if s.Mosi == s.Miso {
+		panic("setting line direction not currently supported")
+		// !!! s.Miso.Input()
+	}
+	time.Sleep(adc.tset)
+	_, err = s.ClockIn() // sample time - junk
 	if err != nil {
 		return 0, err
 	}
+
 	_, err = s.ClockIn() // null bit
 	if err != nil {
 		return 0, err
@@ -142,4 +155,23 @@ func (adc *MCP3w0c) read(ch int, sgl int) (uint16, error) {
 		return 0, err
 	}
 	return d, nil
+}
+
+// Option specifies a construction option for the ADC.
+type Option func(*MCP3w0c)
+
+// WithTclk sets the clock period for the ADC.
+//
+// Note that this is the half-cycle period.
+func WithTclk(tclk time.Duration) Option {
+	return func(a *MCP3w0c) {
+		a.s.Tclk = tclk
+	}
+}
+
+// WithTset sets the settling period for the ADC.
+func WithTset(tset time.Duration) Option {
+	return func(a *MCP3w0c) {
+		a.tset = tset
+	}
 }

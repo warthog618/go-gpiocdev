@@ -29,7 +29,9 @@ func main() {
 	tclk := cfg.MustGet("tclk").Duration()
 	tset := cfg.MustGet("tset").Duration()
 	if tset < tclk {
-		tset = tclk
+		tset = 0
+	} else {
+		tset -= tclk
 	}
 	chip := cfg.MustGet("gpiochip").String()
 	c, err := gpiod.NewChip(chip, gpiod.WithConsumer("adc0832"))
@@ -39,12 +41,13 @@ func main() {
 	}
 	a, err := adc0832.New(
 		c,
-		tclk,
-		tset,
 		cfg.MustGet("clk").Int(),
 		cfg.MustGet("csz").Int(),
 		cfg.MustGet("di").Int(),
-		cfg.MustGet("do").Int())
+		cfg.MustGet("do").Int(),
+		adc0832.WithTclk(tclk),
+		adc0832.WithTset(tset),
+	)
 	c.Close()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "adc0832: %s\n", err)
