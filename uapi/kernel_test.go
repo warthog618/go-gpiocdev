@@ -18,9 +18,12 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func KTestRepeatedLines(t *testing.T) {
+func TestRepeatedLines(t *testing.T) {
+	t.Skip("leaves line as output as of 5.4-rc1")
+	mockupRequired(t)
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
+	require.NotNil(t, c)
 	f, err := os.Open(c.DevPath)
 	require.Nil(t, err)
 
@@ -29,16 +32,23 @@ func KTestRepeatedLines(t *testing.T) {
 	}
 	hr.Offsets[0] = 1
 	hr.Offsets[1] = 1
+
+	// input
 	err = uapi.GetLineHandle(f.Fd(), &hr)
-	assert.Equal(t, nil, err)
+	assert.NotNil(t, err)
+
+	// output
 	hr.Flags = uapi.HandleRequestOutput
 	hr.DefaultValues[0] = 0
 	hr.DefaultValues[1] = 1
 	err = uapi.GetLineHandle(f.Fd(), &hr)
-	assert.Equal(t, nil, err)
+	assert.NotNil(t, err)
+
 }
 
-func KTestOutputSets(t *testing.T) {
+func TestOutputSets(t *testing.T) {
+	t.Skip("contains known failures as of 5.4-rc1")
+	mockupRequired(t)
 	patterns := []struct {
 		name string // unique name for pattern (hf/ef/offsets/xval combo)
 		flag uapi.HandleFlag
