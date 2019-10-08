@@ -156,6 +156,30 @@ provided to allow manual or scripted manipulation of GPIO lines.  This utility
 combines the Go equivalent of all the **libgpiod** command line tools into a
 single tool.
 
+```sh
+gpiodctl is a utility to control GPIO lines on Linux GPIO character devices
+
+Usage:
+  gpiodctl [flags]
+  gpiodctl [command]
+
+Available Commands:
+  detect      Detect available GPIO chips
+  find        Find a GPIO line by name
+  get         Get the state of a line
+  help        Help about any command
+  info        Info about chip lines
+  mon         Monitor the state of a line
+  set         Set the state of a line
+  version     Display the version
+
+Flags:
+  -h, --help   help for gpiodctl
+
+Use "gpiodctl [command] --help" for more information about a command.
+
+```
+
 The Go equivalent of each of the **libgpiod** command line tools can also be
 found in the cmd directory.
 
