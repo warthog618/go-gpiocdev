@@ -7,6 +7,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -17,13 +18,15 @@ import (
 func init() {
 	getCmd.Flags().BoolVarP(&getOpts.ActiveLow, "active-low", "l", false, "treat the line state as active low")
 	getCmd.Flags().BoolVarP(&getOpts.AsIs, "as-is", "a", false, "request the line as-is rather than as an input")
+	getCmd.Flags().BoolVarP(&getOpts.PullUp, "pull-up", "u", false, "enable internal pull-up")
+	getCmd.Flags().BoolVarP(&getOpts.PullDown, "pull-down", "d", false, "enable internal pull-down")
 	rootCmd.AddCommand(getCmd)
 }
 
 var (
 	getCmd = &cobra.Command{
 		Use:   "get <chip> <offset1>...",
-		Short: "Get the state of a line",
+		Short: "Get the state of a line or lines",
 		Long:  `Read the state of a line or lines from a GPIO chip.`,
 		Args:  cobra.MinimumNArgs(2),
 		RunE:  get,
@@ -31,10 +34,15 @@ var (
 	getOpts = struct {
 		ActiveLow bool
 		AsIs      bool
+		PullUp    bool
+		PullDown  bool
 	}{}
 )
 
 func get(cmd *cobra.Command, args []string) error {
+	if getOpts.PullUp && getOpts.PullDown {
+		return errors.New("can't pull-up and pull-down at the same time")
+	}
 	name := args[0]
 	oo, err := parseOffsets(args[1:])
 	if err != nil {
@@ -71,6 +79,12 @@ func makeGetOpts() []gpiod.LineOption {
 	}
 	if !getOpts.AsIs {
 		opts = append(opts, gpiod.AsInput)
+	}
+	if getOpts.PullUp {
+		opts = append(opts, gpiod.WithPullUp)
+	}
+	if getOpts.PullDown {
+		opts = append(opts, gpiod.WithPullDown)
 	}
 	return opts
 }

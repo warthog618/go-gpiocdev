@@ -23,6 +23,8 @@ func init() {
 	monCmd.Flags().BoolVarP(&monOpts.RisingEdge, "rising-edge", "r", false, "detect only rising edge events")
 	monCmd.Flags().UintVarP(&monOpts.NumEvents, "num-events", "n", 0, "exit after n edges")
 	monCmd.Flags().BoolVarP(&monOpts.Quiet, "quiet", "q", false, "don't display event details")
+	monCmd.Flags().BoolVarP(&getOpts.PullUp, "pull-up", "u", false, "enable internal pull-up")
+	monCmd.Flags().BoolVarP(&getOpts.PullDown, "pull-down", "d", false, "enable internal pull-down")
 	monCmd.SetHelpTemplate(monCmd.HelpTemplate() + extendedMonHelp)
 	rootCmd.AddCommand(monCmd)
 }
@@ -34,7 +36,7 @@ By default both rising and falling edge events are detected and reported.
 var (
 	monCmd = &cobra.Command{
 		Use:   "mon <chip> <offset1>...",
-		Short: "Monitor the state of a line",
+		Short: "Monitor the state of a line or lines",
 		Long:  `Wait for events on GPIO lines and print them to standard output.`,
 		Args:  cobra.MinimumNArgs(2),
 		RunE:  mon,
@@ -45,12 +47,17 @@ var (
 		FallingEdge bool
 		Quiet       bool
 		NumEvents   uint
+		PullUp      bool
+		PullDown    bool
 	}{}
 )
 
 func mon(cmd *cobra.Command, args []string) error {
 	if monOpts.RisingEdge && monOpts.FallingEdge {
 		return errors.New("can't filter both falling-edge and rising-edge events")
+	}
+	if monOpts.PullUp && monOpts.PullDown {
+		return errors.New("can't pull-up and pull-down at the same time")
 	}
 	name := args[0]
 	oo, err := parseOffsets(args[1:])
@@ -114,6 +121,10 @@ func makeMonOpts(eh gpiod.EventHandler) []gpiod.LineOption {
 		opts = append(opts, gpiod.WithRisingEdge(eh))
 	case monOpts.FallingEdge:
 		opts = append(opts, gpiod.WithFallingEdge(eh))
+	case monOpts.PullUp:
+		opts = append(opts, gpiod.WithPullUp)
+	case monOpts.PullDown:
+		opts = append(opts, gpiod.WithPullDown)
 	}
 	return opts
 }
