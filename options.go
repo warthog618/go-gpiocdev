@@ -22,6 +22,7 @@ type ChipOptions struct {
 type ConsumerOption string
 
 // WithConsumer provides the consumer label for the line.
+//
 // When applied to a chip it provides the default consumer label for all lines
 // requested by the chip.
 func WithConsumer(consumer string) ConsumerOption {
@@ -59,6 +60,7 @@ type EventHandler func(LineEvent)
 type AsIsOption struct{}
 
 // AsIs indicates that a line be requested as neither an input or output.
+//
 // That is its direction is left as is. This option overrides and clears any
 // previous Input or Output options.
 var AsIs = AsIsOption{}
@@ -71,6 +73,7 @@ func (o AsIsOption) applyLineOption(l *LineOptions) {
 type InputOption struct{}
 
 // AsInput indicates that a line be requested as an input.
+//
 // This option overrides and clears any previous Output, OpenDrain, or
 // OpenSource options.
 var AsInput = InputOption{}
@@ -88,19 +91,22 @@ type OutputOption struct {
 }
 
 // AsOutput indicates that a line or lines be requested as an output.
+//
 // The initial active state for the line(s) can optionally be provided.
 // If fewer values are provided than lines then the remaining lines default to
 // inactive.
 //
 // This option overrides and clears any previous Input, RisingEdge, FallingEdge,
-// or BothEdges options.
+// BothEdges, PullUp or PullDown options.
 func AsOutput(values ...int) OutputOption {
 	vv := append([]int(nil), values...)
 	return OutputOption{vv}
 }
 
 func (o OutputOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^uapi.HandleRequestInput
+	l.HandleFlags &= ^(uapi.HandleRequestInput |
+		uapi.HandleRequestPullDown |
+		uapi.HandleRequestPullDown)
 	l.HandleFlags |= uapi.HandleRequestOutput
 	l.EventFlags = 0
 	l.InitialValues = o.initialValues
@@ -133,14 +139,42 @@ func (o OutputModeOption) applyLineOption(l *LineOptions) {
 }
 
 // AsOpenDrain indicates that a line be driven low but left floating for high.
+//
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, or OpenSource options.
 var AsOpenDrain = OutputModeOption{uapi.HandleRequestOpenDrain}
 
 // AsOpenSource indicates that a line be driven low but left floating for hign.
+//
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, or OpenDrain options.
 var AsOpenSource = OutputModeOption{uapi.HandleRequestOpenSource}
+
+// PullModeOption indicates that a line is pull-up or pull-down.
+type PullModeOption struct {
+	flag uapi.HandleFlag
+}
+
+func (o PullModeOption) applyLineOption(l *LineOptions) {
+	l.HandleFlags &= ^(uapi.HandleRequestOutput |
+		uapi.HandleRequestOpenDrain |
+		uapi.HandleRequestOpenSource |
+		uapi.HandleRequestPullUp |
+		uapi.HandleRequestPullDown)
+	l.HandleFlags |= (o.flag | uapi.HandleRequestInput)
+}
+
+// WithPullUp indicates that a line have its internal pull-up enabled.
+//
+// This option sets the Input option and overrides and clears any previous
+// Output, OpenDrain, OpenSource or PullDown options.
+var WithPullUp = PullModeOption{uapi.HandleRequestPullUp}
+
+// WithPullDown indicates that a line have its internal pull-down enabled.
+//
+// This option sets the Input option and overrides and clears any previous
+// Output, OpenDrain, OpenSource or PullUp options.
+var WithPullDown = PullModeOption{uapi.HandleRequestPullDown}
 
 // EdgeOption indicates that a line will generate events when edges are detected.
 type EdgeOption struct {
@@ -159,6 +193,7 @@ func (o EdgeOption) applyLineOption(l *LineOptions) {
 
 // WithFallingEdge indicates that a line will generate events when its active
 // state transitions from high to low.
+//
 // Events are forwarded to the provided handler function.
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
@@ -168,6 +203,7 @@ func WithFallingEdge(e func(LineEvent)) EdgeOption {
 
 // WithRisingEdge indicates that a line will generate events when its active
 // state transitions from low to high.
+//
 // Events are forwarded to the provided handler function.
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
@@ -177,6 +213,7 @@ func WithRisingEdge(e func(LineEvent)) EdgeOption {
 
 // WithBothEdges indicates that a line will generate events when its active
 // state transitions from low to high and from high to low.
+//
 // Events are forwarded to the provided handler function.
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.

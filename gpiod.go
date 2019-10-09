@@ -74,6 +74,16 @@ type LineInfo struct {
 	//
 	// Only valid for outputs.
 	OpenSource bool
+
+	// True if the line was requested with pull-up.
+	//
+	// Only valid for inputs.
+	PullUp bool
+
+	// True if the line was requested with pull-down.
+	//
+	// Only valid for inputs.
+	PullDown bool
 }
 
 // Chips returns the names of the available GPIO devices.
@@ -198,6 +208,8 @@ func (c *Chip) LineInfo(offset int) (LineInfo, error) {
 		ActiveLow:  li.Flags.IsActiveLow(),
 		OpenDrain:  li.Flags.IsOpenDrain(),
 		OpenSource: li.Flags.IsOpenSource(),
+		PullUp:     li.Flags.IsPullUp(),
+		PullDown:   li.Flags.IsPullDown(),
 	}, nil
 }
 
