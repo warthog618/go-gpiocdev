@@ -225,7 +225,22 @@ const (
 	// but float when set low. This flag only applies to output lines.
 	// An output cannot be both open drain and open source.
 	LineFlagOpenSource
+
+	// LineFlagPullUp indicates that the internal line pull up should be
+	// enabled.
+	//
+	// This flag only applies to input lines.
+	// An input cannot be both pull up and pull down.
+	LineFlagPullUp
+
+	// LineFlagPullDown indicates that the internal line pull down should be
+	// enabled.
+	//
+	// This flag only applies to input lines.
+	// An input cannot be both pull up and pull down.
+	LineFlagPullDown
 )
+
 
 // IsRequested returns true if the line is requested.
 func (f LineFlag) IsRequested() bool {
@@ -250,6 +265,16 @@ func (f LineFlag) IsOpenDrain() bool {
 // IsOpenSource returns true if the line is open-source.
 func (f LineFlag) IsOpenSource() bool {
 	return f&LineFlagOpenSource != 0
+}
+
+// IsPullUp returns true if the line has pull-up enabled.
+func (f LineFlag) IsPullUp() bool {
+	return f&LineFlagPullUp != 0
+}
+
+// IsPullDown returns true if the line has pull-down enabled.
+func (f LineFlag) IsPullDown() bool {
+	return f&LineFlagPullDown != 0
 }
 
 // HandleRequest is a request for control of a set of lines.
@@ -280,10 +305,12 @@ type HandleFlag uint32
 
 const (
 	// HandleRequestInput requests the line as an input.
+	//
 	// This is ignored if Output is also set.
 	HandleRequestInput HandleFlag = 1 << iota
 
 	// HandleRequestOutput requests the line as an output.
+	//
 	// This takes precedence over Input, if both are set.
 	HandleRequestOutput
 
@@ -291,14 +318,28 @@ const (
 	HandleRequestActiveLow
 
 	// HandleRequestOpenDrain requests the line be made open drain.
+	//
 	// This option requires the line to be requested as an Output.
 	// This cannot be set at the same time as OpenSource.
 	HandleRequestOpenDrain
 
 	// HandleRequestOpenSource requests the line be made open source.
+	//
 	// This option requires the line to be requested as an Output.
 	// This cannot be set at the same time as OpenDrain.
 	HandleRequestOpenSource
+
+	// HandleRequestPullUp requests the line have pull-up enabled.
+	//
+	// This option requires the line to be requested as an Input.
+	// This cannot be set at the same time as PullDown.
+	HandleRequestPullUp
+
+	// HandleRequestPullDown requests the line have pull-down enabled.
+	//
+	// This option requires the line to be requested as an Input.
+	// This cannot be set at the same time as PullUp.
+	HandleRequestPullDown
 
 	// HandlesMax is the maximum number of lines that can be requested in a
 	// single request.
@@ -328,6 +369,16 @@ func (f HandleFlag) IsOpenDrain() bool {
 // IsOpenSource returns true if the line is requested as an open source.
 func (f HandleFlag) IsOpenSource() bool {
 	return f&HandleRequestOpenSource != 0
+}
+
+// IsPullUp returns true if the line is requested with pull-up enabled.
+func (f HandleFlag) IsPullUp() bool {
+	return f&HandleRequestPullUp != 0
+}
+
+// IsPullDown returns true if the line is requested with pull-down enabled.
+func (f HandleFlag) IsPullDown() bool {
+	return f&HandleRequestPullDown != 0
 }
 
 // HandleData contains the logical value for each line.

@@ -168,6 +168,8 @@ func TestGetLineHandle(t *testing.T) {
 		{"activeLow", 1, uapi.HandleRequestActiveLow, []uint32{2}, nil},
 		{"as is", 0, 0, []uint32{2}, nil},
 		{"input", 0, uapi.HandleRequestInput, []uint32{2}, nil},
+		{"input pull up", 0, uapi.HandleRequestInput | uapi.HandleRequestPullUp, []uint32{2}, nil},
+		{"input pull down", 0, uapi.HandleRequestInput | uapi.HandleRequestPullDown, []uint32{3}, nil},
 		{"output", 0, uapi.HandleRequestOutput, []uint32{2}, nil},
 		{"output drain", 0, uapi.HandleRequestOutput | uapi.HandleRequestOpenDrain, []uint32{2}, nil},
 		{"output source", 0, uapi.HandleRequestOutput | uapi.HandleRequestOpenSource, []uint32{3}, nil},
@@ -179,6 +181,12 @@ func TestGetLineHandle(t *testing.T) {
 		{"input source", 0, uapi.HandleRequestInput | uapi.HandleRequestOpenSource, []uint32{2}, unix.EINVAL},
 		{"as is drain", 0, uapi.HandleRequestOpenDrain, []uint32{2}, unix.EINVAL},
 		{"as is source", 0, uapi.HandleRequestOpenSource, []uint32{1}, unix.EINVAL},
+		{"drain source", 0, uapi.HandleRequestOutput | uapi.HandleRequestOpenDrain | uapi.HandleRequestOpenSource, []uint32{2}, unix.EINVAL},
+		{"output pull up", 0, uapi.HandleRequestOutput | uapi.HandleRequestPullUp, []uint32{1}, unix.EINVAL},
+		{"output pull down", 0, uapi.HandleRequestOutput | uapi.HandleRequestPullDown, []uint32{2}, unix.EINVAL},
+		{"as is pull up", 0, uapi.HandleRequestPullUp, []uint32{1}, unix.EINVAL},
+		{"as is pull down", 0, uapi.HandleRequestPullDown, []uint32{2}, unix.EINVAL},
+		{"pull both", 0, uapi.HandleRequestInput | uapi.HandleRequestPullUp | uapi.HandleRequestPullDown, []uint32{2}, unix.EINVAL},
 	}
 	for _, p := range patterns {
 		c, err := mock.Chip(p.cnum)
@@ -203,6 +211,7 @@ func TestGetLineHandle(t *testing.T) {
 			assert.Nil(t, err)
 			if p.err != nil {
 				assert.False(t, li.Flags.IsRequested())
+				unix.Close(int(hr.Fd))
 				return
 			}
 			xli := uapi.LineInfo{
@@ -465,6 +474,8 @@ func TestLineFlags(t *testing.T) {
 	assert.True(t, uapi.LineFlagActiveLow.IsActiveLow())
 	assert.True(t, uapi.LineFlagOpenDrain.IsOpenDrain())
 	assert.True(t, uapi.LineFlagOpenSource.IsOpenSource())
+	assert.True(t, uapi.LineFlagPullUp.IsPullUp())
+	assert.True(t, uapi.LineFlagPullDown.IsPullDown())
 }
 
 func TestHandleFlags(t *testing.T) {
@@ -478,6 +489,8 @@ func TestHandleFlags(t *testing.T) {
 	assert.True(t, uapi.HandleRequestActiveLow.IsActiveLow())
 	assert.True(t, uapi.HandleRequestOpenDrain.IsOpenDrain())
 	assert.True(t, uapi.HandleRequestOpenSource.IsOpenSource())
+	assert.True(t, uapi.HandleRequestPullUp.IsPullUp())
+	assert.True(t, uapi.HandleRequestPullDown.IsPullDown())
 }
 
 func TestEventFlags(t *testing.T) {
@@ -501,10 +514,16 @@ func lineFromHandle(hf uapi.HandleFlag) uapi.LineFlag {
 		lf |= uapi.LineFlagActiveLow
 	}
 	if hf.IsOpenDrain() {
-		lf |= uapi.LineFlagOpenDrain | uapi.LineFlagIsOut
+		lf |= uapi.LineFlagOpenDrain
 	}
 	if hf.IsOpenSource() {
-		lf |= uapi.LineFlagOpenSource | uapi.LineFlagIsOut
+		lf |= uapi.LineFlagOpenSource
+	}
+	if hf.IsPullUp() {
+		lf |= uapi.LineFlagPullUp
+	}
+	if hf.IsPullDown() {
+		lf |= uapi.LineFlagPullDown
 	}
 	return lf
 }
