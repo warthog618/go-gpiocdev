@@ -111,14 +111,19 @@ func TestGetLineEvent(t *testing.T) {
 		{"activeLow", 1, uapi.HandleRequestActiveLow, uapi.EventRequestBothEdges, 2, nil},
 		{"as is", 0, 0, uapi.EventRequestBothEdges, 2, nil},
 		{"input", 0, uapi.HandleRequestInput, uapi.EventRequestBothEdges, 2, nil},
+		{"input pull up", 0, uapi.HandleRequestInput | uapi.HandleRequestPullUp, uapi.EventRequestBothEdges, 2, nil},
+		{"input pull down", 0, uapi.HandleRequestInput | uapi.HandleRequestPullDown, uapi.EventRequestBothEdges, 2, nil},
 		// expected errors
 		{"output", 0, uapi.HandleRequestOutput, uapi.EventRequestBothEdges, 2, unix.EINVAL},
 		{"oorange", 0, uapi.HandleRequestInput, uapi.EventRequestBothEdges, 6, unix.EINVAL},
-		// unexpected successes...
+		// expected failures...
 		{"input drain", 0, uapi.HandleRequestInput | uapi.HandleRequestOpenDrain, uapi.EventRequestBothEdges, 2, unix.EINVAL},
 		{"input source", 0, uapi.HandleRequestInput | uapi.HandleRequestOpenSource, uapi.EventRequestBothEdges, 2, unix.EINVAL},
 		{"as is drain", 0, uapi.HandleRequestOpenDrain, uapi.EventRequestBothEdges, 2, unix.EINVAL},
 		{"as is source", 0, uapi.HandleRequestOpenSource, uapi.EventRequestBothEdges, 2, unix.EINVAL},
+		{"as is pull up", 0, uapi.HandleRequestPullUp, uapi.EventRequestBothEdges, 2, unix.EINVAL},
+		{"as is pull down", 0, uapi.HandleRequestPullDown, uapi.EventRequestBothEdges, 2, unix.EINVAL},
+		{"pull both", 0, uapi.HandleRequestPullUp | uapi.HandleRequestPullDown, uapi.EventRequestBothEdges, 2, unix.EINVAL},
 	}
 	for _, p := range patterns {
 		c, err := mock.Chip(p.cnum)
@@ -141,6 +146,7 @@ func TestGetLineEvent(t *testing.T) {
 			assert.Nil(t, err)
 			if p.err != nil {
 				assert.False(t, li.Flags.IsRequested())
+				unix.Close(int(er.Fd))
 				return
 			}
 			xli := uapi.LineInfo{
