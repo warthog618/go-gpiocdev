@@ -15,16 +15,16 @@ The intent is not to mirror the **libgpiod** API but to provide the equivalent f
 
 Supports the following functionality per line and for groups of lines:
 
-- direction (input / output )
+- direction (input / output)
 - write (active / inactive)
 - read (active / inactive)
 - active high/low (defaults to high)
 - output mode (normal / open drain / open source)
+- pull up/down
 - edge detection (rising / falling / both)
 - chip and line labels
 
-Note that setting pull up/down is not supported.  This a limitation of the
-current GPIO UAPI.
+Note that pull up/down support is still in development.
 
 ## Usage
 
