@@ -339,7 +339,7 @@ func TestWithBothEdges(t *testing.T) {
 	ich := make(chan gpiod.LineEvent)
 	lines := append(platform.FloatingLines(), platform.IntrLine())
 	r, err := c.RequestLines(lines,
-		gpiod.WithPullUp,
+		gpiod.WithPullDown,
 		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
 			ich <- evt
 		}))

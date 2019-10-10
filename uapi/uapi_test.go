@@ -113,17 +113,17 @@ func TestGetLineEvent(t *testing.T) {
 		{"input", 0, uapi.HandleRequestInput, uapi.EventRequestBothEdges, 2, nil},
 		{"input pull up", 0, uapi.HandleRequestInput | uapi.HandleRequestPullUp, uapi.EventRequestBothEdges, 2, nil},
 		{"input pull down", 0, uapi.HandleRequestInput | uapi.HandleRequestPullDown, uapi.EventRequestBothEdges, 2, nil},
+		{"input pull none", 0, uapi.HandleRequestInput | uapi.HandleRequestPullNone, uapi.EventRequestBothEdges, 2, nil},
 		// expected errors
 		{"output", 0, uapi.HandleRequestOutput, uapi.EventRequestBothEdges, 2, unix.EINVAL},
 		{"oorange", 0, uapi.HandleRequestInput, uapi.EventRequestBothEdges, 6, unix.EINVAL},
-		// expected failures...
 		{"input drain", 0, uapi.HandleRequestInput | uapi.HandleRequestOpenDrain, uapi.EventRequestBothEdges, 2, unix.EINVAL},
 		{"input source", 0, uapi.HandleRequestInput | uapi.HandleRequestOpenSource, uapi.EventRequestBothEdges, 2, unix.EINVAL},
 		{"as is drain", 0, uapi.HandleRequestOpenDrain, uapi.EventRequestBothEdges, 2, unix.EINVAL},
 		{"as is source", 0, uapi.HandleRequestOpenSource, uapi.EventRequestBothEdges, 2, unix.EINVAL},
 		{"as is pull up", 0, uapi.HandleRequestPullUp, uapi.EventRequestBothEdges, 2, unix.EINVAL},
 		{"as is pull down", 0, uapi.HandleRequestPullDown, uapi.EventRequestBothEdges, 2, unix.EINVAL},
-		{"pull both", 0, uapi.HandleRequestPullUp | uapi.HandleRequestPullDown, uapi.EventRequestBothEdges, 2, unix.EINVAL},
+		{"as is pull none", 0, uapi.HandleRequestPullNone, uapi.EventRequestBothEdges, 2, unix.EINVAL},
 	}
 	for _, p := range patterns {
 		c, err := mock.Chip(p.cnum)
@@ -176,9 +176,11 @@ func TestGetLineHandle(t *testing.T) {
 		{"input", 0, uapi.HandleRequestInput, []uint32{2}, nil},
 		{"input pull up", 0, uapi.HandleRequestInput | uapi.HandleRequestPullUp, []uint32{2}, nil},
 		{"input pull down", 0, uapi.HandleRequestInput | uapi.HandleRequestPullDown, []uint32{3}, nil},
+		{"input pull none", 0, uapi.HandleRequestInput | uapi.HandleRequestPullNone, []uint32{3}, nil},
 		{"output", 0, uapi.HandleRequestOutput, []uint32{2}, nil},
 		{"output drain", 0, uapi.HandleRequestOutput | uapi.HandleRequestOpenDrain, []uint32{2}, nil},
 		{"output source", 0, uapi.HandleRequestOutput | uapi.HandleRequestOpenSource, []uint32{3}, nil},
+		{"output pull none", 0, uapi.HandleRequestOutput | uapi.HandleRequestPullNone, []uint32{2}, nil},
 		// expected errors
 		{"both io", 0, uapi.HandleRequestInput | uapi.HandleRequestOutput, []uint32{2}, unix.EINVAL},
 		{"overlength", 0, uapi.HandleRequestInput, []uint32{0, 1, 2, 3, 4}, unix.EINVAL},
@@ -192,7 +194,7 @@ func TestGetLineHandle(t *testing.T) {
 		{"output pull down", 0, uapi.HandleRequestOutput | uapi.HandleRequestPullDown, []uint32{2}, unix.EINVAL},
 		{"as is pull up", 0, uapi.HandleRequestPullUp, []uint32{1}, unix.EINVAL},
 		{"as is pull down", 0, uapi.HandleRequestPullDown, []uint32{2}, unix.EINVAL},
-		{"pull both", 0, uapi.HandleRequestInput | uapi.HandleRequestPullUp | uapi.HandleRequestPullDown, []uint32{2}, unix.EINVAL},
+		{"as is pull none", 0, uapi.HandleRequestPullNone, []uint32{2}, unix.EINVAL},
 	}
 	for _, p := range patterns {
 		c, err := mock.Chip(p.cnum)
@@ -482,6 +484,9 @@ func TestLineFlags(t *testing.T) {
 	assert.True(t, uapi.LineFlagOpenSource.IsOpenSource())
 	assert.True(t, uapi.LineFlagPullUp.IsPullUp())
 	assert.True(t, uapi.LineFlagPullDown.IsPullDown())
+	assert.True(t, uapi.LineFlagPullNone.IsPullNone())
+	assert.False(t, uapi.LineFlagPullNone.IsPullUp())
+	assert.False(t, uapi.LineFlagPullNone.IsPullDown())
 }
 
 func TestHandleFlags(t *testing.T) {
@@ -497,6 +502,9 @@ func TestHandleFlags(t *testing.T) {
 	assert.True(t, uapi.HandleRequestOpenSource.IsOpenSource())
 	assert.True(t, uapi.HandleRequestPullUp.IsPullUp())
 	assert.True(t, uapi.HandleRequestPullDown.IsPullDown())
+	assert.True(t, uapi.HandleRequestPullNone.IsPullNone())
+	assert.False(t, uapi.HandleRequestPullNone.IsPullUp())
+	assert.False(t, uapi.HandleRequestPullNone.IsPullDown())
 }
 
 func TestEventFlags(t *testing.T) {
@@ -530,6 +538,9 @@ func lineFromHandle(hf uapi.HandleFlag) uapi.LineFlag {
 	}
 	if hf.IsPullDown() {
 		lf |= uapi.LineFlagPullDown
+	}
+	if hf.IsPullNone() {
+		lf |= uapi.LineFlagPullNone
 	}
 	return lf
 }

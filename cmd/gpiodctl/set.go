@@ -89,7 +89,7 @@ func set(cmd *cobra.Command, args []string) error {
 		ll = append(ll, o)
 		vv = append(vv, v)
 	}
-	c, err := gpiod.NewChip(name, gpiod.WithConsumer("gpiod-set"))
+	c, err := gpiod.NewChip(name, gpiod.WithConsumer("gpiodctl-set"))
 	if err != nil {
 		return err
 	}

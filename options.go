@@ -176,6 +176,19 @@ var WithPullUp = PullModeOption{uapi.HandleRequestPullUp}
 // Output, OpenDrain, OpenSource or PullUp options.
 var WithPullDown = PullModeOption{uapi.HandleRequestPullDown}
 
+// PullNoneOption indicates that a line has pull disabled.
+type PullNoneOption struct {
+}
+
+func (o PullNoneOption) applyLineOption(l *LineOptions) {
+	l.HandleFlags |= uapi.HandleRequestPullNone
+}
+
+// WithPullNone indicates that a line have its internal pull disabled.
+//
+// This option overrides and clears any previous PullUp or PullDown options.
+var WithPullNone = PullNoneOption{}
+
 // EdgeOption indicates that a line will generate events when edges are detected.
 type EdgeOption struct {
 	e    EventHandler

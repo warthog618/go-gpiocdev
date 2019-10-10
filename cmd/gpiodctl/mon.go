@@ -23,8 +23,9 @@ func init() {
 	monCmd.Flags().BoolVarP(&monOpts.RisingEdge, "rising-edge", "r", false, "detect only rising edge events")
 	monCmd.Flags().UintVarP(&monOpts.NumEvents, "num-events", "n", 0, "exit after n edges")
 	monCmd.Flags().BoolVarP(&monOpts.Quiet, "quiet", "q", false, "don't display event details")
-	monCmd.Flags().BoolVarP(&getOpts.PullUp, "pull-up", "u", false, "enable internal pull-up")
-	monCmd.Flags().BoolVarP(&getOpts.PullDown, "pull-down", "d", false, "enable internal pull-down")
+	monCmd.Flags().BoolVarP(&monOpts.PullUp, "pull-up", "u", false, "enable internal pull-up")
+	monCmd.Flags().BoolVarP(&monOpts.PullDown, "pull-down", "d", false, "enable internal pull-down")
+	monCmd.Flags().BoolVar(&monOpts.PullNone, "pull-none", false, "disable internal pull")
 	monCmd.SetHelpTemplate(monCmd.HelpTemplate() + extendedMonHelp)
 	rootCmd.AddCommand(monCmd)
 }
@@ -49,6 +50,7 @@ var (
 		NumEvents   uint
 		PullUp      bool
 		PullDown    bool
+		PullNone    bool
 	}{}
 )
 
@@ -64,7 +66,7 @@ func mon(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c, err := gpiod.NewChip(name, gpiod.WithConsumer("gpiomon"))
+	c, err := gpiod.NewChip(name, gpiod.WithConsumer("gpiodctl-mon"))
 	if err != nil {
 		return err
 	}
@@ -121,6 +123,10 @@ func makeMonOpts(eh gpiod.EventHandler) []gpiod.LineOption {
 		opts = append(opts, gpiod.WithRisingEdge(eh))
 	case monOpts.FallingEdge:
 		opts = append(opts, gpiod.WithFallingEdge(eh))
+	}
+	switch {
+	case monOpts.PullNone:
+		opts = append(opts, gpiod.WithPullNone)
 	case monOpts.PullUp:
 		opts = append(opts, gpiod.WithPullUp)
 	case monOpts.PullDown:

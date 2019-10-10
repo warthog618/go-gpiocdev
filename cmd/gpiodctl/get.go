@@ -20,6 +20,7 @@ func init() {
 	getCmd.Flags().BoolVarP(&getOpts.AsIs, "as-is", "a", false, "request the line as-is rather than as an input")
 	getCmd.Flags().BoolVarP(&getOpts.PullUp, "pull-up", "u", false, "enable internal pull-up")
 	getCmd.Flags().BoolVarP(&getOpts.PullDown, "pull-down", "d", false, "enable internal pull-down")
+	getCmd.Flags().BoolVar(&getOpts.PullNone, "pull-none", false, "disable internal pull")
 	rootCmd.AddCommand(getCmd)
 }
 
@@ -36,6 +37,7 @@ var (
 		AsIs      bool
 		PullUp    bool
 		PullDown  bool
+		PullNone  bool
 	}{}
 )
 
@@ -48,7 +50,7 @@ func get(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c, err := gpiod.NewChip(name, gpiod.WithConsumer("gpiod-get"))
+	c, err := gpiod.NewChip(name, gpiod.WithConsumer("gpiodctl-get"))
 	if err != nil {
 		return err
 	}
@@ -80,10 +82,12 @@ func makeGetOpts() []gpiod.LineOption {
 	if !getOpts.AsIs {
 		opts = append(opts, gpiod.AsInput)
 	}
-	if getOpts.PullUp {
+	switch {
+	case getOpts.PullNone:
+		opts = append(opts, gpiod.WithPullNone)
+	case getOpts.PullUp:
 		opts = append(opts, gpiod.WithPullUp)
-	}
-	if getOpts.PullDown {
+	case getOpts.PullDown:
 		opts = append(opts, gpiod.WithPullDown)
 	}
 	return opts

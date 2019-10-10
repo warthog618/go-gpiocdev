@@ -226,21 +226,19 @@ const (
 	// An output cannot be both open drain and open source.
 	LineFlagOpenSource
 
-	// LineFlagPullUp indicates that the internal line pull up should be
-	// enabled.
+	// LineFlagPullUp indicates that the internal line pull up is enabled.
 	//
 	// This flag only applies to input lines.
-	// An input cannot be both pull up and pull down.
 	LineFlagPullUp
 
-	// LineFlagPullDown indicates that the internal line pull down should be
-	// enabled.
+	// LineFlagPullDown indicates that the internal line pull down is enabled.
 	//
 	// This flag only applies to input lines.
-	// An input cannot be both pull up and pull down.
 	LineFlagPullDown
-)
 
+	// LineFlagPullNone indicates that the internal line pull is disabled.
+	LineFlagPullNone = LineFlagPullDown | LineFlagPullUp
+)
 
 // IsRequested returns true if the line is requested.
 func (f LineFlag) IsRequested() bool {
@@ -269,12 +267,17 @@ func (f LineFlag) IsOpenSource() bool {
 
 // IsPullUp returns true if the line has pull-up enabled.
 func (f LineFlag) IsPullUp() bool {
-	return f&LineFlagPullUp != 0
+	return f&LineFlagPullNone == LineFlagPullUp
 }
 
 // IsPullDown returns true if the line has pull-down enabled.
 func (f LineFlag) IsPullDown() bool {
-	return f&LineFlagPullDown != 0
+	return f&LineFlagPullNone == LineFlagPullDown
+}
+
+// IsPullNone returns true if the line has pull disabled.
+func (f LineFlag) IsPullNone() bool {
+	return f&LineFlagPullNone == LineFlagPullNone
 }
 
 // HandleRequest is a request for control of a set of lines.
@@ -341,6 +344,9 @@ const (
 	// This cannot be set at the same time as PullUp.
 	HandleRequestPullDown
 
+	// HandleRequestPullNone requests the line have pull disabled.
+	HandleRequestPullNone = HandleRequestPullDown | HandleRequestPullUp
+
 	// HandlesMax is the maximum number of lines that can be requested in a
 	// single request.
 	HandlesMax = 64
@@ -373,12 +379,17 @@ func (f HandleFlag) IsOpenSource() bool {
 
 // IsPullUp returns true if the line is requested with pull-up enabled.
 func (f HandleFlag) IsPullUp() bool {
-	return f&HandleRequestPullUp != 0
+	return f&HandleRequestPullNone == HandleRequestPullUp
 }
 
 // IsPullDown returns true if the line is requested with pull-down enabled.
 func (f HandleFlag) IsPullDown() bool {
-	return f&HandleRequestPullDown != 0
+	return f&HandleRequestPullNone == HandleRequestPullDown
+}
+
+// IsPullNone returns true if the line is requested with pull disabled.
+func (f HandleFlag) IsPullNone() bool {
+	return f&HandleRequestPullNone == HandleRequestPullNone
 }
 
 // HandleData contains the logical value for each line.
