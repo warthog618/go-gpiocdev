@@ -180,6 +180,8 @@ func TestGetLineHandle(t *testing.T) {
 		{"output", 0, uapi.HandleRequestOutput, []uint32{2}, nil},
 		{"output drain", 0, uapi.HandleRequestOutput | uapi.HandleRequestOpenDrain, []uint32{2}, nil},
 		{"output source", 0, uapi.HandleRequestOutput | uapi.HandleRequestOpenSource, []uint32{3}, nil},
+		{"output pull up", 0, uapi.HandleRequestOutput | uapi.HandleRequestPullUp, []uint32{1}, nil},
+		{"output pull down", 0, uapi.HandleRequestOutput | uapi.HandleRequestPullDown, []uint32{2}, nil},
 		{"output pull none", 0, uapi.HandleRequestOutput | uapi.HandleRequestPullNone, []uint32{2}, nil},
 		// expected errors
 		{"both io", 0, uapi.HandleRequestInput | uapi.HandleRequestOutput, []uint32{2}, unix.EINVAL},
@@ -190,8 +192,6 @@ func TestGetLineHandle(t *testing.T) {
 		{"as is drain", 0, uapi.HandleRequestOpenDrain, []uint32{2}, unix.EINVAL},
 		{"as is source", 0, uapi.HandleRequestOpenSource, []uint32{1}, unix.EINVAL},
 		{"drain source", 0, uapi.HandleRequestOutput | uapi.HandleRequestOpenDrain | uapi.HandleRequestOpenSource, []uint32{2}, unix.EINVAL},
-		{"output pull up", 0, uapi.HandleRequestOutput | uapi.HandleRequestPullUp, []uint32{1}, unix.EINVAL},
-		{"output pull down", 0, uapi.HandleRequestOutput | uapi.HandleRequestPullDown, []uint32{2}, unix.EINVAL},
 		{"as is pull up", 0, uapi.HandleRequestPullUp, []uint32{1}, unix.EINVAL},
 		{"as is pull down", 0, uapi.HandleRequestPullDown, []uint32{2}, unix.EINVAL},
 		{"as is pull none", 0, uapi.HandleRequestPullNone, []uint32{2}, unix.EINVAL},
