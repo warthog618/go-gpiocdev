@@ -110,6 +110,23 @@ func SetLineValues(fd uintptr, values HandleData) error {
 	return nil
 }
 
+// SetLineConfig sets the config of an existing request.
+//
+// This request may be a handle or event request. The flags in the request will
+// be applied to all lines in the request. Events request cannot be reconfigured
+// to outputs. Handle requests can be reconfigured to outputs, with values
+// defined by default_values.
+func SetLineConfig(fd uintptr, config *HandleConfig) error {
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
+		fd,
+		uintptr(setLineConfigIoctl),
+		uintptr(unsafe.Pointer(config)))
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}
+
 // BytesToString is a helper function that converts strings stored in byte
 // arrays, as returned by GetChipInfo and GetLineInfo, into strings.
 func BytesToString(a []byte) string {
@@ -148,6 +165,7 @@ var (
 	getLineEventIoctl  ioctl
 	getLineValuesIoctl ioctl
 	setLineValuesIoctl ioctl
+	setLineConfigIoctl ioctl
 )
 
 // Size of name and consumer strings.
@@ -169,6 +187,8 @@ func init() {
 	var hd HandleData
 	getLineValuesIoctl = iorw(0xB4, 0x08, unsafe.Sizeof(hd))
 	setLineValuesIoctl = iorw(0xB4, 0x09, unsafe.Sizeof(hd))
+	var hc HandleConfig
+	setLineConfigIoctl = iorw(0xB4, 0x0a, unsafe.Sizeof(hc))
 
 	nativeEndian = findEndian()
 }
@@ -250,6 +270,22 @@ func (f LineFlag) IsOpenDrain() bool {
 // IsOpenSource returns true if the line is open-source.
 func (f LineFlag) IsOpenSource() bool {
 	return f&LineFlagOpenSource != 0
+}
+
+// HandleConfig is a request to change the config of an existing request.
+//
+// Can be applied to both handle and event requests.
+// Event requests cannot be reconfigured to outputs.
+type HandleConfig struct {
+	// The flags to be applied to the lines.
+	Flags HandleFlag
+
+	// The default values to be applied to output lines (when
+	// HandleRequestOutput is set in the Flags).
+	DefaultValues [HandlesMax]uint8
+
+	// reserved for future use - swotr.
+	_ [4]uint32
 }
 
 // HandleRequest is a request for control of a set of lines.
@@ -430,6 +466,13 @@ func ior(t, nr, size uintptr) ioctl {
 
 func iorw(t, nr, size uintptr) ioctl {
 	return ioctl(((iocRead | iocWrite) << iocDirShift) |
+		(size << iocSizeShift) |
+		(t << iocTypeShift) |
+		(nr << iocNRShift))
+}
+
+func iow(t, nr, size uintptr) ioctl {
+	return ioctl((iocWrite << iocDirShift) |
 		(size << iocSizeShift) |
 		(t << iocTypeShift) |
 		(nr << iocNRShift))

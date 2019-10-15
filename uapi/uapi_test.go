@@ -383,6 +383,113 @@ func TestSetLineValues(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestSetLineHandleConfig(t *testing.T) {
+	mockupRequired(t)
+	patterns := []struct {
+		name        string
+		cnum        int
+		offsets     []uint32
+		initialFlag uapi.HandleFlag
+		initialVal  []uint8
+		configFlag  uapi.HandleFlag
+		configVal   []uint8
+		err         error
+	}{
+		{"in to out", 1, []uint32{1, 2, 3},
+			uapi.HandleRequestInput, nil,
+			uapi.HandleRequestOutput, []uint8{1, 0, 1},
+			nil},
+		{"out to in", 0, []uint32{2},
+			uapi.HandleRequestOutput, nil,
+			uapi.HandleRequestInput, nil,
+			nil},
+		{"low to high", 0, []uint32{1, 2, 3},
+			uapi.HandleRequestOutput | uapi.HandleRequestActiveLow, []uint8{1, 0, 1},
+			0, []uint8{1, 0, 1},
+			nil},
+		{"high to low", 0, []uint32{2},
+			uapi.HandleRequestOutput, []uint8{1, 0, 1},
+			uapi.HandleRequestOutput | uapi.HandleRequestActiveLow, []uint8{1, 0, 1},
+			nil},
+		// expected errors
+		{"input drain", 0, []uint32{2},
+			uapi.HandleRequestInput, nil,
+			uapi.HandleRequestInput | uapi.HandleRequestOpenDrain, nil,
+			unix.EINVAL},
+		{"input source", 0, []uint32{2},
+			uapi.HandleRequestInput, nil,
+			uapi.HandleRequestInput | uapi.HandleRequestOpenSource, nil,
+			unix.EINVAL},
+		{"as is drain", 0, []uint32{2},
+			0, nil,
+			uapi.HandleRequestOpenDrain, nil,
+			unix.EINVAL},
+		{"as is source", 0, []uint32{2},
+			0, nil,
+			uapi.HandleRequestOpenSource, nil,
+			unix.EINVAL},
+		{"drain source", 0, []uint32{2},
+			uapi.HandleRequestOutput, nil,
+			uapi.HandleRequestOutput | uapi.HandleRequestOpenDrain | uapi.HandleRequestOpenSource, nil,
+			unix.EINVAL},
+	}
+	for _, p := range patterns {
+		tf := func(t *testing.T) {
+			c, err := mock.Chip(p.cnum)
+			require.Nil(t, err)
+			f, err := os.Open(c.DevPath)
+			require.Nil(t, err)
+			defer f.Close()
+			hr := uapi.HandleRequest{
+				Flags: p.initialFlag,
+				Lines: uint32(len(p.offsets)),
+			}
+			copy(hr.Offsets[:], p.offsets)
+			copy(hr.DefaultValues[:], p.initialVal)
+			copy(hr.Consumer[:], p.name)
+			err = uapi.GetLineHandle(f.Fd(), &hr)
+			require.Nil(t, err)
+			// apply config change
+			hc := uapi.HandleConfig{Flags: p.configFlag}
+			copy(hc.DefaultValues[:], p.configVal)
+			err = uapi.SetLineConfig(uintptr(hr.Fd), &hc)
+			assert.Equal(t, p.err, err)
+
+			if p.err == nil {
+				// check line info
+				li, err := uapi.GetLineInfo(f.Fd(), int(p.offsets[0]))
+				assert.Nil(t, err)
+				if p.err != nil {
+					assert.False(t, li.Flags.IsRequested())
+					return
+				}
+				xli := uapi.LineInfo{
+					Offset: p.offsets[0],
+					Flags:  uapi.LineFlagRequested | lineFromHandle(p.configFlag),
+				}
+				copy(xli.Name[:], li.Name[:]) // don't care about name
+				copy(xli.Consumer[:], p.name)
+				assert.Equal(t, xli, li)
+				if len(p.configVal) != 0 {
+					// check values from mock
+					require.LessOrEqual(t, len(p.offsets), len(p.configVal))
+					for i, o := range p.offsets {
+						v, err := c.Value(int(o))
+						assert.Nil(t, err)
+						xv := int(p.configVal[i])
+						if p.configFlag.IsActiveLow() {
+							xv ^= 0x01 // assumes using 1 for high
+						}
+						assert.Equal(t, xv, v)
+					}
+				}
+			}
+			unix.Close(int(hr.Fd))
+		}
+		t.Run(p.name, tf)
+	}
+}
+
 func TestEventRead(t *testing.T) {
 	mockupRequired(t)
 	c, err := mock.Chip(0)
