@@ -75,15 +75,14 @@ type LineInfo struct {
 	// Only valid for outputs.
 	OpenSource bool
 
-	// True if the line was requested with pull-up.
-	//
-	// Only valid for inputs.
-	PullUp bool
+	// True if the line was requested with bias disabled.
+	BiasDisable bool
 
 	// True if the line was requested with pull-down.
-	//
-	// Only valid for inputs.
 	PullDown bool
+
+	// True if the line was requested with pull-up.
+	PullUp bool
 }
 
 // Chips returns the names of the available GPIO devices.
@@ -200,16 +199,17 @@ func (c *Chip) LineInfo(offset int) (LineInfo, error) {
 		return LineInfo{}, err
 	}
 	return LineInfo{
-		Offset:     offset,
-		Name:       uapi.BytesToString(li.Name[:]),
-		Consumer:   uapi.BytesToString(li.Consumer[:]),
-		Requested:  li.Flags.IsRequested(),
-		IsOut:      li.Flags.IsOut(),
-		ActiveLow:  li.Flags.IsActiveLow(),
-		OpenDrain:  li.Flags.IsOpenDrain(),
-		OpenSource: li.Flags.IsOpenSource(),
-		PullUp:     li.Flags.IsPullUp(),
-		PullDown:   li.Flags.IsPullDown(),
+		Offset:      offset,
+		Name:        uapi.BytesToString(li.Name[:]),
+		Consumer:    uapi.BytesToString(li.Consumer[:]),
+		Requested:   li.Flags.IsRequested(),
+		IsOut:       li.Flags.IsOut(),
+		ActiveLow:   li.Flags.IsActiveLow(),
+		OpenDrain:   li.Flags.IsOpenDrain(),
+		OpenSource:  li.Flags.IsOpenSource(),
+		BiasDisable: li.Flags.IsBiasDisable(),
+		PullDown:    li.Flags.IsPullDown(),
+		PullUp:      li.Flags.IsPullUp(),
 	}, nil
 }
 

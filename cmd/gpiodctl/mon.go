@@ -25,7 +25,7 @@ func init() {
 	monCmd.Flags().BoolVarP(&monOpts.Quiet, "quiet", "q", false, "don't display event details")
 	monCmd.Flags().BoolVarP(&monOpts.PullUp, "pull-up", "u", false, "enable internal pull-up")
 	monCmd.Flags().BoolVarP(&monOpts.PullDown, "pull-down", "d", false, "enable internal pull-down")
-	monCmd.Flags().BoolVar(&monOpts.PullNone, "pull-none", false, "disable internal pull")
+	monCmd.Flags().BoolVar(&monOpts.BiasDisable, "bias-disable", false, "disable internal bias")
 	monCmd.SetHelpTemplate(monCmd.HelpTemplate() + extendedMonHelp)
 	rootCmd.AddCommand(monCmd)
 }
@@ -50,7 +50,7 @@ var (
 		NumEvents   uint
 		PullUp      bool
 		PullDown    bool
-		PullNone    bool
+		BiasDisable bool
 	}{}
 )
 
@@ -125,8 +125,8 @@ func makeMonOpts(eh gpiod.EventHandler) []gpiod.LineOption {
 		opts = append(opts, gpiod.WithFallingEdge(eh))
 	}
 	switch {
-	case monOpts.PullNone:
-		opts = append(opts, gpiod.WithPullNone)
+	case monOpts.BiasDisable:
+		opts = append(opts, gpiod.WithBiasDisable)
 	case monOpts.PullUp:
 		opts = append(opts, gpiod.WithPullUp)
 	case monOpts.PullDown:

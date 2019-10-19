@@ -244,12 +244,48 @@ func TestAsOpenSource(t *testing.T) {
 	// covered by the kernel anyway.
 }
 
+func TestWithBiasDisable(t *testing.T) {
+	requirePlatform(t)
+	c := getChip(t)
+	defer c.Close()
+
+	l, err := c.RequestLine(platform.FloatingLines()[0],
+		gpiod.AsInput,
+		gpiod.WithBiasDisable)
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	inf, err := c.LineInfo(platform.FloatingLines()[0])
+	assert.Nil(t, err)
+	assert.True(t, inf.BiasDisable)
+	// can't test value - is indeterminate without external bias.
+}
+
+func TestWithPullDown(t *testing.T) {
+	requirePlatform(t)
+	c := getChip(t)
+	defer c.Close()
+
+	l, err := c.RequestLine(platform.FloatingLines()[0],
+		gpiod.AsInput,
+		gpiod.WithPullDown)
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	inf, err := c.LineInfo(platform.FloatingLines()[0])
+	assert.Nil(t, err)
+	assert.True(t, inf.PullDown)
+	v, err := l.Value()
+	assert.Nil(t, err)
+	assert.Equal(t, 0, v)
+}
 func TestWithPullUp(t *testing.T) {
 	requirePlatform(t)
 	c := getChip(t)
 	defer c.Close()
 
 	l, err := c.RequestLine(platform.FloatingLines()[0],
+		gpiod.AsInput,
 		gpiod.WithPullUp)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
@@ -262,23 +298,6 @@ func TestWithPullUp(t *testing.T) {
 	assert.Equal(t, 1, v)
 }
 
-func TestWithPullDown(t *testing.T) {
-	requirePlatform(t)
-	c := getChip(t)
-	defer c.Close()
-
-	l, err := c.RequestLine(platform.FloatingLines()[0],
-		gpiod.WithPullDown)
-	assert.Nil(t, err)
-	require.NotNil(t, l)
-	defer l.Close()
-	inf, err := c.LineInfo(platform.FloatingLines()[0])
-	assert.Nil(t, err)
-	assert.True(t, inf.PullDown)
-	v, err := l.Value()
-	assert.Nil(t, err)
-	assert.Equal(t, 0, v)
-}
 func TestWithFallingEdge(t *testing.T) {
 	requirePlatform(t)
 	platform.TriggerIntr(1)

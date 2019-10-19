@@ -113,7 +113,7 @@ func TestGetLineEvent(t *testing.T) {
 		{"input", 0, uapi.HandleRequestInput, uapi.EventRequestBothEdges, 2, nil},
 		{"input pull up", 0, uapi.HandleRequestInput | uapi.HandleRequestPullUp, uapi.EventRequestBothEdges, 2, nil},
 		{"input pull down", 0, uapi.HandleRequestInput | uapi.HandleRequestPullDown, uapi.EventRequestBothEdges, 2, nil},
-		{"input pull none", 0, uapi.HandleRequestInput | uapi.HandleRequestPullNone, uapi.EventRequestBothEdges, 2, nil},
+		{"input bias disable", 0, uapi.HandleRequestInput | uapi.HandleRequestBiasDisable, uapi.EventRequestBothEdges, 2, nil},
 		// expected errors
 		{"output", 0, uapi.HandleRequestOutput, uapi.EventRequestBothEdges, 2, unix.EINVAL},
 		{"oorange", 0, uapi.HandleRequestInput, uapi.EventRequestBothEdges, 6, unix.EINVAL},
@@ -123,7 +123,7 @@ func TestGetLineEvent(t *testing.T) {
 		{"as is source", 0, uapi.HandleRequestOpenSource, uapi.EventRequestBothEdges, 2, unix.EINVAL},
 		{"as is pull up", 0, uapi.HandleRequestPullUp, uapi.EventRequestBothEdges, 2, unix.EINVAL},
 		{"as is pull down", 0, uapi.HandleRequestPullDown, uapi.EventRequestBothEdges, 2, unix.EINVAL},
-		{"as is pull none", 0, uapi.HandleRequestPullNone, uapi.EventRequestBothEdges, 2, unix.EINVAL},
+		{"as is bias disable", 0, uapi.HandleRequestBiasDisable, uapi.EventRequestBothEdges, 2, unix.EINVAL},
 	}
 	for _, p := range patterns {
 		c, err := mock.Chip(p.cnum)
@@ -176,13 +176,13 @@ func TestGetLineHandle(t *testing.T) {
 		{"input", 0, uapi.HandleRequestInput, []uint32{2}, nil},
 		{"input pull up", 0, uapi.HandleRequestInput | uapi.HandleRequestPullUp, []uint32{2}, nil},
 		{"input pull down", 0, uapi.HandleRequestInput | uapi.HandleRequestPullDown, []uint32{3}, nil},
-		{"input pull none", 0, uapi.HandleRequestInput | uapi.HandleRequestPullNone, []uint32{3}, nil},
+		{"input bias disable", 0, uapi.HandleRequestInput | uapi.HandleRequestBiasDisable, []uint32{3}, nil},
 		{"output", 0, uapi.HandleRequestOutput, []uint32{2}, nil},
 		{"output drain", 0, uapi.HandleRequestOutput | uapi.HandleRequestOpenDrain, []uint32{2}, nil},
 		{"output source", 0, uapi.HandleRequestOutput | uapi.HandleRequestOpenSource, []uint32{3}, nil},
 		{"output pull up", 0, uapi.HandleRequestOutput | uapi.HandleRequestPullUp, []uint32{1}, nil},
 		{"output pull down", 0, uapi.HandleRequestOutput | uapi.HandleRequestPullDown, []uint32{2}, nil},
-		{"output pull none", 0, uapi.HandleRequestOutput | uapi.HandleRequestPullNone, []uint32{2}, nil},
+		{"output bias disable", 0, uapi.HandleRequestOutput | uapi.HandleRequestBiasDisable, []uint32{2}, nil},
 		// expected errors
 		{"both io", 0, uapi.HandleRequestInput | uapi.HandleRequestOutput, []uint32{2}, unix.EINVAL},
 		{"overlength", 0, uapi.HandleRequestInput, []uint32{0, 1, 2, 3, 4}, unix.EINVAL},
@@ -194,7 +194,7 @@ func TestGetLineHandle(t *testing.T) {
 		{"drain source", 0, uapi.HandleRequestOutput | uapi.HandleRequestOpenDrain | uapi.HandleRequestOpenSource, []uint32{2}, unix.EINVAL},
 		{"as is pull up", 0, uapi.HandleRequestPullUp, []uint32{1}, unix.EINVAL},
 		{"as is pull down", 0, uapi.HandleRequestPullDown, []uint32{2}, unix.EINVAL},
-		{"as is pull none", 0, uapi.HandleRequestPullNone, []uint32{2}, unix.EINVAL},
+		{"as is bias disable", 0, uapi.HandleRequestBiasDisable, []uint32{2}, unix.EINVAL},
 	}
 	for _, p := range patterns {
 		c, err := mock.Chip(p.cnum)
@@ -481,12 +481,18 @@ func TestLineFlags(t *testing.T) {
 	assert.True(t, uapi.LineFlagIsOut.IsOut())
 	assert.True(t, uapi.LineFlagActiveLow.IsActiveLow())
 	assert.True(t, uapi.LineFlagOpenDrain.IsOpenDrain())
+	assert.False(t, uapi.LineFlagOpenDrain.IsOpenSource())
 	assert.True(t, uapi.LineFlagOpenSource.IsOpenSource())
+	assert.False(t, uapi.LineFlagOpenSource.IsOpenDrain())
 	assert.True(t, uapi.LineFlagPullUp.IsPullUp())
+	assert.False(t, uapi.LineFlagPullUp.IsPullDown())
+	assert.False(t, uapi.LineFlagPullUp.IsBiasDisable())
 	assert.True(t, uapi.LineFlagPullDown.IsPullDown())
-	assert.True(t, uapi.LineFlagPullNone.IsPullNone())
-	assert.False(t, uapi.LineFlagPullNone.IsPullUp())
-	assert.False(t, uapi.LineFlagPullNone.IsPullDown())
+	assert.False(t, uapi.LineFlagPullDown.IsBiasDisable())
+	assert.False(t, uapi.LineFlagPullDown.IsPullUp())
+	assert.True(t, uapi.LineFlagBiasDisable.IsBiasDisable())
+	assert.False(t, uapi.LineFlagBiasDisable.IsPullUp())
+	assert.False(t, uapi.LineFlagBiasDisable.IsPullDown())
 }
 
 func TestHandleFlags(t *testing.T) {
@@ -499,12 +505,18 @@ func TestHandleFlags(t *testing.T) {
 	assert.True(t, uapi.HandleRequestOutput.IsOutput())
 	assert.True(t, uapi.HandleRequestActiveLow.IsActiveLow())
 	assert.True(t, uapi.HandleRequestOpenDrain.IsOpenDrain())
+	assert.False(t, uapi.HandleRequestOpenDrain.IsOpenSource())
 	assert.True(t, uapi.HandleRequestOpenSource.IsOpenSource())
+	assert.False(t, uapi.HandleRequestOpenSource.IsOpenDrain())
 	assert.True(t, uapi.HandleRequestPullUp.IsPullUp())
+	assert.False(t, uapi.HandleRequestPullUp.IsPullDown())
+	assert.False(t, uapi.HandleRequestPullUp.IsBiasDisable())
 	assert.True(t, uapi.HandleRequestPullDown.IsPullDown())
-	assert.True(t, uapi.HandleRequestPullNone.IsPullNone())
-	assert.False(t, uapi.HandleRequestPullNone.IsPullUp())
-	assert.False(t, uapi.HandleRequestPullNone.IsPullDown())
+	assert.False(t, uapi.HandleRequestPullDown.IsBiasDisable())
+	assert.False(t, uapi.HandleRequestPullDown.IsPullUp())
+	assert.True(t, uapi.HandleRequestBiasDisable.IsBiasDisable())
+	assert.False(t, uapi.HandleRequestBiasDisable.IsPullUp())
+	assert.False(t, uapi.HandleRequestBiasDisable.IsPullDown())
 }
 
 func TestEventFlags(t *testing.T) {
@@ -539,8 +551,8 @@ func lineFromHandle(hf uapi.HandleFlag) uapi.LineFlag {
 	if hf.IsPullDown() {
 		lf |= uapi.LineFlagPullDown
 	}
-	if hf.IsPullNone() {
-		lf |= uapi.LineFlagPullNone
+	if hf.IsBiasDisable() {
+		lf |= uapi.LineFlagBiasDisable
 	}
 	return lf
 }

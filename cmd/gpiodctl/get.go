@@ -20,7 +20,7 @@ func init() {
 	getCmd.Flags().BoolVarP(&getOpts.AsIs, "as-is", "a", false, "request the line as-is rather than as an input")
 	getCmd.Flags().BoolVarP(&getOpts.PullUp, "pull-up", "u", false, "enable internal pull-up")
 	getCmd.Flags().BoolVarP(&getOpts.PullDown, "pull-down", "d", false, "enable internal pull-down")
-	getCmd.Flags().BoolVar(&getOpts.PullNone, "pull-none", false, "disable internal pull")
+	getCmd.Flags().BoolVar(&getOpts.BiasDisable, "bias-disable", false, "disable internal bias")
 	rootCmd.AddCommand(getCmd)
 }
 
@@ -33,11 +33,11 @@ var (
 		RunE:  get,
 	}
 	getOpts = struct {
-		ActiveLow bool
-		AsIs      bool
-		PullUp    bool
-		PullDown  bool
-		PullNone  bool
+		ActiveLow   bool
+		AsIs        bool
+		PullUp      bool
+		PullDown    bool
+		BiasDisable bool
 	}{}
 )
 
@@ -83,8 +83,8 @@ func makeGetOpts() []gpiod.LineOption {
 		opts = append(opts, gpiod.AsInput)
 	}
 	switch {
-	case getOpts.PullNone:
-		opts = append(opts, gpiod.WithPullNone)
+	case getOpts.BiasDisable:
+		opts = append(opts, gpiod.WithBiasDisable)
 	case getOpts.PullUp:
 		opts = append(opts, gpiod.WithPullUp)
 	case getOpts.PullDown:

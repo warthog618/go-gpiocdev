@@ -26,7 +26,7 @@ func init() {
 	setCmd.Flags().BoolVarP(&setOpts.OpenSource, "open-source", "s", false, "set the output to open-source")
 	setCmd.Flags().BoolVar(&setOpts.PullUp, "pull-up", false, "enable internal pull-up")
 	setCmd.Flags().BoolVar(&setOpts.PullDown, "pull-down", false, "enable internal pull-down")
-	setCmd.Flags().BoolVar(&setOpts.PullNone, "pull-none", false, "disable internal pull")
+	setCmd.Flags().BoolVar(&setOpts.BiasDisable, "bias-disable", false, "disable internal bias")
 	setCmd.Flags().BoolVarP(&setOpts.User, "user", "u", false, "wait for the user to press Enter then exit")
 	setCmd.Flags().BoolVarP(&setOpts.Wait, "wait", "w", false, "wait for a SIGINT or SIGTERM to exit")
 	setCmd.Flags().StringVarP(&setOpts.Time, "time", "t", "", "wait for a period of time then exit.")
@@ -55,15 +55,15 @@ var (
 		RunE:    set,
 	}
 	setOpts = struct {
-		ActiveLow  bool
-		OpenDrain  bool
-		OpenSource bool
-		Wait       bool
-		User       bool
-		Time       string
-		PullUp     bool
-		PullDown   bool
-		PullNone   bool
+		ActiveLow   bool
+		OpenDrain   bool
+		OpenSource  bool
+		Wait        bool
+		User        bool
+		Time        string
+		PullUp      bool
+		PullDown    bool
+		BiasDisable bool
 	}{}
 )
 
@@ -84,9 +84,6 @@ func preset(cmd *cobra.Command, args []string) error {
 }
 
 func set(cmd *cobra.Command, args []string) error {
-	if setOpts.PullUp && setOpts.PullDown {
-		return errors.New("can't pull-up and pull-down at the same time")
-	}
 	name := args[0]
 	ll := []int(nil)
 	vv := []int(nil)
@@ -156,8 +153,8 @@ func makeSetOpts(vv []int) []gpiod.LineOption {
 		opts = append(opts, gpiod.AsOpenSource)
 	}
 	switch {
-	case setOpts.PullNone:
-		opts = append(opts, gpiod.WithPullNone)
+	case setOpts.BiasDisable:
+		opts = append(opts, gpiod.WithBiasDisable)
 	case setOpts.PullUp:
 		opts = append(opts, gpiod.WithPullUp)
 	case setOpts.PullDown:

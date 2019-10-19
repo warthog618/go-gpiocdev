@@ -97,16 +97,14 @@ type OutputOption struct {
 // inactive.
 //
 // This option overrides and clears any previous Input, RisingEdge, FallingEdge,
-// BothEdges, PullUp or PullDown options.
+// or BothEdges options.
 func AsOutput(values ...int) OutputOption {
 	vv := append([]int(nil), values...)
 	return OutputOption{vv}
 }
 
 func (o OutputOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^(uapi.HandleRequestInput |
-		uapi.HandleRequestPullDown |
-		uapi.HandleRequestPullDown)
+	l.HandleFlags &= ^uapi.HandleRequestInput
 	l.HandleFlags |= uapi.HandleRequestOutput
 	l.EventFlags = 0
 	l.InitialValues = o.initialValues
@@ -150,44 +148,32 @@ var AsOpenDrain = OutputModeOption{uapi.HandleRequestOpenDrain}
 // Input, RisingEdge, FallingEdge, BothEdges, or OpenDrain options.
 var AsOpenSource = OutputModeOption{uapi.HandleRequestOpenSource}
 
-// PullModeOption indicates that a line is pull-up or pull-down.
-type PullModeOption struct {
+// BiasModeOption indicates how a line is to be biased.
+type BiasModeOption struct {
 	flag uapi.HandleFlag
 }
 
-func (o PullModeOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^(uapi.HandleRequestOutput |
-		uapi.HandleRequestOpenDrain |
-		uapi.HandleRequestOpenSource |
-		uapi.HandleRequestPullUp |
-		uapi.HandleRequestPullDown)
-	l.HandleFlags |= (o.flag | uapi.HandleRequestInput)
+func (o BiasModeOption) applyLineOption(l *LineOptions) {
+	l.HandleFlags &= ^(uapi.HandleRequestBiasDisable |
+		uapi.HandleRequestPullDown |
+		uapi.HandleRequestPullUp)
+	l.HandleFlags |= o.flag
 }
 
-// WithPullUp indicates that a line have its internal pull-up enabled.
+// WithBiasDisable indicates that a line have its internal bias disabled.
 //
-// This option sets the Input option and overrides and clears any previous
-// Output, OpenDrain, OpenSource or PullDown options.
-var WithPullUp = PullModeOption{uapi.HandleRequestPullUp}
+// This option overrides and clears any previous bias options.
+var WithBiasDisable = BiasModeOption{uapi.HandleRequestBiasDisable}
 
 // WithPullDown indicates that a line have its internal pull-down enabled.
 //
-// This option sets the Input option and overrides and clears any previous
-// Output, OpenDrain, OpenSource or PullUp options.
-var WithPullDown = PullModeOption{uapi.HandleRequestPullDown}
+// This option overrides and clears any previous bias options.
+var WithPullDown = BiasModeOption{uapi.HandleRequestPullDown}
 
-// PullNoneOption indicates that a line has pull disabled.
-type PullNoneOption struct {
-}
-
-func (o PullNoneOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags |= uapi.HandleRequestPullNone
-}
-
-// WithPullNone indicates that a line have its internal pull disabled.
+// WithPullUp indicates that a line have its internal pull-up enabled.
 //
-// This option overrides and clears any previous PullUp or PullDown options.
-var WithPullNone = PullNoneOption{}
+// This option overrides and clears any previous bias options.
+var WithPullUp = BiasModeOption{uapi.HandleRequestPullUp}
 
 // EdgeOption indicates that a line will generate events when edges are detected.
 type EdgeOption struct {
