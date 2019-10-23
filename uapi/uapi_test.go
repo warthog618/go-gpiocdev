@@ -490,6 +490,80 @@ func TestSetLineHandleConfig(t *testing.T) {
 	}
 }
 
+func TestSetLineEventConfig(t *testing.T) {
+	mockupRequired(t)
+	patterns := []struct {
+		name        string
+		cnum        int
+		offset      uint32
+		initialFlag uapi.HandleFlag
+		configFlag  uapi.HandleFlag
+		err         error
+	}{
+		{"low to high", 0, 1,
+			uapi.HandleRequestInput | uapi.HandleRequestActiveLow,
+			0,
+			nil},
+		{"high to low", 0, 2,
+			uapi.HandleRequestInput,
+			uapi.HandleRequestInput | uapi.HandleRequestActiveLow,
+			nil},
+		// expected errors
+		{"in to out", 1, 2,
+			uapi.HandleRequestInput,
+			uapi.HandleRequestOutput,
+			nil},
+		{"drain", 0, 3,
+			uapi.HandleRequestInput,
+			uapi.HandleRequestInput | uapi.HandleRequestOpenDrain,
+			unix.EINVAL},
+		{"source", 0, 3,
+			uapi.HandleRequestInput,
+			uapi.HandleRequestInput | uapi.HandleRequestOpenSource,
+			unix.EINVAL},
+	}
+	for _, p := range patterns {
+		tf := func(t *testing.T) {
+			c, err := mock.Chip(p.cnum)
+			require.Nil(t, err)
+			f, err := os.Open(c.DevPath)
+			require.Nil(t, err)
+			defer f.Close()
+			er := uapi.EventRequest{
+				HandleFlags: p.initialFlag,
+				EventFlags:  uapi.EventRequestBothEdges,
+				Offset:      p.offset,
+			}
+			copy(er.Consumer[:], p.name)
+			err = uapi.GetLineEvent(f.Fd(), &er)
+			require.Nil(t, err)
+			// apply config change
+			hc := uapi.HandleConfig{Flags: p.configFlag}
+			err = uapi.SetLineConfig(uintptr(er.Fd), &hc)
+			assert.Equal(t, p.err, err)
+
+			if p.err == nil {
+				// check line info
+				li, err := uapi.GetLineInfo(f.Fd(), int(p.offset))
+				assert.Nil(t, err)
+				if p.err != nil {
+					assert.False(t, li.Flags.IsRequested())
+					return
+				}
+				xli := uapi.LineInfo{
+					Offset: p.offset,
+					Flags:  uapi.LineFlagRequested | lineFromHandle(p.configFlag),
+				}
+				copy(xli.Name[:], li.Name[:]) // don't care about name
+				copy(xli.Consumer[:], p.name)
+				assert.Equal(t, xli, li)
+			}
+			unix.Close(int(er.Fd))
+		}
+		t.Run(p.name, tf)
+	}
+}
+
 func TestEventRead(t *testing.T) {
 	mockupRequired(t)
 	c, err := mock.Chip(0)
