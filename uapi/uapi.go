@@ -112,10 +112,11 @@ func SetLineValues(fd uintptr, values HandleData) error {
 
 // SetLineConfig sets the config of an existing request.
 //
-// This request may be a handle or event request. The flags in the request will
-// be applied to all lines in the request. Events request cannot be reconfigured
-// to outputs. Handle requests can be reconfigured to outputs, with values
-// defined by default_values.
+// This request may be a handle or event request.
+// The flags in the request will be applied to all lines in the request.
+// Events request cannot be reconfigured to outputs.
+// Handle requests can be reconfigured to outputs, with values defined by
+// default_values.
 func SetLineConfig(fd uintptr, config *HandleConfig) error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		fd,
