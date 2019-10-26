@@ -226,14 +226,14 @@ const (
 	// An output cannot be both open drain and open source.
 	LineFlagOpenSource
 
-	// LineFlagBiasDisable indicates that the internal line bias is disabled.
-	LineFlagBiasDisable
+	// LineFlagPullUp indicates that the internal line pull up is enabled.
+	LineFlagPullUp
 
 	// LineFlagPullDown indicates that the internal line pull down is enabled.
 	LineFlagPullDown
 
-	// LineFlagPullUp indicates that the internal line pull up is enabled.
-	LineFlagPullUp
+	// LineFlagBiasDisable indicates that the internal line bias is disabled.
+	LineFlagBiasDisable
 )
 
 // IsRequested returns true if the line is requested.
@@ -328,14 +328,14 @@ const (
 	// This cannot be set at the same time as OpenDrain.
 	HandleRequestOpenSource
 
-	// HandleRequestBiasDisable requests the line have bias disabled.
-	HandleRequestBiasDisable
+	// HandleRequestPullUp requests the line have pull-up enabled.
+	HandleRequestPullUp
 
 	// HandleRequestPullDown requests the line have pull-down enabled.
 	HandleRequestPullDown
 
-	// HandleRequestPullUp requests the line have pull-up enabled.
-	HandleRequestPullUp
+	// HandleRequestBiasDisable requests the line have bias disabled.
+	HandleRequestBiasDisable
 
 	// HandlesMax is the maximum number of lines that can be requested in a
 	// single request.
