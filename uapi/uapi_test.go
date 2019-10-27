@@ -253,7 +253,7 @@ func TestGetLineEvent(t *testing.T) {
 				Flags:  uapi.LineFlagRequested | lineFromHandle(p.handleFlag),
 			}
 			copy(xli.Name[:], li.Name[:]) // don't care about name
-			copy(xli.Consumer[:], p.name)
+			copy(xli.Consumer[:31], p.name)
 			assert.Equal(t, xli, li)
 			unix.Close(int(er.Fd))
 		}
@@ -441,7 +441,7 @@ func TestGetLineHandle(t *testing.T) {
 				Flags:  uapi.LineFlagRequested | lineFromHandle(p.handleFlag),
 			}
 			copy(xli.Name[:], li.Name[:]) // don't care about name
-			copy(xli.Consumer[:], p.name)
+			copy(xli.Consumer[:31], p.name)
 			assert.Equal(t, xli, li)
 			unix.Close(int(hr.Fd))
 		}
@@ -890,6 +890,22 @@ func TestSetLineHandleConfig(t *testing.T) {
 			uapi.HandleRequestActiveLow,
 			[]uint8{1, 0, 1},
 			nil},
+		{"input pull-up to input pull-down",
+			0,
+			[]uint32{1, 2, 3},
+			uapi.HandleRequestInput | uapi.HandleRequestPullUp,
+			nil,
+			uapi.HandleRequestInput | uapi.HandleRequestPullDown,
+			[]uint8{0, 0, 0},
+			nil},
+		{"input pull-down to input pull-up",
+			0,
+			[]uint32{1, 2, 3},
+			uapi.HandleRequestInput | uapi.HandleRequestPullDown,
+			nil,
+			uapi.HandleRequestInput | uapi.HandleRequestPullUp,
+			[]uint8{1, 1, 1},
+			nil},
 		{"output atv-lo to as-is atv-hi",
 			0,
 			[]uint32{1, 2, 3},
@@ -996,7 +1012,7 @@ func TestSetLineHandleConfig(t *testing.T) {
 						lineFromConfig(p.initialFlag, p.configFlag),
 				}
 				copy(xli.Name[:], li.Name[:]) // don't care about name
-				copy(xli.Consumer[:], p.name)
+				copy(xli.Consumer[:31], p.name)
 				assert.Equal(t, xli, li)
 				if len(p.configVal) != 0 {
 					// check values from mock
@@ -1084,7 +1100,7 @@ func TestSetLineEventConfig(t *testing.T) {
 						lineFromConfig(p.initialFlag, p.configFlag),
 				}
 				copy(xli.Name[:], li.Name[:]) // don't care about name
-				copy(xli.Consumer[:], p.name)
+				copy(xli.Consumer[:31], p.name)
 				assert.Equal(t, xli, li)
 			}
 			unix.Close(int(er.Fd))
