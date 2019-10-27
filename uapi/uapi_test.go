@@ -405,7 +405,7 @@ func TestSetLineHandleConfig(t *testing.T) {
 			nil},
 		{"low to high", 0, []uint32{1, 2, 3},
 			uapi.HandleRequestOutput | uapi.HandleRequestActiveLow, []uint8{1, 0, 1},
-			0, []uint8{1, 0, 1},
+			uapi.HandleRequestOutput, []uint8{1, 0, 1},
 			nil},
 		{"high to low", 0, []uint32{2},
 			uapi.HandleRequestOutput, []uint8{1, 0, 1},
@@ -431,6 +431,14 @@ func TestSetLineHandleConfig(t *testing.T) {
 		{"drain source", 0, []uint32{2},
 			uapi.HandleRequestOutput, nil,
 			uapi.HandleRequestOutput | uapi.HandleRequestOpenDrain | uapi.HandleRequestOpenSource, nil,
+			unix.EINVAL},
+		{"low to as-is high", 0, []uint32{1, 2, 3},
+			uapi.HandleRequestOutput | uapi.HandleRequestActiveLow, []uint8{1, 0, 1},
+			0, []uint8{1, 0, 1},
+			unix.EINVAL},
+		{"high to as-is low", 0, []uint32{2},
+			uapi.HandleRequestOutput, []uint8{1, 0, 1},
+			uapi.HandleRequestActiveLow, []uint8{1, 0, 1},
 			unix.EINVAL},
 	}
 	for _, p := range patterns {
@@ -500,19 +508,19 @@ func TestSetLineEventConfig(t *testing.T) {
 		configFlag  uapi.HandleFlag
 		err         error
 	}{
+		// expected errors
 		{"low to high", 0, 1,
 			uapi.HandleRequestInput | uapi.HandleRequestActiveLow,
 			0,
-			nil},
+			unix.EINVAL},
 		{"high to low", 0, 2,
 			uapi.HandleRequestInput,
 			uapi.HandleRequestInput | uapi.HandleRequestActiveLow,
-			nil},
-		// expected errors
+			unix.EINVAL},
 		{"in to out", 1, 2,
 			uapi.HandleRequestInput,
 			uapi.HandleRequestOutput,
-			nil},
+			unix.EINVAL},
 		{"drain", 0, 3,
 			uapi.HandleRequestInput,
 			uapi.HandleRequestInput | uapi.HandleRequestOpenDrain,
