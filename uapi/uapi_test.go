@@ -108,7 +108,7 @@ func TestGetLineEvent(t *testing.T) {
 		offset     uint32
 		err        error
 	}{
-		{"activeLow",
+		{"atv-lo",
 			1,
 			uapi.HandleRequestActiveLow,
 			uapi.EventRequestBothEdges,
@@ -324,13 +324,13 @@ func TestGetLineValues(t *testing.T) {
 		offsets    []uint32
 		val        []uint8
 	}{
-		{"activeLow lo",
+		{"as-is atv-lo lo",
 			1,
 			uapi.HandleRequestActiveLow,
 			0,
 			[]uint32{2},
 			[]uint8{0}},
-		{"activeLow hi",
+		{"as-is atv-lo hi",
 			1,
 			uapi.HandleRequestActiveLow,
 			0,
@@ -456,7 +456,7 @@ func TestGetLineValues(t *testing.T) {
 			0,
 			[]uint32{3, 2, 1, 0, 4, 5, 6, 7},
 			[]uint8{1, 1, 0, 1, 1, 1, 0, 1}},
-		{"activeLow 8b",
+		{"atv-lo 8b",
 			1,
 			uapi.HandleRequestInput | uapi.HandleRequestActiveLow,
 			0,
@@ -534,28 +534,16 @@ func TestSetLineValues(t *testing.T) {
 		val        []uint8
 		err        error
 	}{
-		{"activeLow lo",
+		{"output atv-lo lo",
 			1,
 			uapi.HandleRequestActiveLow | uapi.HandleRequestOutput,
 			[]uint32{2},
 			[]uint8{0},
 			nil},
-		{"activeLow hi",
+		{"output atv-lo hi",
 			1,
 			uapi.HandleRequestActiveLow | uapi.HandleRequestOutput,
 			[]uint32{2},
-			[]uint8{1},
-			nil},
-		{"as-is lo",
-			0,
-			uapi.HandleRequestOutput,
-			[]uint32{2},
-			[]uint8{0},
-			nil},
-		{"as-is hi",
-			0,
-			uapi.HandleRequestOutput,
-			[]uint32{1},
 			[]uint8{1},
 			nil},
 		{"output lo",
@@ -618,7 +606,7 @@ func TestSetLineValues(t *testing.T) {
 			[]uint32{3, 2, 1, 0, 4, 5, 6, 7},
 			[]uint8{1, 1, 0, 1, 1, 1, 0, 1},
 			nil},
-		{"activeLow 8b",
+		{"atv-lo 8b",
 			1,
 			uapi.HandleRequestOutput | uapi.HandleRequestActiveLow,
 			[]uint32{3, 2, 1, 0, 4, 5, 6, 7},
