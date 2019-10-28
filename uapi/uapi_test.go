@@ -128,19 +128,22 @@ func TestGetLineEvent(t *testing.T) {
 			nil},
 		{"input pull-up",
 			0,
-			uapi.HandleRequestInput | uapi.HandleRequestPullUp,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestPullUp,
 			uapi.EventRequestBothEdges,
 			2,
 			nil},
 		{"input pull-down",
 			0,
-			uapi.HandleRequestInput | uapi.HandleRequestPullDown,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestPullDown,
 			uapi.EventRequestBothEdges,
 			2,
 			nil},
 		{"input bias disable",
 			0,
-			uapi.HandleRequestInput | uapi.HandleRequestBiasDisable,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestBiasDisable,
 			uapi.EventRequestBothEdges,
 			2,
 			nil},
@@ -159,13 +162,15 @@ func TestGetLineEvent(t *testing.T) {
 			unix.EINVAL},
 		{"input drain",
 			0,
-			uapi.HandleRequestInput | uapi.HandleRequestOpenDrain,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestOpenDrain,
 			uapi.EventRequestBothEdges,
 			2,
 			unix.EINVAL},
 		{"input source",
 			0,
-			uapi.HandleRequestInput | uapi.HandleRequestOpenSource,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestOpenSource,
 			uapi.EventRequestBothEdges,
 			2,
 			unix.EINVAL},
@@ -287,17 +292,20 @@ func TestGetLineHandle(t *testing.T) {
 			nil},
 		{"input pull-up",
 			0,
-			uapi.HandleRequestInput | uapi.HandleRequestPullUp,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestPullUp,
 			[]uint32{2},
 			nil},
 		{"input pull-down",
 			0,
-			uapi.HandleRequestInput | uapi.HandleRequestPullDown,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestPullDown,
 			[]uint32{3},
 			nil},
 		{"input bias disable",
 			0,
-			uapi.HandleRequestInput | uapi.HandleRequestBiasDisable,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestBiasDisable,
 			[]uint32{3},
 			nil},
 		{"output",
@@ -307,33 +315,39 @@ func TestGetLineHandle(t *testing.T) {
 			nil},
 		{"output drain",
 			0,
-			uapi.HandleRequestOutput | uapi.HandleRequestOpenDrain,
+			uapi.HandleRequestOutput |
+				uapi.HandleRequestOpenDrain,
 			[]uint32{2},
 			nil},
 		{"output source",
 			0,
-			uapi.HandleRequestOutput | uapi.HandleRequestOpenSource,
+			uapi.HandleRequestOutput |
+				uapi.HandleRequestOpenSource,
 			[]uint32{3},
 			nil},
 		{"output pull-up",
 			0,
-			uapi.HandleRequestOutput | uapi.HandleRequestPullUp,
+			uapi.HandleRequestOutput |
+				uapi.HandleRequestPullUp,
 			[]uint32{1},
 			nil},
 		{"output pull-down",
 			0,
-			uapi.HandleRequestOutput | uapi.HandleRequestPullDown,
+			uapi.HandleRequestOutput |
+				uapi.HandleRequestPullDown,
 			[]uint32{2},
 			nil},
 		{"output bias disable",
 			0,
-			uapi.HandleRequestOutput | uapi.HandleRequestBiasDisable,
+			uapi.HandleRequestOutput |
+				uapi.HandleRequestBiasDisable,
 			[]uint32{2},
 			nil},
 		// expected errors
 		{"both io",
 			0,
-			uapi.HandleRequestInput | uapi.HandleRequestOutput,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestOutput,
 			[]uint32{2},
 			unix.EINVAL},
 		{"overlength",
@@ -348,12 +362,14 @@ func TestGetLineHandle(t *testing.T) {
 			unix.EINVAL},
 		{"input drain",
 			0,
-			uapi.HandleRequestInput | uapi.HandleRequestOpenDrain,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestOpenDrain,
 			[]uint32{1},
 			unix.EINVAL},
 		{"input source",
 			0,
-			uapi.HandleRequestInput | uapi.HandleRequestOpenSource,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestOpenSource,
 			[]uint32{2},
 			unix.EINVAL},
 		{"as-is drain",
@@ -405,6 +421,14 @@ func TestGetLineHandle(t *testing.T) {
 		{"pull-up and pull-down",
 			0,
 			uapi.HandleRequestInput |
+				uapi.HandleRequestPullUp |
+				uapi.HandleRequestPullDown,
+			[]uint32{2},
+			unix.EINVAL},
+		{"all bias flags",
+			0,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestBiasDisable |
 				uapi.HandleRequestPullUp |
 				uapi.HandleRequestPullDown,
 			[]uint32{2},
@@ -593,7 +617,8 @@ func TestGetLineValues(t *testing.T) {
 			[]uint8{1, 1, 0, 1, 1, 1, 0, 1}},
 		{"atv-lo 8b",
 			1,
-			uapi.HandleRequestInput | uapi.HandleRequestActiveLow,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestActiveLow,
 			0,
 			[]uint32{3, 2, 1, 0, 4, 6, 7},
 			[]uint8{1, 1, 0, 1, 1, 1, 0, 0}},
@@ -671,13 +696,15 @@ func TestSetLineValues(t *testing.T) {
 	}{
 		{"output atv-lo lo",
 			1,
-			uapi.HandleRequestActiveLow | uapi.HandleRequestOutput,
+			uapi.HandleRequestOutput |
+				uapi.HandleRequestActiveLow,
 			[]uint32{2},
 			[]uint8{0},
 			nil},
 		{"output atv-lo hi",
 			1,
-			uapi.HandleRequestActiveLow | uapi.HandleRequestOutput,
+			uapi.HandleRequestOutput |
+				uapi.HandleRequestActiveLow,
 			[]uint32{2},
 			[]uint8{1},
 			nil},
@@ -755,7 +782,8 @@ func TestSetLineValues(t *testing.T) {
 			nil},
 		{"atv-lo 8b",
 			1,
-			uapi.HandleRequestOutput | uapi.HandleRequestActiveLow,
+			uapi.HandleRequestOutput |
+				uapi.HandleRequestActiveLow,
 			[]uint32{3, 2, 1, 0, 4, 5, 6, 7},
 			[]uint8{1, 1, 0, 1, 1, 0, 0, 0},
 			nil},
@@ -845,7 +873,8 @@ func TestSetLineHandleConfig(t *testing.T) {
 		{"input atv-lo to input atv-hi",
 			0,
 			[]uint32{1, 2, 3},
-			uapi.HandleRequestInput | uapi.HandleRequestActiveLow,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestActiveLow,
 			[]uint8{1, 0, 1},
 			uapi.HandleRequestInput,
 			[]uint8{1, 0, 1},
@@ -855,13 +884,15 @@ func TestSetLineHandleConfig(t *testing.T) {
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestInput,
 			[]uint8{1, 0, 1},
-			uapi.HandleRequestInput | uapi.HandleRequestActiveLow,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestActiveLow,
 			[]uint8{1, 0, 1},
 			nil},
 		{"output atv-lo to output atv-hi",
 			0,
 			[]uint32{1, 2, 3},
-			uapi.HandleRequestOutput | uapi.HandleRequestActiveLow,
+			uapi.HandleRequestOutput |
+				uapi.HandleRequestActiveLow,
 			[]uint8{1, 0, 1},
 			uapi.HandleRequestOutput,
 			[]uint8{0, 1, 1},
@@ -871,13 +902,15 @@ func TestSetLineHandleConfig(t *testing.T) {
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestOutput,
 			[]uint8{1, 0, 1},
-			uapi.HandleRequestOutput | uapi.HandleRequestActiveLow,
+			uapi.HandleRequestOutput |
+				uapi.HandleRequestActiveLow,
 			[]uint8{0, 1, 1},
 			nil},
 		{"input atv-lo to as-is atv-hi",
 			0,
 			[]uint32{1, 2, 3},
-			uapi.HandleRequestInput | uapi.HandleRequestActiveLow,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestActiveLow,
 			[]uint8{1, 0, 1},
 			0,
 			[]uint8{1, 0, 1},
@@ -893,23 +926,28 @@ func TestSetLineHandleConfig(t *testing.T) {
 		{"input pull-up to input pull-down",
 			0,
 			[]uint32{1, 2, 3},
-			uapi.HandleRequestInput | uapi.HandleRequestPullUp,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestPullUp,
 			nil,
-			uapi.HandleRequestInput | uapi.HandleRequestPullDown,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestPullDown,
 			[]uint8{0, 0, 0},
 			nil},
 		{"input pull-down to input pull-up",
 			0,
 			[]uint32{1, 2, 3},
-			uapi.HandleRequestInput | uapi.HandleRequestPullDown,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestPullDown,
 			nil,
-			uapi.HandleRequestInput | uapi.HandleRequestPullUp,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestPullUp,
 			[]uint8{1, 1, 1},
 			nil},
 		{"output atv-lo to as-is atv-hi",
 			0,
 			[]uint32{1, 2, 3},
-			uapi.HandleRequestOutput | uapi.HandleRequestActiveLow,
+			uapi.HandleRequestOutput |
+				uapi.HandleRequestActiveLow,
 			[]uint8{1, 0, 1},
 			0,
 			[]uint8{0, 1, 0}, // must be opposite of initial as mock is not updated
@@ -928,7 +966,8 @@ func TestSetLineHandleConfig(t *testing.T) {
 			[]uint32{2},
 			uapi.HandleRequestInput,
 			nil,
-			uapi.HandleRequestInput | uapi.HandleRequestOpenDrain,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestOpenDrain,
 			nil,
 			unix.EINVAL},
 		{"input source",
@@ -936,7 +975,8 @@ func TestSetLineHandleConfig(t *testing.T) {
 			[]uint32{2},
 			uapi.HandleRequestInput,
 			nil,
-			uapi.HandleRequestInput | uapi.HandleRequestOpenSource,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestOpenSource,
 			nil,
 			unix.EINVAL},
 		{"as-is drain",
@@ -960,7 +1000,50 @@ func TestSetLineHandleConfig(t *testing.T) {
 			[]uint32{2},
 			uapi.HandleRequestOutput,
 			nil,
-			uapi.HandleRequestOutput | uapi.HandleRequestOpenDrain | uapi.HandleRequestOpenSource,
+			uapi.HandleRequestOutput |
+				uapi.HandleRequestOpenDrain |
+				uapi.HandleRequestOpenSource,
+			nil,
+			unix.EINVAL},
+		{"pull-up and pull-down",
+			0,
+			[]uint32{2},
+			uapi.HandleRequestOutput,
+			nil,
+			uapi.HandleRequestOutput |
+				uapi.HandleRequestPullUp |
+				uapi.HandleRequestPullDown,
+			nil,
+			unix.EINVAL},
+		{"bias disable and pull-up",
+			0,
+			[]uint32{2},
+			uapi.HandleRequestOutput,
+			nil,
+			uapi.HandleRequestOutput |
+				uapi.HandleRequestBiasDisable |
+				uapi.HandleRequestPullUp,
+			nil,
+			unix.EINVAL},
+		{"bias disable and pull-down",
+			0,
+			[]uint32{2},
+			uapi.HandleRequestOutput,
+			nil,
+			uapi.HandleRequestOutput |
+				uapi.HandleRequestBiasDisable |
+				uapi.HandleRequestPullDown,
+			nil,
+			unix.EINVAL},
+		{"all bias flags",
+			0,
+			[]uint32{2},
+			uapi.HandleRequestOutput,
+			nil,
+			uapi.HandleRequestOutput |
+				uapi.HandleRequestBiasDisable |
+				uapi.HandleRequestPullDown |
+				uapi.HandleRequestPullUp,
 			nil,
 			unix.EINVAL},
 	}
@@ -1046,12 +1129,14 @@ func TestSetLineEventConfig(t *testing.T) {
 	}{
 		// expected errors
 		{"low to high", 0, 1,
-			uapi.HandleRequestInput | uapi.HandleRequestActiveLow,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestActiveLow,
 			0,
 			unix.EINVAL},
 		{"high to low", 0, 2,
 			uapi.HandleRequestInput,
-			uapi.HandleRequestInput | uapi.HandleRequestActiveLow,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestActiveLow,
 			unix.EINVAL},
 		{"in to out", 1, 2,
 			uapi.HandleRequestInput,
@@ -1059,11 +1144,13 @@ func TestSetLineEventConfig(t *testing.T) {
 			unix.EINVAL},
 		{"drain", 0, 3,
 			uapi.HandleRequestInput,
-			uapi.HandleRequestInput | uapi.HandleRequestOpenDrain,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestOpenDrain,
 			unix.EINVAL},
 		{"source", 0, 3,
 			uapi.HandleRequestInput,
-			uapi.HandleRequestInput | uapi.HandleRequestOpenSource,
+			uapi.HandleRequestInput |
+				uapi.HandleRequestOpenSource,
 			unix.EINVAL},
 	}
 	for _, p := range patterns {
@@ -1119,9 +1206,10 @@ func TestEventRead(t *testing.T) {
 	err = c.SetValue(1, 0)
 	require.Nil(t, err)
 	er := uapi.EventRequest{
-		Offset:      1,
-		HandleFlags: uapi.HandleRequestInput | uapi.HandleRequestActiveLow,
-		EventFlags:  uapi.EventRequestBothEdges,
+		Offset: 1,
+		HandleFlags: uapi.HandleRequestInput |
+			uapi.HandleRequestActiveLow,
+		EventFlags: uapi.EventRequestBothEdges,
 	}
 	err = uapi.GetLineEvent(f.Fd(), &er)
 	require.Nil(t, err)
