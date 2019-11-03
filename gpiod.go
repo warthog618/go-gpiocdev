@@ -277,7 +277,7 @@ func (c *Chip) getEventRequest(offsets []int, lo LineOptions) (uintptr, *watcher
 			HandleFlags: lo.HandleFlags,
 			EventFlags:  lo.EventFlags,
 		}
-		copy(er.Consumer[:], lo.consumer)
+		copy(er.Consumer[:len(er.Consumer)-1], lo.consumer)
 		err := uapi.GetLineEvent(c.f.Fd(), &er)
 		if err != nil {
 			return 0, nil, err
@@ -303,7 +303,7 @@ func (c *Chip) getHandleRequest(offsets []int, lo LineOptions) (uintptr, error) 
 		Lines: uint32(len(offsets)),
 		Flags: lo.HandleFlags,
 	}
-	copy(hr.Consumer[:], lo.consumer)
+	copy(hr.Consumer[:len(hr.Consumer)-1], lo.consumer)
 	//copy(hr.Offsets[:], offsets) - with cast
 	for i, o := range offsets {
 		hr.Offsets[i] = uint32(o)
