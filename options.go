@@ -44,6 +44,12 @@ type LineOption interface {
 	applyLineOption(*LineOptions)
 }
 
+// LineConfig defines the interface required to update an option for Line and
+// Lines.
+type LineConfig interface {
+	applyLineConfig(*LineOptions)
+}
+
 // LineOptions contains the options for a Line or Lines.
 type LineOptions struct {
 	consumer      string
@@ -85,6 +91,10 @@ func (o InputOption) applyLineOption(l *LineOptions) {
 	l.HandleFlags |= uapi.HandleRequestInput
 }
 
+func (o InputOption) applyLineConfig(l *LineOptions) {
+	o.applyLineOption(l)
+}
+
 // OutputOption indicates the line direction should be set to an output.
 type OutputOption struct {
 	initialValues []int
@@ -110,6 +120,10 @@ func (o OutputOption) applyLineOption(l *LineOptions) {
 	l.InitialValues = o.initialValues
 }
 
+func (o OutputOption) applyLineConfig(l *LineOptions) {
+	o.applyLineOption(l)
+}
+
 // FlagOption applies particular line handle flags.
 type FlagOption struct {
 	flag uapi.HandleFlag
@@ -123,12 +137,12 @@ func (o FlagOption) applyLineOption(l *LineOptions) {
 // is low.
 var AsActiveLow = FlagOption{uapi.HandleRequestActiveLow}
 
-// OutputModeOption indicates that a line is open drain or open source.
-type OutputModeOption struct {
+// DriveModeOption indicates that a line is open drain or open source.
+type DriveModeOption struct {
 	flag uapi.HandleFlag
 }
 
-func (o OutputModeOption) applyLineOption(l *LineOptions) {
+func (o DriveModeOption) applyLineOption(l *LineOptions) {
 	l.HandleFlags &= ^(uapi.HandleRequestInput |
 		uapi.HandleRequestOpenDrain |
 		uapi.HandleRequestOpenSource)
@@ -136,17 +150,21 @@ func (o OutputModeOption) applyLineOption(l *LineOptions) {
 	l.EventFlags = 0
 }
 
+func (o DriveModeOption) applyLineConfig(l *LineOptions) {
+	o.applyLineOption(l)
+}
+
 // AsOpenDrain indicates that a line be driven low but left floating for high.
 //
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, or OpenSource options.
-var AsOpenDrain = OutputModeOption{uapi.HandleRequestOpenDrain}
+var AsOpenDrain = DriveModeOption{uapi.HandleRequestOpenDrain}
 
 // AsOpenSource indicates that a line be driven low but left floating for hign.
 //
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, or OpenDrain options.
-var AsOpenSource = OutputModeOption{uapi.HandleRequestOpenSource}
+var AsOpenSource = DriveModeOption{uapi.HandleRequestOpenSource}
 
 // BiasModeOption indicates how a line is to be biased.
 type BiasModeOption struct {
@@ -158,6 +176,10 @@ func (o BiasModeOption) applyLineOption(l *LineOptions) {
 		uapi.HandleRequestPullDown |
 		uapi.HandleRequestPullUp)
 	l.HandleFlags |= o.flag
+}
+
+func (o BiasModeOption) applyLineConfig(l *LineOptions) {
+	o.applyLineOption(l)
 }
 
 // WithBiasDisable indicates that a line have its internal bias disabled.

@@ -227,11 +227,12 @@ func (c *Chip) RequestLine(offset int, options ...LineOption) (*Line, error) {
 		return nil, err
 	}
 	l := Line{baseLine{
-		offsets: ll.offsets,
-		vfd:     ll.vfd,
-		canset:  ll.canset,
-		chip:    c.Name,
-		w:       ll.w,
+		offsets:  ll.offsets,
+		vfd:      ll.vfd,
+		isEvent:  ll.isEvent,
+		isOutput: ll.isOutput,
+		chip:     c.Name,
+		w:        ll.w,
 	}}
 	return &l, nil
 }
@@ -250,12 +251,13 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 		option.applyLineOption(&lo)
 	}
 	ll := Lines{baseLine{
-		offsets: append([]int(nil), offsets...),
-		canset:  lo.HandleFlags.IsOutput(),
-		chip:    c.Name,
+		offsets:  append([]int(nil), offsets...),
+		isOutput: lo.HandleFlags.IsOutput(),
+		chip:     c.Name,
 	}}
 	var err error
 	if lo.eh != nil {
+		ll.isEvent = true
 		ll.vfd, ll.w, err = c.getEventRequest(ll.offsets, lo)
 	} else {
 		ll.vfd, err = c.getHandleRequest(ll.offsets, lo)
@@ -318,14 +320,15 @@ func (c *Chip) getHandleRequest(offsets []int, lo LineOptions) (uintptr, error) 
 }
 
 type baseLine struct {
-	offsets []int
-	vfd     uintptr
-	canset  bool
-	chip    string
-	mu      sync.Mutex
-	info    []*LineInfo
-	closed  bool
-	w       *watcher
+	offsets  []int
+	vfd      uintptr
+	isOutput bool
+	isEvent  bool
+	chip     string
+	mu       sync.Mutex
+	info     []*LineInfo
+	closed   bool
+	w        *watcher
 }
 
 // Chip returns the name of the chip from which the line was requested.
@@ -347,6 +350,24 @@ func (l *baseLine) Close() error {
 		unix.Close(int(l.vfd))
 	}
 	return nil
+}
+
+// SetConfig updates the configuration of the requested line.
+//
+// Not valid for lines with edge detection enabled.
+func (l *baseLine) SetConfig(options ...LineConfig) error {
+	if l.isEvent {
+		return ErrPermissionDenied
+	}
+	lo := LineOptions{}
+	for _, option := range options {
+		option.applyLineConfig(&lo)
+	}
+	hc := uapi.HandleConfig{Flags: lo.HandleFlags}
+	for i, v := range lo.InitialValues {
+		hc.DefaultValues[i] = uint8(v)
+	}
+	return uapi.SetLineConfig(l.vfd, &hc)
 }
 
 // Line represents a single requested line.
@@ -390,7 +411,7 @@ func (l *Line) Value() (int, error) {
 //
 // Only valid for output lines.
 func (l *Line) SetValue(value int) error {
-	if l.canset == false {
+	if l.isOutput == false {
 		return ErrPermissionDenied
 	}
 	var values uapi.HandleData
@@ -459,7 +480,7 @@ func (l *Lines) Values(values []int) error {
 // All lines in the set are set at once.  If insufficient values are provided
 // then the remaining lines are set to inactive.
 func (l *Lines) SetValues(values []int) error {
-	if l.canset == false {
+	if l.isOutput == false {
 		return ErrPermissionDenied
 	}
 	if len(values) > len(l.offsets) {
