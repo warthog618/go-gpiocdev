@@ -62,11 +62,8 @@ func New(lines []int, namedLines bool) (*Mockup, error) {
 		args = append(args, "gpio_mockup_named_lines")
 	}
 	rangesArg := "gpio_mockup_ranges="
-	startline := 0
 	for _, l := range lines {
-		endline := startline + l
-		rangesArg += fmt.Sprintf("%d,%d,", startline, endline)
-		startline = endline
+		rangesArg += fmt.Sprintf("-1,%d,", l)
 	}
 	rangesArg = rangesArg[:len(rangesArg)-1]
 	args = append(args, rangesArg)
