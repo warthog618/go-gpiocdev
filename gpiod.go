@@ -227,12 +227,12 @@ func (c *Chip) RequestLine(offset int, options ...LineOption) (*Line, error) {
 		return nil, err
 	}
 	l := Line{baseLine{
-		offsets:  ll.offsets,
-		vfd:      ll.vfd,
-		isEvent:  ll.isEvent,
-		isOutput: ll.isOutput,
-		chip:     c.Name,
-		w:        ll.w,
+		offsets: ll.offsets,
+		vfd:     ll.vfd,
+		isEvent: ll.isEvent,
+		chip:    c.Name,
+		flags:   ll.flags,
+		w:       ll.w,
 	}}
 	return &l, nil
 }
@@ -251,9 +251,9 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 		option.applyLineOption(&lo)
 	}
 	ll := Lines{baseLine{
-		offsets:  append([]int(nil), offsets...),
-		isOutput: lo.HandleFlags.IsOutput(),
-		chip:     c.Name,
+		offsets: append([]int(nil), offsets...),
+		chip:    c.Name,
+		flags:   lo.HandleFlags,
 	}}
 	var err error
 	if lo.eh != nil {
@@ -320,15 +320,16 @@ func (c *Chip) getHandleRequest(offsets []int, lo LineOptions) (uintptr, error) 
 }
 
 type baseLine struct {
-	offsets  []int
-	vfd      uintptr
-	isOutput bool
-	isEvent  bool
-	chip     string
-	mu       sync.Mutex
-	info     []*LineInfo
-	closed   bool
-	w        *watcher
+	offsets []int
+	vfd     uintptr
+	isEvent bool
+	chip    string
+	// mu covers all that follow - those above are immutable
+	mu     sync.Mutex
+	flags  uapi.HandleFlag
+	info   []*LineInfo
+	closed bool
+	w      *watcher
 }
 
 // Chip returns the name of the chip from which the line was requested.
@@ -352,14 +353,24 @@ func (l *baseLine) Close() error {
 	return nil
 }
 
-// SetConfig updates the configuration of the requested line.
+// Reconfigure updates the configuration of the requested line.
+//
+// Configuration for options other than those passed in remain unchanged.
 //
 // Not valid for lines with edge detection enabled.
-func (l *baseLine) SetConfig(options ...LineConfig) error {
+func (l *baseLine) Reconfigure(options ...LineConfig) error {
 	if l.isEvent {
 		return ErrPermissionDenied
 	}
-	lo := LineOptions{}
+	if len(options) == 0 {
+		return nil
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.closed {
+		return ErrClosed
+	}
+	lo := LineOptions{HandleFlags: l.flags}
 	for _, option := range options {
 		option.applyLineConfig(&lo)
 	}
@@ -367,7 +378,11 @@ func (l *baseLine) SetConfig(options ...LineConfig) error {
 	for i, v := range lo.InitialValues {
 		hc.DefaultValues[i] = uint8(v)
 	}
-	return uapi.SetLineConfig(l.vfd, &hc)
+	err := uapi.SetLineConfig(l.vfd, &hc)
+	if err == nil {
+		l.flags = hc.Flags
+	}
+	return err
 }
 
 // Line represents a single requested line.
@@ -384,6 +399,9 @@ func (l *Line) Offset() int {
 func (l *Line) Info() (*LineInfo, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if l.closed {
+		return nil, ErrClosed
+	}
 	if l.info != nil {
 		return l.info[0], nil
 	}
@@ -402,6 +420,11 @@ func (l *Line) Info() (*LineInfo, error) {
 
 // Value returns the current value (active state) of the line.
 func (l *Line) Value() (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.closed {
+		return 0, ErrClosed
+	}
 	var values uapi.HandleData
 	err := uapi.GetLineValues(l.vfd, &values)
 	return int(values[0]), err
@@ -411,8 +434,13 @@ func (l *Line) Value() (int, error) {
 //
 // Only valid for output lines.
 func (l *Line) SetValue(value int) error {
-	if l.isOutput == false {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.flags.IsOutput() == false {
 		return ErrPermissionDenied
+	}
+	if l.closed {
+		return ErrClosed
 	}
 	var values uapi.HandleData
 	values[0] = uint8(value)
@@ -433,6 +461,9 @@ func (l *Lines) Offsets() []int {
 func (l *Lines) Info() ([]*LineInfo, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if l.closed {
+		return nil, ErrClosed
+	}
 	if l.info != nil {
 		return l.info, nil
 	}
@@ -453,11 +484,16 @@ func (l *Lines) Info() ([]*LineInfo, error) {
 	return l.info, nil
 }
 
-// Values returns the current values (active state) of the collection of
-// lines.
+// Values returns the current values (active state) of the collection of lines.
 //
-// Gets as many values from the set, in order, as can be fit in vv, up to the full set.
+// Gets as many values from the set, in order, as can be fit in values, up to
+// the full set.
 func (l *Lines) Values(values []int) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.closed {
+		return ErrClosed
+	}
 	var uvv uapi.HandleData
 	err := uapi.GetLineValues(l.vfd, &uvv)
 	if err != nil {
@@ -480,11 +516,16 @@ func (l *Lines) Values(values []int) error {
 // All lines in the set are set at once.  If insufficient values are provided
 // then the remaining lines are set to inactive.
 func (l *Lines) SetValues(values []int) error {
-	if l.isOutput == false {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.flags.IsOutput() == false {
 		return ErrPermissionDenied
 	}
 	if len(values) > len(l.offsets) {
 		return ErrInvalidOffset
+	}
+	if l.closed {
+		return ErrClosed
 	}
 	var vv uapi.HandleData
 	for i, v := range values {

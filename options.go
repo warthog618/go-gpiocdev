@@ -124,25 +124,36 @@ func (o OutputOption) applyLineConfig(l *LineOptions) {
 	o.applyLineOption(l)
 }
 
-// FlagOption applies particular line handle flags.
-type FlagOption struct {
+// LevelOption determines the line level that is considered active.
+type LevelOption struct {
 	flag uapi.HandleFlag
 }
 
-func (o FlagOption) applyLineOption(l *LineOptions) {
+func (o LevelOption) applyLineOption(l *LineOptions) {
+	l.HandleFlags &= ^uapi.HandleRequestActiveLow
 	l.HandleFlags |= o.flag
+}
+
+func (o LevelOption) applyLineConfig(l *LineOptions) {
+	o.applyLineOption(l)
 }
 
 // AsActiveLow indicates that a line be considered active when the line level
 // is low.
-var AsActiveLow = FlagOption{uapi.HandleRequestActiveLow}
+var AsActiveLow = LevelOption{uapi.HandleRequestActiveLow}
 
-// DriveModeOption indicates that a line is open drain or open source.
-type DriveModeOption struct {
+// AsActiveHigh indicates that a line be considered active when the line level
+// is high.
+//
+// This is the default active level.
+var AsActiveHigh = LevelOption{}
+
+// DriveOption determines if a line is open drain or open source.
+type DriveOption struct {
 	flag uapi.HandleFlag
 }
 
-func (o DriveModeOption) applyLineOption(l *LineOptions) {
+func (o DriveOption) applyLineOption(l *LineOptions) {
 	l.HandleFlags &= ^(uapi.HandleRequestInput |
 		uapi.HandleRequestOpenDrain |
 		uapi.HandleRequestOpenSource)
@@ -150,7 +161,7 @@ func (o DriveModeOption) applyLineOption(l *LineOptions) {
 	l.EventFlags = 0
 }
 
-func (o DriveModeOption) applyLineConfig(l *LineOptions) {
+func (o DriveOption) applyLineConfig(l *LineOptions) {
 	o.applyLineOption(l)
 }
 
@@ -158,44 +169,50 @@ func (o DriveModeOption) applyLineConfig(l *LineOptions) {
 //
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, or OpenSource options.
-var AsOpenDrain = DriveModeOption{uapi.HandleRequestOpenDrain}
+var AsOpenDrain = DriveOption{uapi.HandleRequestOpenDrain}
 
 // AsOpenSource indicates that a line be driven low but left floating for hign.
 //
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, or OpenDrain options.
-var AsOpenSource = DriveModeOption{uapi.HandleRequestOpenSource}
+var AsOpenSource = DriveOption{uapi.HandleRequestOpenSource}
 
-// BiasModeOption indicates how a line is to be biased.
-type BiasModeOption struct {
+// AsPushPull indicates that a line be driven both low and high.
+//
+// This option sets the Output option and overrides and clears any previous
+// Input, RisingEdge, FallingEdge, BothEdges, OpenDrain, or OpenSource options.
+var AsPushPull = DriveOption{}
+
+// BiasOption indicates how a line is to be biased.
+type BiasOption struct {
 	flag uapi.HandleFlag
 }
 
-func (o BiasModeOption) applyLineOption(l *LineOptions) {
+func (o BiasOption) applyLineOption(l *LineOptions) {
 	l.HandleFlags &= ^(uapi.HandleRequestBiasDisable |
 		uapi.HandleRequestPullDown |
 		uapi.HandleRequestPullUp)
 	l.HandleFlags |= o.flag
 }
 
-func (o BiasModeOption) applyLineConfig(l *LineOptions) {
+func (o BiasOption) applyLineConfig(l *LineOptions) {
 	o.applyLineOption(l)
 }
 
 // WithBiasDisable indicates that a line have its internal bias disabled.
 //
 // This option overrides and clears any previous bias options.
-var WithBiasDisable = BiasModeOption{uapi.HandleRequestBiasDisable}
+var WithBiasDisable = BiasOption{uapi.HandleRequestBiasDisable}
 
 // WithPullDown indicates that a line have its internal pull-down enabled.
 //
 // This option overrides and clears any previous bias options.
-var WithPullDown = BiasModeOption{uapi.HandleRequestPullDown}
+var WithPullDown = BiasOption{uapi.HandleRequestPullDown}
 
 // WithPullUp indicates that a line have its internal pull-up enabled.
 //
 // This option overrides and clears any previous bias options.
-var WithPullUp = BiasModeOption{uapi.HandleRequestPullUp}
+var WithPullUp = BiasOption{uapi.HandleRequestPullUp}
 
 // EdgeOption indicates that a line will generate events when edges are detected.
 type EdgeOption struct {
