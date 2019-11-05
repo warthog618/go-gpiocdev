@@ -171,7 +171,7 @@ func (o DriveOption) applyLineConfig(l *LineOptions) {
 // Input, RisingEdge, FallingEdge, BothEdges, or OpenSource options.
 var AsOpenDrain = DriveOption{uapi.HandleRequestOpenDrain}
 
-// AsOpenSource indicates that a line be driven low but left floating for hign.
+// AsOpenSource indicates that a line be driven low but left floating for high.
 //
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, or OpenDrain options.
