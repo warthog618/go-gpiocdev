@@ -25,12 +25,19 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	mock, setupError = mockup.New([]int{4, 8}, true)
+	mockupReload()
 	rc := m.Run()
 	if mock != nil {
 		mock.Close()
 	}
 	os.Exit(rc)
+}
+
+func mockupReload() {
+	if mock != nil {
+		mock.Close()
+	}
+	mock, setupError = mockup.New([]int{4, 8}, true)
 }
 
 func mockupRequired(t *testing.T) {
@@ -42,6 +49,7 @@ func mockupRequired(t *testing.T) {
 }
 
 func TestGetChipInfo(t *testing.T) {
+	mockupReload() // test assumes clean mockups
 	mockupRequired(t)
 	for n := 0; n < mock.Chips(); n++ {
 		c, err := mock.Chip(n)
