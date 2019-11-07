@@ -227,12 +227,13 @@ func (c *Chip) RequestLine(offset int, options ...LineOption) (*Line, error) {
 		return nil, err
 	}
 	l := Line{baseLine{
-		offsets: ll.offsets,
-		vfd:     ll.vfd,
-		isEvent: ll.isEvent,
-		chip:    c.Name,
-		flags:   ll.flags,
-		w:       ll.w,
+		offsets:      ll.offsets,
+		vfd:          ll.vfd,
+		isEvent:      ll.isEvent,
+		chip:         c.Name,
+		flags:        ll.flags,
+		outputValues: ll.outputValues,
+		w:            ll.w,
 	}}
 	return &l, nil
 }
@@ -251,9 +252,10 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 		option.applyLineOption(&lo)
 	}
 	ll := Lines{baseLine{
-		offsets: append([]int(nil), offsets...),
-		chip:    c.Name,
-		flags:   lo.HandleFlags,
+		offsets:      append([]int(nil), offsets...),
+		chip:         c.Name,
+		flags:        lo.HandleFlags,
+		outputValues: lo.InitialValues,
 	}}
 	var err error
 	if lo.eh != nil {
@@ -325,11 +327,12 @@ type baseLine struct {
 	isEvent bool
 	chip    string
 	// mu covers all that follow - those above are immutable
-	mu     sync.Mutex
-	flags  uapi.HandleFlag
-	info   []*LineInfo
-	closed bool
-	w      *watcher
+	mu           sync.Mutex
+	flags        uapi.HandleFlag
+	outputValues []int
+	info         []*LineInfo
+	closed       bool
+	w            *watcher
 }
 
 // Chip returns the name of the chip from which the line was requested.
@@ -370,7 +373,10 @@ func (l *baseLine) Reconfigure(options ...LineConfig) error {
 	if l.closed {
 		return ErrClosed
 	}
-	lo := LineOptions{HandleFlags: l.flags}
+	lo := LineOptions{
+		HandleFlags:   l.flags,
+		InitialValues: l.outputValues,
+	}
 	for _, option := range options {
 		option.applyLineConfig(&lo)
 	}
@@ -442,6 +448,7 @@ func (l *Line) SetValue(value int) error {
 	if l.closed {
 		return ErrClosed
 	}
+	l.outputValues = []int{value}
 	var values uapi.HandleData
 	values[0] = uint8(value)
 	return uapi.SetLineValues(l.vfd, values)
@@ -527,6 +534,7 @@ func (l *Lines) SetValues(values []int) error {
 	if l.closed {
 		return ErrClosed
 	}
+	l.outputValues = append([]int(nil), values...)
 	var vv uapi.HandleData
 	for i, v := range values {
 		vv[i] = uint8(v)
