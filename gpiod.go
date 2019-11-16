@@ -442,7 +442,7 @@ func (l *Line) Value() (int, error) {
 func (l *Line) SetValue(value int) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.flags.IsOutput() == false {
+	if !l.flags.IsOutput() {
 		return ErrPermissionDenied
 	}
 	if l.closed {
@@ -525,7 +525,7 @@ func (l *Lines) Values(values []int) error {
 func (l *Lines) SetValues(values []int) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.flags.IsOutput() == false {
+	if !l.flags.IsOutput() {
 		return ErrPermissionDenied
 	}
 	if len(values) > len(l.offsets) {

@@ -155,8 +155,8 @@ func TestChipSetValue(t *testing.T) {
 	for _, p := range patterns {
 		tf := func(t *testing.T) {
 			m, err := mockup.New(p.ll, true)
-			defer m.Close()
 			require.Nil(t, err)
+			defer m.Close()
 			for i := 0; i < m.Chips(); i++ {
 				c, err := m.Chip(i)
 				require.Nil(t, err)
