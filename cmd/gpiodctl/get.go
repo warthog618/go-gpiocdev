@@ -7,9 +7,9 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/warthog618/gpiod"
@@ -18,11 +18,18 @@ import (
 func init() {
 	getCmd.Flags().BoolVarP(&getOpts.ActiveLow, "active-low", "l", false, "treat the line state as active low")
 	getCmd.Flags().BoolVarP(&getOpts.AsIs, "as-is", "a", false, "request the line as-is rather than as an input")
-	getCmd.Flags().BoolVarP(&getOpts.PullUp, "pull-up", "u", false, "enable internal pull-up")
-	getCmd.Flags().BoolVarP(&getOpts.PullDown, "pull-down", "d", false, "enable internal pull-down")
-	getCmd.Flags().BoolVar(&getOpts.BiasDisable, "bias-disable", false, "disable internal bias")
+	getCmd.Flags().StringVarP(&getOpts.Bias, "bias", "b", "as-is", "set the line bias.")
+	getCmd.SetHelpTemplate(getCmd.HelpTemplate() + extendedGetHelp)
 	rootCmd.AddCommand(getCmd)
 }
+
+var extendedGetHelp = `
+Biases:
+  as-is:        leave bias unchanged
+  disable:      disable bias
+  pull-up:      enable pull-up
+  pull-down:    enable pull-down
+`
 
 var (
 	getCmd = &cobra.Command{
@@ -33,18 +40,13 @@ var (
 		RunE:  get,
 	}
 	getOpts = struct {
-		ActiveLow   bool
-		AsIs        bool
-		PullUp      bool
-		PullDown    bool
-		BiasDisable bool
+		ActiveLow bool
+		AsIs      bool
+		Bias      string
 	}{}
 )
 
 func get(cmd *cobra.Command, args []string) error {
-	if getOpts.PullUp && getOpts.PullDown {
-		return errors.New("can't pull-up and pull-down at the same time")
-	}
 	name := args[0]
 	oo, err := parseOffsets(args[1:])
 	if err != nil {
@@ -82,13 +84,17 @@ func makeGetOpts() []gpiod.LineOption {
 	if !getOpts.AsIs {
 		opts = append(opts, gpiod.AsInput)
 	}
-	switch {
-	case getOpts.BiasDisable:
-		opts = append(opts, gpiod.WithBiasDisable)
-	case getOpts.PullUp:
+	bias := strings.ToLower(getOpts.Bias)
+	switch bias {
+	case "pull-up":
 		opts = append(opts, gpiod.WithPullUp)
-	case getOpts.PullDown:
+	case "pull-down":
 		opts = append(opts, gpiod.WithPullDown)
+	case "disable":
+		opts = append(opts, gpiod.WithBiasDisable)
+	case "as-is":
+		fallthrough
+	default:
 	}
 	return opts
 }

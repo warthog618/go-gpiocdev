@@ -7,10 +7,11 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -19,19 +20,26 @@ import (
 
 func init() {
 	monCmd.Flags().BoolVarP(&monOpts.ActiveLow, "active-low", "l", false, "treat the line state as active low")
-	monCmd.Flags().BoolVarP(&monOpts.FallingEdge, "falling-edge", "f", false, "detect only falling edge events")
-	monCmd.Flags().BoolVarP(&monOpts.RisingEdge, "rising-edge", "r", false, "detect only rising edge events")
+	monCmd.Flags().StringVarP(&monOpts.Bias, "bias", "b", "as-is", "set the line bias.")
+	monCmd.Flags().StringVarP(&monOpts.Edge, "edge", "e", "both", "select the edge detection.")
 	monCmd.Flags().UintVarP(&monOpts.NumEvents, "num-events", "n", 0, "exit after n edges")
 	monCmd.Flags().BoolVarP(&monOpts.Quiet, "quiet", "q", false, "don't display event details")
-	monCmd.Flags().BoolVarP(&monOpts.PullUp, "pull-up", "u", false, "enable internal pull-up")
-	monCmd.Flags().BoolVarP(&monOpts.PullDown, "pull-down", "d", false, "enable internal pull-down")
-	monCmd.Flags().BoolVar(&monOpts.BiasDisable, "bias-disable", false, "disable internal bias")
 	monCmd.SetHelpTemplate(monCmd.HelpTemplate() + extendedMonHelp)
 	rootCmd.AddCommand(monCmd)
 }
 
 var extendedMonHelp = `
-By default both rising and falling edge events are detected and reported.
+Edges:
+  both:         both rising and falling edge events are detected
+                and reported
+  rising:       only rising edge events are detected and reported
+  falling:      only falling edge events are detected and reported
+
+Biases:
+  as-is:        leave bias unchanged
+  disable:      disable bias
+  pull-up:      enable pull-up
+  pull-down:    enable pull-down
 `
 
 var (
@@ -43,24 +51,15 @@ var (
 		RunE:  mon,
 	}
 	monOpts = struct {
-		ActiveLow   bool
-		RisingEdge  bool
-		FallingEdge bool
-		Quiet       bool
-		NumEvents   uint
-		PullUp      bool
-		PullDown    bool
-		BiasDisable bool
+		ActiveLow bool
+		Bias      string
+		Edge      string
+		Quiet     bool
+		NumEvents uint
 	}{}
 )
 
 func mon(cmd *cobra.Command, args []string) error {
-	if monOpts.RisingEdge && monOpts.FallingEdge {
-		return errors.New("can't filter both falling-edge and rising-edge events")
-	}
-	if monOpts.PullUp && monOpts.PullDown {
-		return errors.New("can't pull-up and pull-down at the same time")
-	}
 	name := args[0]
 	oo, err := parseOffsets(args[1:])
 	if err != nil {
@@ -87,7 +86,7 @@ func mon(cmd *cobra.Command, args []string) error {
 
 func monWait(evtchan <-chan gpiod.LineEvent) {
 	sigdone := make(chan os.Signal, 1)
-	signal.Notify(sigdone, os.Interrupt, os.Kill)
+	signal.Notify(sigdone, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sigdone)
 	count := uint(0)
 	for {
@@ -116,21 +115,28 @@ func makeMonOpts(eh gpiod.EventHandler) []gpiod.LineOption {
 	if monOpts.ActiveLow {
 		opts = append(opts, gpiod.AsActiveLow)
 	}
-	switch {
-	case monOpts.RisingEdge == monOpts.FallingEdge:
-		opts = append(opts, gpiod.WithBothEdges(eh))
-	case monOpts.RisingEdge:
-		opts = append(opts, gpiod.WithRisingEdge(eh))
-	case monOpts.FallingEdge:
+	edge := strings.ToLower(monOpts.Edge)
+	switch edge {
+	case "falling":
 		opts = append(opts, gpiod.WithFallingEdge(eh))
+	case "rising":
+		opts = append(opts, gpiod.WithRisingEdge(eh))
+	case "both":
+		fallthrough
+	default:
+		opts = append(opts, gpiod.WithBothEdges(eh))
 	}
-	switch {
-	case monOpts.BiasDisable:
-		opts = append(opts, gpiod.WithBiasDisable)
-	case monOpts.PullUp:
+	bias := strings.ToLower(monOpts.Bias)
+	switch bias {
+	case "pull-up":
 		opts = append(opts, gpiod.WithPullUp)
-	case monOpts.PullDown:
+	case "pull-down":
 		opts = append(opts, gpiod.WithPullDown)
+	case "disable":
+		opts = append(opts, gpiod.WithBiasDisable)
+	case "as-is":
+		fallthrough
+	default:
 	}
 	return opts
 }

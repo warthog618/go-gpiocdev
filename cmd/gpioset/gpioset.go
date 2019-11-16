@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/warthog618/config"
@@ -65,10 +66,13 @@ func wait(cfg *config.Config) {
 		time.Sleep(duration)
 	case "signal":
 		sigdone := make(chan os.Signal, 1)
-		signal.Notify(sigdone, os.Interrupt, os.Kill)
+		signal.Notify(sigdone, os.Interrupt, syscall.SIGTERM)
 		defer signal.Stop(sigdone)
 		fmt.Println("Waiting for signal...")
 		<-sigdone
+	case "exit":
+		fallthrough
+	default:
 	}
 }
 
@@ -77,11 +81,27 @@ func makeOpts(cfg *config.Config, vv []int) []gpiod.LineOption {
 	if cfg.MustGet("active-low").Bool() {
 		opts = append(opts, gpiod.AsActiveLow)
 	}
-	if cfg.MustGet("open-drain").Bool() {
-		opts = append(opts, gpiod.AsOpenDrain)
+	bias := strings.ToLower(cfg.MustGet("bias").String())
+	switch bias {
+	case "pull-up":
+		opts = append(opts, gpiod.WithPullUp)
+	case "pull-down":
+		opts = append(opts, gpiod.WithPullDown)
+	case "disable":
+		opts = append(opts, gpiod.WithBiasDisable)
+	case "as-is":
+		fallthrough
+	default:
 	}
-	if cfg.MustGet("open-source").Bool() {
+	drive := strings.ToLower(cfg.MustGet("drive").String())
+	switch drive {
+	case "open-drain":
+		opts = append(opts, gpiod.AsOpenDrain)
+	case "open-source":
 		opts = append(opts, gpiod.AsOpenSource)
+	case "push-pull":
+		fallthrough
+	default:
 	}
 	return opts
 }
@@ -107,22 +127,22 @@ func loadConfig() (*config.Config, *pflag.Getter) {
 		{Short: 'h', Name: "help", Options: pflag.IsBool},
 		{Short: 'v', Name: "version", Options: pflag.IsBool},
 		{Short: 'l', Name: "active-low", Options: pflag.IsBool},
-		{Short: 'D', Name: "open-drain", Options: pflag.IsBool},
-		{Short: 'S', Name: "open-source", Options: pflag.IsBool},
+		{Short: 'd', Name: "drive"},
+		{Short: 'b', Name: "bias"},
 		{Short: 'm', Name: "mode"},
 		{Short: 's', Name: "sec"},
 		{Short: 'u', Name: "usec"},
 	}
 	defaults := dict.New(dict.WithMap(
 		map[string]interface{}{
-			"help":        false,
-			"version":     false,
-			"active-low":  false,
-			"open-drain":  false,
-			"open-source": false,
-			"mode":        "exit",
-			"sec":         0,
-			"usec":        0,
+			"help":       false,
+			"version":    false,
+			"active-low": false,
+			"drive":      "push-pull",
+			"bias":       "as-is",
+			"mode":       "exit",
+			"sec":        0,
+			"usec":       0,
 		}))
 	flags := pflag.New(pflag.WithFlags(ff),
 		pflag.WithKeyReplacer(keys.NullReplacer()),
@@ -165,22 +185,33 @@ func die(reason string) {
 func printHelp() {
 	fmt.Printf("Usage: %s [OPTIONS] <gpiochip> <offset 1>=<value1> <offset 2>=<value2> ...\n", os.Args[0])
 	fmt.Println("Set GPIO line values of a GPIO chip and maintain the state until the process exits.")
-	fmt.Println("")
+	fmt.Println()
 	fmt.Println("Options:")
 	fmt.Println("  -h, --help:\t\tdisplay this message and exit")
 	fmt.Println("  -v, --version:\tdisplay the version and exit")
 	fmt.Println("  -l, --active-low:\tset the line active state to low")
-	fmt.Println("  -D, --open-drain:\tset the line as open drain")
-	fmt.Println("  -S, --open-source:\tset the line as open source")
+	fmt.Println("  -b, --bias=STRING:\tset the line bias")
+	fmt.Println("  -d, --drive=STRING:\tset the line drive")
 	fmt.Println("  -m, --mode=[exit|wait|time|signal] (defaults to 'exit'):")
 	fmt.Println("		\ttell the program what to do after setting values")
 	fmt.Println("  -s, --sec=SEC:\tspecify the number of seconds to wait (only valid for --mode=time)")
 	fmt.Println("  -u, --usec=USEC:\tspecify the number of microseconds to wait (only valid for --mode=time)")
 	// don't support -b, --background to daemonise - there are other ways to
 	// achieve that.
-	fmt.Println("")
+	fmt.Println()
+	fmt.Println("Biases:")
+	fmt.Println("  as-is:\tleave bias unchanged (default)")
+	fmt.Println("  disable:\tdisable bias")
+	fmt.Println("  pull-up:\tenable pull-up")
+	fmt.Println("  pull-down:\tenable pull-down")
+	fmt.Println()
+	fmt.Println("Drives:")
+	fmt.Println("  push-pull:\tdrive the line both high and low (default)")
+	fmt.Println("  open-drain:\tdrive the line low or go high impedance")
+	fmt.Println("  open-source:\tdrive the line high or go high impedance")
+	fmt.Println()
 	fmt.Println("Modes:")
-	fmt.Println("  exit:\t\tset values and exit immediately")
+	fmt.Println("  exit:\t\tset values and exit immediately (default)")
 	fmt.Println("  wait:\t\tset values and wait for user to press ENTER")
 	fmt.Println("  time:\t\tset values and waits for a specified amount of time")
 	fmt.Println("  signal:\tset values and wait for SIGINT or SIGTERM")

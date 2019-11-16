@@ -12,6 +12,8 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/warthog618/config"
@@ -47,7 +49,7 @@ func main() {
 
 func wait(cfg *config.Config, evtchan <-chan gpiod.LineEvent) {
 	sigdone := make(chan os.Signal, 1)
-	signal.Notify(sigdone, os.Interrupt, os.Kill)
+	signal.Notify(sigdone, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sigdone)
 	count := 0
 	num := cfg.MustGet("num-events").Int()
@@ -78,15 +80,28 @@ func makeOpts(cfg *config.Config, eh gpiod.EventHandler) []gpiod.LineOption {
 	if cfg.MustGet("active-low").Bool() {
 		opts = append(opts, gpiod.AsActiveLow)
 	}
-	falling := cfg.MustGet("falling-edge").Bool()
-	rising := cfg.MustGet("rising-edge").Bool()
-	switch {
-	case rising == falling:
-		opts = append(opts, gpiod.WithBothEdges(eh))
-	case rising:
-		opts = append(opts, gpiod.WithRisingEdge(eh))
-	case falling:
+	bias := strings.ToLower(cfg.MustGet("bias").String())
+	switch bias {
+	case "pull-up":
+		opts = append(opts, gpiod.WithPullUp)
+	case "pull-down":
+		opts = append(opts, gpiod.WithPullDown)
+	case "disable":
+		opts = append(opts, gpiod.WithBiasDisable)
+	case "as-is":
+		fallthrough
+	default:
+	}
+	edge := strings.ToLower(cfg.MustGet("edge").String())
+	switch edge {
+	case "falling":
 		opts = append(opts, gpiod.WithFallingEdge(eh))
+	case "rising":
+		opts = append(opts, gpiod.WithRisingEdge(eh))
+	case "both":
+		fallthrough
+	default:
+		opts = append(opts, gpiod.WithBothEdges(eh))
 	}
 	return opts
 }
@@ -113,20 +128,20 @@ func loadConfig() (*config.Config, *pflag.Getter) {
 		{Short: 'h', Name: "help", Options: pflag.IsBool},
 		{Short: 'v', Name: "version", Options: pflag.IsBool},
 		{Short: 'l', Name: "active-low", Options: pflag.IsBool},
+		{Short: 'b', Name: "bias"},
+		{Short: 'e', Name: "edge"},
 		{Short: 's', Name: "silent", Options: pflag.IsBool},
-		{Short: 'f', Name: "falling-edge", Options: pflag.IsBool},
-		{Short: 'r', Name: "rising-edge", Options: pflag.IsBool},
 		{Short: 'n', Name: "num-events"},
 	}
 	defaults := dict.New(dict.WithMap(
 		map[string]interface{}{
-			"help":         false,
-			"version":      false,
-			"active-low":   false,
-			"num-events":   0,
-			"silent":       false,
-			"falling-edge": false,
-			"rising-edge":  false,
+			"help":       false,
+			"version":    false,
+			"active-low": false,
+			"bias":       "as-is",
+			"edge":       "both",
+			"num-events": 0,
+			"silent":     false,
 		}))
 	flags := pflag.New(pflag.WithFlags(ff),
 		pflag.WithKeyReplacer(keys.NullReplacer()),
@@ -158,15 +173,27 @@ func die(reason string) {
 func printHelp() {
 	fmt.Printf("Usage: %s [OPTIONS] <gpiochip> <offset 1> <offset 2>...\n", os.Args[0])
 	fmt.Println("Wait for events on GPIO lines and print them to standard output.")
-	fmt.Println("")
+	fmt.Println()
 	fmt.Println("Options:")
 	fmt.Println("  -h, --help:\t\tdisplay this message and exit")
 	fmt.Println("  -v, --version:\tdisplay the version and exit")
 	fmt.Println("  -l, --active-low:\tset the line active state to low")
 	fmt.Println("  -n, --num-events=NUM:\texit after processing NUM events")
 	fmt.Println("  -s, --silent:\t\tdon't print event info")
-	fmt.Println("  -r, --rising-edge:\tonly detect rising edge events")
-	fmt.Println("  -f, --falling-edge:\tonly detect falling edge events")
+	fmt.Println("  -b, --bias=STRING:\tset the line bias")
+	fmt.Println("  -e, --edge=STRING:\tselect the edge detection")
+	fmt.Println()
+	fmt.Println("Biases:")
+	fmt.Println("  as-is:\tleave bias unchanged (default)")
+	fmt.Println("  disable:\tdisable bias")
+	fmt.Println("  pull-up:\tenable pull-up")
+	fmt.Println("  pull-down:\tenable pull-down")
+	fmt.Println()
+	fmt.Println("Edges:")
+	fmt.Println("  both:\t\tboth rising and falling edge events are detected")
+	fmt.Println("  \t\tand reported (default)")
+	fmt.Println("  falling:\tonly falling edge events are detected and reported")
+	fmt.Println("  rising:\tonly rising edge events are detected and reported")
 }
 
 func printVersion() {

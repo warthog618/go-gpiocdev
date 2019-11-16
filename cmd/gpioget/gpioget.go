@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/warthog618/config"
 	"github.com/warthog618/config/dict"
@@ -56,6 +57,18 @@ func makeOpts(cfg *config.Config) []gpiod.LineOption {
 	if !cfg.MustGet("as-is").Bool() {
 		opts = append(opts, gpiod.AsInput)
 	}
+	bias := strings.ToLower(cfg.MustGet("bias").String())
+	switch bias {
+	case "pull-up":
+		opts = append(opts, gpiod.WithPullUp)
+	case "pull-down":
+		opts = append(opts, gpiod.WithPullDown)
+	case "disable":
+		opts = append(opts, gpiod.WithBiasDisable)
+	case "as-is":
+		fallthrough
+	default:
+	}
 	return opts
 }
 
@@ -82,6 +95,7 @@ func loadConfig() (*config.Config, *pflag.Getter) {
 		{Short: 'v', Name: "version", Options: pflag.IsBool},
 		{Short: 'l', Name: "active-low", Options: pflag.IsBool},
 		{Short: 'a', Name: "as-is", Options: pflag.IsBool},
+		{Short: 'b', Name: "bias"},
 	}
 	defaults := dict.New(dict.WithMap(
 		map[string]interface{}{
@@ -89,6 +103,7 @@ func loadConfig() (*config.Config, *pflag.Getter) {
 			"version":    false,
 			"active-low": false,
 			"as-is":      false,
+			"bias":       "as-is",
 		}))
 	flags := pflag.New(pflag.WithFlags(ff),
 		pflag.WithKeyReplacer(keys.NullReplacer()),
@@ -119,12 +134,19 @@ func die(reason string) {
 func printHelp() {
 	fmt.Printf("Usage: %s [OPTIONS] <gpiochip> <offset 1> <offset 2> ...\n", os.Args[0])
 	fmt.Println("Read line value(s) from a GPIO chip.")
-	fmt.Println("")
+	fmt.Println()
 	fmt.Println("Options:")
 	fmt.Println("  -h, --help:\t\tdisplay this message and exit")
 	fmt.Println("  -v, --version:\tdisplay the version and exit")
 	fmt.Println("  -l, --active-low:\tset the line active state to low")
 	fmt.Println("  -a, --as-is:\t\trequest the line as-is rather than as an input")
+	fmt.Println("  -b, --bias=STRING:\tset the line bias")
+	fmt.Println()
+	fmt.Println("Biases:")
+	fmt.Println("  as-is:\tleave bias unchanged (default)")
+	fmt.Println("  disable:\tdisable bias")
+	fmt.Println("  pull-up:\tenable pull-up")
+	fmt.Println("  pull-down:\tenable pull-down")
 }
 
 func printVersion() {

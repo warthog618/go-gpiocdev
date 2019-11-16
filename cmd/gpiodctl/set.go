@@ -8,12 +8,12 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -22,11 +22,8 @@ import (
 
 func init() {
 	setCmd.Flags().BoolVarP(&setOpts.ActiveLow, "active-low", "l", false, "treat the line state as active low")
-	setCmd.Flags().BoolVarP(&setOpts.OpenDrain, "open-drain", "d", false, "set the output to open-drain")
-	setCmd.Flags().BoolVarP(&setOpts.OpenSource, "open-source", "s", false, "set the output to open-source")
-	setCmd.Flags().BoolVar(&setOpts.PullUp, "pull-up", false, "enable internal pull-up")
-	setCmd.Flags().BoolVar(&setOpts.PullDown, "pull-down", false, "enable internal pull-down")
-	setCmd.Flags().BoolVar(&setOpts.BiasDisable, "bias-disable", false, "disable internal bias")
+	setCmd.Flags().StringVarP(&setOpts.Bias, "bias", "b", "as-is", "set the line bias.")
+	setCmd.Flags().StringVarP(&setOpts.Drive, "drive", "d", "push-pull", "set the line drive.")
 	setCmd.Flags().BoolVarP(&setOpts.User, "user", "u", false, "wait for the user to press Enter then exit")
 	setCmd.Flags().BoolVarP(&setOpts.Wait, "wait", "w", false, "wait for a SIGINT or SIGTERM to exit")
 	setCmd.Flags().StringVarP(&setOpts.Time, "time", "t", "", "wait for a period of time then exit.")
@@ -35,6 +32,17 @@ func init() {
 }
 
 var extendedSetHelp = `
+Biases:
+  as-is:        leave bias unchanged
+  disable:      disable bias
+  pull-up:      enable pull-up
+  pull-down:    enable pull-down
+
+Drives:
+  push-pull:    drive the line both high and low
+  open-drain:   drive the line low or go high impedance
+  open-source:  drive the line high or go high impedance
+
 Times:
   A time is a sequence of decimal numbers, each with optional fraction
   and a mandatory unit suffix, such as "300ms", "1.5h" or "2h45m".
@@ -55,15 +63,12 @@ var (
 		RunE:    set,
 	}
 	setOpts = struct {
-		ActiveLow   bool
-		OpenDrain   bool
-		OpenSource  bool
-		Wait        bool
-		User        bool
-		Time        string
-		PullUp      bool
-		PullDown    bool
-		BiasDisable bool
+		ActiveLow bool
+		Bias      string
+		Drive     string
+		Wait      bool
+		User      bool
+		Time      string
 	}{}
 )
 
@@ -76,9 +81,6 @@ func preset(cmd *cobra.Command, args []string) error {
 		if d < 0 {
 			return fmt.Errorf("time (%s) must be positive", setOpts.Time)
 		}
-	}
-	if setOpts.OpenDrain && setOpts.OpenSource {
-		return errors.New("can't select both open-drain and open-source")
 	}
 	return nil
 }
@@ -122,7 +124,7 @@ func setWait() {
 	}
 	if setOpts.Wait {
 		sigdone := make(chan os.Signal, 1)
-		signal.Notify(sigdone, os.Interrupt, os.Kill)
+		signal.Notify(sigdone, os.Interrupt, syscall.SIGTERM)
 		defer signal.Stop(sigdone)
 		fmt.Println("waiting for signal...")
 		go func() {
@@ -146,19 +148,27 @@ func makeSetOpts(vv []int) []gpiod.LineOption {
 	if setOpts.ActiveLow {
 		opts = append(opts, gpiod.AsActiveLow)
 	}
-	if setOpts.OpenDrain {
-		opts = append(opts, gpiod.AsOpenDrain)
-	}
-	if setOpts.OpenSource {
-		opts = append(opts, gpiod.AsOpenSource)
-	}
-	switch {
-	case setOpts.BiasDisable:
-		opts = append(opts, gpiod.WithBiasDisable)
-	case setOpts.PullUp:
+	bias := strings.ToLower(setOpts.Bias)
+	switch bias {
+	case "pull-up":
 		opts = append(opts, gpiod.WithPullUp)
-	case setOpts.PullDown:
+	case "pull-down":
 		opts = append(opts, gpiod.WithPullDown)
+	case "disable":
+		opts = append(opts, gpiod.WithBiasDisable)
+	case "as-is":
+		fallthrough
+	default:
+	}
+	drive := strings.ToLower(setOpts.Drive)
+	switch drive {
+	case "open-drain":
+		opts = append(opts, gpiod.AsOpenDrain)
+	case "open-source":
+		opts = append(opts, gpiod.AsOpenSource)
+	case "push-pull":
+		fallthrough
+	default:
 	}
 	return opts
 }

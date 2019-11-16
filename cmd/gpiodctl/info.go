@@ -30,9 +30,7 @@ var infoCmd = &cobra.Command{
 func info(cmd *cobra.Command, args []string) {
 	rc := 0
 	cc := []string(nil)
-	for _, d := range args {
-		cc = append(cc, d)
-	}
+	cc = append(cc, args...)
 	if len(cc) == 0 {
 		cc = gpiod.Chips()
 	}
