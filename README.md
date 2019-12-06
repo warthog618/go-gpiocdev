@@ -117,29 +117,42 @@ The [Chip](https://godoc.org/github.com/warthog618/gpiod#Chip) represents the
 GPIO chip itself.  The Chip is the source of chip and line info and the
 constructor of Line/Lines.
 
+Default attributes for Lines requested from the Chip can be set via
+options to [NewChip](https://godoc.org/github.com/warthog618/gpiod#NewChip).
+Only the options from the Info, Level and Bias categories may be set via the Chip.
+
 Lines must be requested from the Chip, using
 [Chip.RequestLine](https://godoc.org/github.com/warthog618/gpiod#Chip.RequestLine)
 or
-[ChipRequestLines](https://godoc.org/github.com/warthog618/gpiod#Chip.RequestLines),
+[Chip.RequestLines](https://godoc.org/github.com/warthog618/gpiod#Chip.RequestLines),
 before you can do anything useful with them, such as setting or getting values,
-or detecting edges.  Also note that, as per the underlying UAPI, the majority of
-line attributes, including input/output, active low, and open drain/source, can
-only be set at request time, and are immutable while the request is
-held.
+or detecting edges.
 
-Line attributes are set via options to RequestLine(s).  The line options are:
+Line attributes are set via options to Chip.RequestLine(s) and Line.Reconfigure<sup>1</sup>.  These override any default which may be set in NewChip.  Only one option from each category may be applied.  If multiple options from a category are applied then all but the last are ignored.
 
-Option | Description
----|---
-AsActiveLow|Treat a low physical line level as active (default is active high)
-AsInput|Request lines as input
-AsIs|Request lines in their current input/output state (default)
-AsOutput(\<values\>...)|Request lines as output with initial values (default to inactive)
-AsOpenDrain|Request lines as open drain outputs
-AsOpenSource|Request lines as open source outputs
-WithFallingEdge(eh)|Request lines with falling edge detection, with events passed to the provided event handler
-WithRisingEdge(eh)|Request lines with rising edge detection, with events passed to the provided event handler
-WithBothEdges(eh)|Request lines with rising and falling edge detection, with events passed to the provided event handler
+The line options are:
+
+Option | Category | Description
+---|--- | ---
+WithConsumer<sup>1</sup>|Info|Set the consumer label for the lines
+AsActiveLow|Level|Treat a low physical line level as active
+AsActiveHigh|Level|Treat a high physical line level as active (default)
+AsInput|Direction|Request lines as input (default)
+AsIs|Direction|Request lines in their current input/output state (default)
+AsOutput(\<values\>...)|Direction|Request lines as output with initial values
+AsPushPull|Drive|Request output lines drive both high and low (default)
+AsOpenDrain|Drive|Request lines as open drain outputs
+AsOpenSource|Drive|Request lines as open source outputs
+WithFallingEdge(eh)|Edge|Request lines with falling edge detection, with events passed to the provided event handler
+WithRisingEdge(eh)|Edge|Request lines with rising edge detection, with events passed to the provided event handler
+WithBothEdges(eh)|Edge|Request lines with rising and falling edge detection, with events passed to the provided event handler
+WithBiasDisable|Bias<sup>2</sup>|Request the lines have internal bias disabled
+WithPullDown|Bias|Request the lines have internal pull-down enabled
+WithPullUp|Bias|Request the lines have internal pull-up enabled
+
+<sup>1</sup> WithConsumer should be provided to either NewChip or Chip.RequestLine(s) and cannot be used with Line.Reconfigure.
+
+<sup>2</sup> Bias options require Linux v5.5 or later.
 
 The [Line](https://godoc.org/github.com/warthog618/gpiod#Line) and
 [Lines](https://godoc.org/github.com/warthog618/gpiod#Lines) are essentially the

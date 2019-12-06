@@ -34,8 +34,8 @@ type Chip struct {
 	// The number of GPIO lines on this chip.
 	lines int
 
-	// default consumer label for reserved lines
-	consumer string
+	// default options for reserved lines
+	options ChipOptions
 
 	// mutex covers the attributes below it.
 	mu sync.Mutex
@@ -133,11 +133,11 @@ func NewChip(name string, options ...ChipOption) (*Chip, error) {
 		return nil, err
 	}
 	c := Chip{
-		f:        f,
-		Name:     uapi.BytesToString(ci.Name[:]),
-		Label:    uapi.BytesToString(ci.Label[:]),
-		lines:    int(ci.Lines),
-		consumer: co.consumer,
+		f:       f,
+		Name:    uapi.BytesToString(ci.Name[:]),
+		Label:   uapi.BytesToString(ci.Label[:]),
+		lines:   int(ci.Lines),
+		options: co,
 	}
 	if len(c.Label) == 0 {
 		c.Label = "unknown"
@@ -246,7 +246,8 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 		}
 	}
 	lo := LineOptions{
-		consumer: c.consumer,
+		consumer:    c.options.consumer,
+		HandleFlags: c.options.HandleFlags,
 	}
 	for _, option := range options {
 		option.applyLineOption(&lo)
@@ -361,6 +362,8 @@ func (l *baseLine) Close() error {
 // Configuration for options other than those passed in remain unchanged.
 //
 // Not valid for lines with edge detection enabled.
+//
+// Requires Linux v5.5 or later.
 func (l *baseLine) Reconfigure(options ...LineConfig) error {
 	if l.isEvent {
 		return ErrPermissionDenied

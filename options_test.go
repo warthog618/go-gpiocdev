@@ -192,16 +192,19 @@ func TestAsOutput(t *testing.T) {
 
 func TestAsActiveLow(t *testing.T) {
 	requirePlatform(t)
-	c := getChip(t)
-	defer c.Close()
 
+	assert.Implements(t, (*gpiod.ChipOption)(nil), gpiod.AsActiveLow)
 	assert.Implements(t, (*gpiod.LineOption)(nil), gpiod.AsActiveLow)
 
-	// input - both Value and Events are reverse polarity
+	// default from chip
+	c, err := gpiod.NewChip(platform.Devpath(),
+		gpiod.AsActiveLow)
+	assert.Nil(t, err)
+	require.NotNil(t, c)
+	defer c.Close()
 	platform.TriggerIntr(0)
 	ich := make(chan gpiod.LineEvent)
 	l, err := c.RequestLine(platform.IntrLine(),
-		gpiod.AsActiveLow,
 		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
 			ich <- evt
 		}))
@@ -214,6 +217,37 @@ func TestAsActiveLow(t *testing.T) {
 	platform.TriggerIntr(1)
 	waitEvent(t, ich, gpiod.LineEventFallingEdge, start)
 	v, err := l.Value()
+	assert.Nil(t, err)
+	assert.Equal(t, 0, v)
+	start = time.Now()
+	platform.TriggerIntr(0)
+	waitEvent(t, ich, gpiod.LineEventRisingEdge, start)
+	v, err = l.Value()
+	assert.Nil(t, err)
+	assert.Equal(t, 1, v)
+	err = l.Close()
+	assert.Nil(t, err)
+
+	c = getChip(t)
+	defer c.Close()
+
+	// input - both Value and Events are reverse polarity
+	platform.TriggerIntr(0)
+	ich = make(chan gpiod.LineEvent)
+	l, err = c.RequestLine(platform.IntrLine(),
+		gpiod.AsActiveLow,
+		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
+			ich <- evt
+		}))
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	inf, err = c.LineInfo(platform.IntrLine())
+	assert.Nil(t, err)
+	assert.True(t, inf.ActiveLow)
+	start = time.Now()
+	platform.TriggerIntr(1)
+	waitEvent(t, ich, gpiod.LineEventFallingEdge, start)
+	v, err = l.Value()
 	assert.Nil(t, err)
 	assert.Equal(t, 0, v)
 	start = time.Now()
@@ -272,13 +306,19 @@ func TestAsActiveHigh(t *testing.T) {
 	c := getChip(t)
 	defer c.Close()
 
-	assert.Implements(t, (*gpiod.LineOption)(nil), gpiod.AsActiveLow)
+	assert.Implements(t, (*gpiod.ChipOption)(nil), gpiod.AsActiveHigh)
+	assert.Implements(t, (*gpiod.LineOption)(nil), gpiod.AsActiveHigh)
 
+	// default from chip
+	c, err := gpiod.NewChip(platform.Devpath(),
+		gpiod.AsActiveHigh)
+	assert.Nil(t, err)
+	require.NotNil(t, c)
+	defer c.Close()
 	// input - both Value and Events are same polarity
 	platform.TriggerIntr(0)
 	ich := make(chan gpiod.LineEvent)
 	l, err := c.RequestLine(platform.IntrLine(),
-		gpiod.AsActiveHigh,
 		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
 			ich <- evt
 		}))
@@ -291,6 +331,37 @@ func TestAsActiveHigh(t *testing.T) {
 	platform.TriggerIntr(1)
 	waitEvent(t, ich, gpiod.LineEventRisingEdge, start)
 	v, err := l.Value()
+	assert.Nil(t, err)
+	assert.Equal(t, 1, v)
+	start = time.Now()
+	platform.TriggerIntr(0)
+	waitEvent(t, ich, gpiod.LineEventFallingEdge, start)
+	v, err = l.Value()
+	assert.Nil(t, err)
+	assert.Equal(t, 0, v)
+	err = l.Close()
+	assert.Nil(t, err)
+
+	c = getChip(t)
+	defer c.Close()
+
+	// input - both Value and Events are same polarity
+	platform.TriggerIntr(0)
+	ich = make(chan gpiod.LineEvent)
+	l, err = c.RequestLine(platform.IntrLine(),
+		gpiod.AsActiveHigh,
+		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
+			ich <- evt
+		}))
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	inf, err = c.LineInfo(platform.IntrLine())
+	assert.Nil(t, err)
+	assert.False(t, inf.ActiveLow)
+	start = time.Now()
+	platform.TriggerIntr(1)
+	waitEvent(t, ich, gpiod.LineEventRisingEdge, start)
+	v, err = l.Value()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, v)
 	start = time.Now()
@@ -358,13 +429,33 @@ func TestAsOpenDrain(t *testing.T) {
 		gpiod.AsOpenDrain)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
-	defer l.Close()
 	inf, err := c.LineInfo(platform.OutLine())
 	assert.Nil(t, err)
 	assert.True(t, inf.OpenDrain)
 	err = l.SetValue(0)
 	assert.Nil(t, err)
 	v := platform.ReadOut()
+	assert.Equal(t, 0, v)
+	// Testing float high requires specific hardware, so assume that is
+	// covered by the kernel anyway.
+
+	l.Close()
+	l, err = c.RequestLine(platform.OutLine(),
+		gpiod.AsOutput(1))
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	inf, err = c.LineInfo(platform.OutLine())
+	assert.Nil(t, err)
+	assert.False(t, inf.OpenDrain)
+	err = l.Reconfigure(gpiod.AsOpenDrain)
+	assert.Nil(t, err)
+	inf, err = c.LineInfo(platform.OutLine())
+	assert.Nil(t, err)
+	assert.True(t, inf.OpenDrain)
+	err = l.SetValue(0)
+	assert.Nil(t, err)
+	v = platform.ReadOut()
 	assert.Equal(t, 0, v)
 	// Testing float high requires specific hardware, so assume that is
 	// covered by the kernel anyway.
@@ -383,13 +474,33 @@ func TestAsOpenSource(t *testing.T) {
 		gpiod.AsOpenSource)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
-	defer l.Close()
 	inf, err := c.LineInfo(platform.OutLine())
 	assert.Nil(t, err)
 	assert.True(t, inf.OpenSource)
 	err = l.SetValue(1)
 	assert.Nil(t, err)
 	v := platform.ReadOut()
+	assert.Equal(t, 1, v)
+	// Testing float low requires specific hardware, so assume that is
+	// covered by the kernel anyway.
+
+	l.Close()
+	l, err = c.RequestLine(platform.OutLine(),
+		gpiod.AsOutput(0))
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	inf, err = c.LineInfo(platform.OutLine())
+	assert.Nil(t, err)
+	assert.False(t, inf.OpenSource)
+	err = l.Reconfigure(gpiod.AsOpenSource)
+	assert.Nil(t, err)
+	inf, err = c.LineInfo(platform.OutLine())
+	assert.Nil(t, err)
+	assert.True(t, inf.OpenSource)
+	err = l.SetValue(1)
+	assert.Nil(t, err)
+	v = platform.ReadOut()
 	assert.Equal(t, 1, v)
 	// Testing float low requires specific hardware, so assume that is
 	// covered by the kernel anyway.
@@ -427,35 +538,72 @@ func TestAsPushPull(t *testing.T) {
 
 func TestWithBiasDisable(t *testing.T) {
 	requirePlatform(t)
-	c := getChip(t)
-	defer c.Close()
 
+	assert.Implements(t, (*gpiod.ChipOption)(nil), gpiod.WithBiasDisable)
 	assert.Implements(t, (*gpiod.LineOption)(nil), gpiod.WithBiasDisable)
 	assert.Implements(t, (*gpiod.LineConfig)(nil), gpiod.WithBiasDisable)
 
-	l, err := c.RequestLine(platform.FloatingLines()[0],
-		gpiod.AsInput,
+	// default from chip
+	c, err := gpiod.NewChip(platform.Devpath(),
 		gpiod.WithBiasDisable)
 	assert.Nil(t, err)
+	require.NotNil(t, c)
+	defer c.Close()
+	l, err := c.RequestLine(platform.FloatingLines()[0],
+		gpiod.AsInput)
+	assert.Nil(t, err)
 	require.NotNil(t, l)
-	defer l.Close()
 	inf, err := c.LineInfo(platform.FloatingLines()[0])
 	assert.Nil(t, err)
 	assert.True(t, inf.BiasDisable)
 	// can't test value - is indeterminate without external bias.
+
+	l.Close()
+
+	c = getChip(t)
+	defer c.Close()
+	l, err = c.RequestLine(platform.FloatingLines()[0],
+		gpiod.AsInput,
+		gpiod.WithBiasDisable)
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	inf, err = c.LineInfo(platform.FloatingLines()[0])
+	assert.Nil(t, err)
+	assert.True(t, inf.BiasDisable)
+	// can't test value - is indeterminate without external bias.
+
+	l.Close()
+
+	// reconfigure bias disable
+	l, err = c.RequestLine(platform.FloatingLines()[0],
+		gpiod.AsInput)
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	inf, err = c.LineInfo(platform.FloatingLines()[0])
+	assert.Nil(t, err)
+	assert.False(t, inf.BiasDisable)
+	l.Reconfigure(gpiod.WithBiasDisable)
+	inf, err = c.LineInfo(platform.FloatingLines()[0])
+	assert.Nil(t, err)
+	assert.True(t, inf.BiasDisable)
 }
 
 func TestWithPullDown(t *testing.T) {
 	requirePlatform(t)
-	c := getChip(t)
-	defer c.Close()
 
+	assert.Implements(t, (*gpiod.ChipOption)(nil), gpiod.WithPullDown)
 	assert.Implements(t, (*gpiod.LineOption)(nil), gpiod.WithPullDown)
 	assert.Implements(t, (*gpiod.LineConfig)(nil), gpiod.WithPullDown)
 
-	l, err := c.RequestLine(platform.FloatingLines()[0],
-		gpiod.AsInput,
+	// default from chip
+	c, err := gpiod.NewChip(platform.Devpath(),
 		gpiod.WithPullDown)
+	assert.Nil(t, err)
+	require.NotNil(t, c)
+	defer c.Close()
+	l, err := c.RequestLine(platform.FloatingLines()[0],
+		gpiod.AsInput)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	defer l.Close()
@@ -465,18 +613,54 @@ func TestWithPullDown(t *testing.T) {
 	v, err := l.Value()
 	assert.Nil(t, err)
 	assert.Equal(t, 0, v)
+
+	l.Close()
+	c = getChip(t)
+	defer c.Close()
+	l, err = c.RequestLine(platform.FloatingLines()[0],
+		gpiod.AsInput,
+		gpiod.WithPullDown)
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	inf, err = c.LineInfo(platform.FloatingLines()[0])
+	assert.Nil(t, err)
+	assert.True(t, inf.PullDown)
+	v, err = l.Value()
+	assert.Nil(t, err)
+	assert.Equal(t, 0, v)
+
+	l.Close()
+
+	// reconfigure [u;;=down]
+	l, err = c.RequestLine(platform.FloatingLines()[0],
+		gpiod.AsInput)
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	inf, err = c.LineInfo(platform.FloatingLines()[0])
+	assert.Nil(t, err)
+	assert.False(t, inf.PullDown)
+	l.Reconfigure(gpiod.WithPullDown)
+	inf, err = c.LineInfo(platform.FloatingLines()[0])
+	assert.Nil(t, err)
+	assert.True(t, inf.PullDown)
 }
 func TestWithPullUp(t *testing.T) {
 	requirePlatform(t)
-	c := getChip(t)
-	defer c.Close()
 
+	assert.Implements(t, (*gpiod.ChipOption)(nil), gpiod.WithPullUp)
 	assert.Implements(t, (*gpiod.LineOption)(nil), gpiod.WithPullUp)
 	assert.Implements(t, (*gpiod.LineConfig)(nil), gpiod.WithPullUp)
 
-	l, err := c.RequestLine(platform.FloatingLines()[0],
-		gpiod.AsInput,
+	// default from chip
+	c, err := gpiod.NewChip(platform.Devpath(),
 		gpiod.WithPullUp)
+	assert.Nil(t, err)
+	require.NotNil(t, c)
+	defer c.Close()
+	l, err := c.RequestLine(platform.FloatingLines()[0],
+		gpiod.AsInput)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	defer l.Close()
@@ -486,6 +670,38 @@ func TestWithPullUp(t *testing.T) {
 	v, err := l.Value()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, v)
+
+	l.Close()
+	c = getChip(t)
+	defer c.Close()
+	l, err = c.RequestLine(platform.FloatingLines()[0],
+		gpiod.AsInput,
+		gpiod.WithPullUp)
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	inf, err = c.LineInfo(platform.FloatingLines()[0])
+	assert.Nil(t, err)
+	assert.True(t, inf.PullUp)
+	v, err = l.Value()
+	assert.Nil(t, err)
+	assert.Equal(t, 1, v)
+
+	l.Close()
+
+	// reconfigure bias disable
+	l, err = c.RequestLine(platform.FloatingLines()[0],
+		gpiod.AsInput)
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	inf, err = c.LineInfo(platform.FloatingLines()[0])
+	assert.Nil(t, err)
+	assert.False(t, inf.PullUp)
+	l.Reconfigure(gpiod.WithPullUp)
+	inf, err = c.LineInfo(platform.FloatingLines()[0])
+	assert.Nil(t, err)
+	assert.True(t, inf.PullUp)
 }
 
 func TestWithFallingEdge(t *testing.T) {

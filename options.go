@@ -15,7 +15,8 @@ type ChipOption interface {
 
 // ChipOptions contains the options for a Chip.
 type ChipOptions struct {
-	consumer string
+	consumer    string
+	HandleFlags uapi.HandleFlag
 }
 
 // ConsumerOption defines the consumer label for a line.
@@ -129,9 +130,18 @@ type LevelOption struct {
 	flag uapi.HandleFlag
 }
 
+func (o LevelOption) updateFlags(f uapi.HandleFlag) uapi.HandleFlag {
+	f &= ^uapi.HandleRequestActiveLow
+	f |= o.flag
+	return f
+}
+
+func (o LevelOption) applyChipOption(c *ChipOptions) {
+	c.HandleFlags = o.updateFlags(c.HandleFlags)
+}
+
 func (o LevelOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^uapi.HandleRequestActiveLow
-	l.HandleFlags |= o.flag
+	l.HandleFlags = o.updateFlags(l.HandleFlags)
 }
 
 func (o LevelOption) applyLineConfig(l *LineOptions) {
@@ -188,11 +198,20 @@ type BiasOption struct {
 	flag uapi.HandleFlag
 }
 
-func (o BiasOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^(uapi.HandleRequestBiasDisable |
+func (o BiasOption) updateFlags(f uapi.HandleFlag) uapi.HandleFlag {
+	f &= ^(uapi.HandleRequestBiasDisable |
 		uapi.HandleRequestPullDown |
 		uapi.HandleRequestPullUp)
-	l.HandleFlags |= o.flag
+	f |= o.flag
+	return f
+}
+
+func (o BiasOption) applyChipOption(c *ChipOptions) {
+	c.HandleFlags = o.updateFlags(c.HandleFlags)
+}
+
+func (o BiasOption) applyLineOption(l *LineOptions) {
+	l.HandleFlags = o.updateFlags(l.HandleFlags)
 }
 
 func (o BiasOption) applyLineConfig(l *LineOptions) {
