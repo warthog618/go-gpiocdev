@@ -20,11 +20,11 @@ Supports the following functionality per line and for groups of lines:
 - read (active / inactive)
 - active high/low (defaults to high)
 - output mode (normal / open drain / open source)
-- pull up/down
+- pull up/down<sup>1</sup>
 - edge detection (rising / falling / both)
 - chip and line labels
 
-Note that pull up/down support is still in development.
+<sup>1</sup>Note that pull up/down support requires Linux v5.5 or later.
 
 ## Usage
 
