@@ -133,11 +133,11 @@ Line attributes are set via options to Chip.RequestLine(s) and Line.Reconfigure<
 The line options are:
 
 Option | Category | Description
----|--- | ---
+---|---|---
 WithConsumer<sup>1</sup>|Info|Set the consumer label for the lines
 AsActiveLow|Level|Treat a low physical line level as active
 AsActiveHigh|Level|Treat a high physical line level as active (default)
-AsInput|Direction|Request lines as input (default)
+AsInput|Direction|Request lines as input
 AsIs|Direction|Request lines in their current input/output state (default)
 AsOutput(\<values\>...)|Direction|Request lines as output with initial values
 AsPushPull|Drive|Request output lines drive both high and low (default)
@@ -147,8 +147,8 @@ WithFallingEdge(eh)|Edge|Request lines with falling edge detection, with events 
 WithRisingEdge(eh)|Edge|Request lines with rising edge detection, with events passed to the provided event handler
 WithBothEdges(eh)|Edge|Request lines with rising and falling edge detection, with events passed to the provided event handler
 WithBiasDisable|Bias<sup>2</sup>|Request the lines have internal bias disabled
-WithPullDown|Bias|Request the lines have internal pull-down enabled
-WithPullUp|Bias|Request the lines have internal pull-up enabled
+WithPullDown|Bias<sup>2</sup>|Request the lines have internal pull-down enabled
+WithPullUp|Bias<sup>2</sup>|Request the lines have internal pull-up enabled
 
 <sup>1</sup> WithConsumer should be provided to either NewChip or Chip.RequestLine(s) and cannot be used with Line.Reconfigure.
 
