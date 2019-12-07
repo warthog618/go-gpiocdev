@@ -275,5 +275,7 @@ PASS
 The library targets Linux with support for the GPIO character device API.  That
 generally means that **/dev/gpiochip0** exists.
 
+The Bias line options and Reconfigure method both require Linux v5.5 or later.
+
 The caller must have access to the character device - **/dev/gpiochip0**.  That
 is generally root unless you have changed the permissions of that device.
