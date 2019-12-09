@@ -510,7 +510,7 @@ func TestIsChip(t *testing.T) {
 	err = gpiod.IsChip("/dev/null")
 	assert.Equal(t, gpiod.ErrNotCharacterDevice, err)
 
-	// not sure how to test the remaining condtions...
+	// not sure how to test the remaining conditions...
 }
 
 func getChip(t *testing.T) *gpiod.Chip {
