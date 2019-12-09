@@ -9,6 +9,7 @@ package uapi_test
 import (
 	"fmt"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -1220,7 +1221,139 @@ func TestSetLineEventConfig(t *testing.T) {
 	}
 }
 
-func TestEventRead(t *testing.T) {
+func TestWatchLineInfo(t *testing.T) {
+	// also covers ReadLineInfoChanged
+
+	mockupRequired(t)
+	c, err := mock.Chip(0)
+	require.Nil(t, err)
+
+	f, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f.Close()
+
+	li := uapi.LineInfo{Offset: uint32(c.Lines + 1)}
+	err = uapi.WatchLineInfo(f.Fd(), &li)
+	require.Equal(t, syscall.Errno(0x16), err)
+
+	// set watch
+	li = uapi.LineInfo{Offset: 3}
+	lname := c.Label + "-3"
+	err = uapi.WatchLineInfo(f.Fd(), &li)
+	require.Nil(t, err)
+	xli := uapi.LineInfo{Offset: 3}
+	copy(xli.Name[:], lname)
+	assert.Equal(t, xli, li)
+
+	chg, err := readLineInfoChangedTimeout(f.Fd(), time.Second)
+	assert.Nil(t, err)
+	assert.Nil(t, chg, "spurious change")
+
+	// request line
+	start := time.Now()
+	hr := uapi.HandleRequest{Lines: 1, Flags: uapi.HandleRequestInput}
+	hr.Offsets[0] = 3
+	copy(hr.Consumer[:], "testwatch")
+	err = uapi.GetLineHandle(f.Fd(), &hr)
+	assert.Nil(t, err)
+	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
+	assert.Nil(t, err)
+	require.NotNil(t, chg)
+	end := time.Now()
+	assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
+	assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
+	assert.Equal(t, uapi.LineChangedRequested, chg.Type)
+	xli.Flags |= uapi.LineFlagRequested
+	copy(xli.Consumer[:], "testwatch")
+	assert.Equal(t, xli, chg.Info)
+
+	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
+	assert.Nil(t, err)
+	assert.Nil(t, chg, "spurious change")
+
+	// reconfig line
+	start = time.Now()
+	hc := uapi.HandleConfig{Flags: uapi.HandleRequestActiveLow}
+	copy(hr.Consumer[:], "testwatch")
+	err = uapi.SetLineConfig(uintptr(hr.Fd), &hc)
+	assert.Nil(t, err)
+	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
+	assert.Nil(t, err)
+	require.NotNil(t, chg)
+	end = time.Now()
+	assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
+	assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
+	assert.Equal(t, uapi.LineChangedConfig, chg.Type)
+	xli.Flags |= uapi.LineFlagActiveLow
+	assert.Equal(t, xli, chg.Info)
+
+	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
+	assert.Nil(t, err)
+	assert.Nil(t, chg, "spurious change")
+
+	// release line
+	start = time.Now()
+	unix.Close(int(hr.Fd))
+	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
+	assert.Nil(t, err)
+	require.NotNil(t, chg)
+	end = time.Now()
+	assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
+	assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
+	assert.Equal(t, uapi.LineChangedReleased, chg.Type)
+	xli = uapi.LineInfo{Offset: 3}
+	copy(xli.Name[:], lname)
+	assert.Equal(t, xli, chg.Info)
+
+	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
+	assert.Nil(t, err)
+	assert.Nil(t, chg, "spurious change")
+}
+
+func TestUnwatchLineInfo(t *testing.T) {
+	mockupRequired(t)
+	c, err := mock.Chip(0)
+	require.Nil(t, err)
+
+	f, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f.Close()
+
+	li := uapi.LineInfo{Offset: uint32(c.Lines + 1)}
+	err = uapi.UnwatchLineInfo(f.Fd(), li.Offset)
+	require.Equal(t, syscall.Errno(0x16), err)
+
+	li = uapi.LineInfo{Offset: 3}
+	lname := c.Label + "-3"
+	err = uapi.WatchLineInfo(f.Fd(), &li)
+	require.Nil(t, err)
+	xli := uapi.LineInfo{Offset: 3}
+	copy(xli.Name[:], lname)
+	assert.Equal(t, xli, li)
+
+	chg, err := readLineInfoChangedTimeout(f.Fd(), time.Second)
+	assert.Nil(t, err)
+	assert.Nil(t, chg, "spurious change")
+
+	err = uapi.UnwatchLineInfo(f.Fd(), li.Offset)
+	assert.Nil(t, err)
+
+	// request line
+	hr := uapi.HandleRequest{Lines: 1, Flags: uapi.HandleRequestInput}
+	hr.Offsets[0] = 3
+	err = uapi.GetLineHandle(f.Fd(), &hr)
+	assert.Nil(t, err)
+	unix.Close(int(hr.Fd))
+	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
+	assert.Nil(t, err)
+	assert.Nil(t, chg, "spurious change")
+
+	// repeated watch
+	err = uapi.WatchLineInfo(f.Fd(), &li)
+	require.Nil(t, err)
+}
+
+func TestReadEvent(t *testing.T) {
 	mockupRequired(t)
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
@@ -1238,12 +1371,13 @@ func TestEventRead(t *testing.T) {
 	err = uapi.GetLineEvent(f.Fd(), &er)
 	require.Nil(t, err)
 
-	_, err = readTimeout(er.Fd, time.Second)
-	assert.Nil(t, err, "spurious event")
+	evt, err := readEventTimeout(uintptr(er.Fd), time.Second)
+	assert.Nil(t, err)
+	assert.Nil(t, evt, "spurious event")
 
 	start := time.Now()
 	c.SetValue(1, 1)
-	evt, err := readTimeout(er.Fd, time.Second)
+	evt, err = readEventTimeout(uintptr(er.Fd), time.Second)
 	require.Nil(t, err)
 	assert.Equal(t, uint32(2), evt.ID) // returns falling edge
 	end := time.Now()
@@ -1252,7 +1386,7 @@ func TestEventRead(t *testing.T) {
 
 	start = time.Now()
 	c.SetValue(1, 0)
-	evt, err = readTimeout(er.Fd, time.Second)
+	evt, err = readEventTimeout(uintptr(er.Fd), time.Second)
 	assert.Nil(t, err)
 	assert.Equal(t, uint32(1), evt.ID) // returns rising edge
 	end = time.Now()
@@ -1262,17 +1396,32 @@ func TestEventRead(t *testing.T) {
 	unix.Close(int(er.Fd))
 }
 
-func readTimeout(fd int32, t time.Duration) (*uapi.EventData, error) {
-	pollfd := unix.PollFd{Fd: fd, Events: unix.POLLIN}
+func readEventTimeout(fd uintptr, t time.Duration) (*uapi.EventData, error) {
+	pollfd := unix.PollFd{Fd: int32(fd), Events: unix.POLLIN}
 	n, err := unix.Poll([]unix.PollFd{pollfd}, int(t.Seconds()))
 	if err != nil || n != 1 {
 		return nil, err
 	}
-	evt, err := uapi.ReadEvent(uintptr(fd))
+	evt, err := uapi.ReadEvent(fd)
 	if err != nil {
 		return nil, err
 	}
 	return &evt, nil
+}
+
+func readLineInfoChangedTimeout(fd uintptr,
+	t time.Duration) (*uapi.LineInfoChanged, error) {
+
+	pollfd := unix.PollFd{Fd: int32(fd), Events: unix.POLLIN}
+	n, err := unix.Poll([]unix.PollFd{pollfd}, int(t.Seconds()))
+	if err != nil || n != 1 {
+		return nil, err
+	}
+	infoChanged, err := uapi.ReadLineInfoChanged(fd)
+	if err != nil {
+		return nil, err
+	}
+	return &infoChanged, nil
 }
 
 func TestBytesToString(t *testing.T) {

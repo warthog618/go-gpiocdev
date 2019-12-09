@@ -125,6 +125,35 @@ func SetLineConfig(fd uintptr, config *HandleConfig) error {
 	return nil
 }
 
+// WatchLineInfo sets a watch on info of a line.
+//
+// A watch is set on the line indicated by info.Offset. If successful the
+// current line info is returned, else an error is returned.
+func WatchLineInfo(fd uintptr, info *LineInfo) error {
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
+		fd,
+		uintptr(watchLineInfoIoctl),
+		uintptr(unsafe.Pointer(info)))
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}
+
+// UnwatchLineInfo clears a watch on info of a line.
+//
+// Disables the watch on info for the line.
+func UnwatchLineInfo(fd uintptr, offset uint32) error {
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
+		fd,
+		uintptr(unwatchLineInfoIoctl),
+		uintptr(unsafe.Pointer(&offset)))
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}
+
 // BytesToString is a helper function that converts strings stored in byte
 // arrays, as returned by GetChipInfo and GetLineInfo, into strings.
 func BytesToString(a []byte) string {
@@ -135,9 +164,9 @@ func BytesToString(a []byte) string {
 	return string(a[:n])
 }
 
-type eventReader int
+type fdReader int
 
-func (fd eventReader) Read(b []byte) (int, error) {
+func (fd fdReader) Read(b []byte) (int, error) {
 	return unix.Read(int(fd), b[:])
 }
 
@@ -149,21 +178,35 @@ func (fd eventReader) Read(b []byte) (int, error) {
 // be ready to read.
 func ReadEvent(fd uintptr) (EventData, error) {
 	var ed EventData
-	err := binary.Read(eventReader(fd), nativeEndian, &ed)
+	err := binary.Read(fdReader(fd), nativeEndian, &ed)
 	return ed, err
+}
+
+// ReadLineInfoChanged reads a line info changed event from a chip.
+//
+// The fd is an open GPIO character device.
+//
+// This function is blocking and should only be called when the fd is known to
+// be ready to read.
+func ReadLineInfoChanged(fd uintptr) (LineInfoChanged, error) {
+	var lic LineInfoChanged
+	err := binary.Read(fdReader(fd), nativeEndian, &lic)
+	return lic, err
 }
 
 // IOCTL command codes
 type ioctl uintptr
 
 var (
-	getChipInfoIoctl   ioctl
-	getLineInfoIoctl   ioctl
-	getLineHandleIoctl ioctl
-	getLineEventIoctl  ioctl
-	getLineValuesIoctl ioctl
-	setLineValuesIoctl ioctl
-	setLineConfigIoctl ioctl
+	getChipInfoIoctl     ioctl
+	getLineInfoIoctl     ioctl
+	getLineHandleIoctl   ioctl
+	getLineEventIoctl    ioctl
+	getLineValuesIoctl   ioctl
+	setLineValuesIoctl   ioctl
+	setLineConfigIoctl   ioctl
+	watchLineInfoIoctl   ioctl
+	unwatchLineInfoIoctl ioctl
 )
 
 // Size of name and consumer strings.
@@ -184,6 +227,8 @@ func init() {
 	setLineValuesIoctl = iorw(0xB4, 0x09, unsafe.Sizeof(hd))
 	var hc HandleConfig
 	setLineConfigIoctl = iorw(0xB4, 0x0a, unsafe.Sizeof(hc))
+	watchLineInfoIoctl = iorw(0xB4, 0x0b, unsafe.Sizeof(li))
+	unwatchLineInfoIoctl = iorw(0xB4, 0x0c, unsafe.Sizeof(li.Offset))
 }
 
 // ChipInfo contains the details of a GPIO chip.
@@ -213,6 +258,40 @@ type LineInfo struct {
 	// owner of the request.
 	Consumer [nameSize]byte
 }
+
+// LineInfoChanged contains the details of a change to line info.
+//
+// This is returned via the chip fd in response to changes to watched lines.
+type LineInfoChanged struct {
+	// The time the change occured.
+	Timestamp uint64
+
+	// The type of change.
+	Type ChangeType
+
+	// The updated info.
+	Info LineInfo
+
+	// reserved for future use.
+	_ [4]uint32
+
+	// pad to workaround 64bit OS padding - if not __packed
+	//_ uint32
+}
+
+// ChangeType indicates the type of change that has occured to a line.
+type ChangeType uint32
+
+const (
+	// LineChangedRequested indicates the line has been requested.
+	LineChangedRequested ChangeType = iota + 1
+
+	// LineChangedReleased indicates the line has been released.
+	LineChangedReleased
+
+	// LineChangedConfig indicatges the line configuration has changed.
+	LineChangedConfig
+)
 
 // LineFlag are the flags for a line.
 type LineFlag uint32
@@ -301,7 +380,7 @@ type HandleConfig struct {
 	// HandleRequestOutput is set in the Flags).
 	DefaultValues [HandlesMax]uint8
 
-	// reserved for future use - swotr.
+	// reserved for future use.
 	_ [4]uint32
 }
 
@@ -477,6 +556,8 @@ func (f EventFlag) IsBothEdges() bool {
 }
 
 // EventData contains the details of a particular line event.
+//
+// This is returned via the event request fd in response to events.
 type EventData struct {
 	// The time the event was detected.
 	Timestamp uint64
@@ -484,7 +565,7 @@ type EventData struct {
 	// The type of event detected.
 	ID uint32
 
-	// pad
+	// pad to workaround 64bit OS padding
 	_ uint32
 }
 

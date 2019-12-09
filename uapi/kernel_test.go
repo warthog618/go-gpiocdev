@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,6 +46,122 @@ func TestRepeatedLines(t *testing.T) {
 	err = uapi.GetLineHandle(f.Fd(), &hr)
 	assert.NotNil(t, err)
 
+}
+
+func TestWatchIsolation(t *testing.T) {
+	t.Skip("fails on patch v1")
+	mockupRequired(t)
+	c, err := mock.Chip(0)
+	require.Nil(t, err)
+
+	f1, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f1.Close()
+
+	f2, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f2.Close()
+
+	// set watch
+	li := uapi.LineInfo{Offset: 3}
+	lname := c.Label + "-3"
+	err = uapi.WatchLineInfo(f1.Fd(), &li)
+	require.Nil(t, err)
+	xli := uapi.LineInfo{Offset: 3}
+	copy(xli.Name[:], lname)
+	assert.Equal(t, xli, li)
+
+	chg, err := readLineInfoChangedTimeout(f1.Fd(), time.Second)
+	assert.Nil(t, err)
+	assert.Nil(t, chg, "spurious change on f1")
+
+	chg, err = readLineInfoChangedTimeout(f2.Fd(), time.Second)
+	assert.Nil(t, err)
+	assert.Nil(t, chg, "spurious change on f2")
+
+	// request line
+	start := time.Now()
+	hr := uapi.HandleRequest{Lines: 1, Flags: uapi.HandleRequestInput}
+	hr.Offsets[0] = 3
+	copy(hr.Consumer[:], "testwatch")
+	err = uapi.GetLineHandle(f2.Fd(), &hr)
+	assert.Nil(t, err)
+	chg, err = readLineInfoChangedTimeout(f1.Fd(), time.Second)
+	assert.Nil(t, err)
+	require.NotNil(t, chg)
+	end := time.Now()
+	assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
+	assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
+	assert.Equal(t, uapi.LineChangedRequested, chg.Type)
+	xli.Flags |= uapi.LineFlagRequested
+	copy(xli.Consumer[:], "testwatch")
+	assert.Equal(t, xli, chg.Info)
+
+	chg, err = readLineInfoChangedTimeout(f2.Fd(), time.Second)
+	assert.Nil(t, err)
+	assert.Nil(t, chg, "spurious change on f2")
+
+	err = uapi.WatchLineInfo(f2.Fd(), &li)
+	require.Nil(t, err)
+	err = uapi.UnwatchLineInfo(f1.Fd(), li.Offset)
+	require.Nil(t, err)
+	unix.Close(int(hr.Fd))
+
+	start = time.Now()
+	unix.Close(int(hr.Fd))
+	chg, err = readLineInfoChangedTimeout(f2.Fd(), time.Second)
+	assert.Nil(t, err)
+	require.NotNil(t, chg)
+	end = time.Now()
+	assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
+	assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
+	assert.Equal(t, uapi.LineChangedReleased, chg.Type)
+	xli = uapi.LineInfo{Offset: 3}
+	copy(xli.Name[:], lname)
+	assert.Equal(t, xli, chg.Info)
+
+	chg, err = readLineInfoChangedTimeout(f1.Fd(), time.Second)
+	assert.Nil(t, err)
+	assert.Nil(t, chg, "spurious change on f1")
+}
+
+func TestBulkEventRead(t *testing.T) {
+	t.Skip("should return multiple events")
+	mockupRequired(t)
+	c, err := mock.Chip(0)
+	require.Nil(t, err)
+	f, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f.Close()
+	err = c.SetValue(1, 0)
+	require.Nil(t, err)
+	er := uapi.EventRequest{
+		Offset: 1,
+		HandleFlags: uapi.HandleRequestInput |
+			uapi.HandleRequestActiveLow,
+		EventFlags: uapi.EventRequestBothEdges,
+	}
+	err = uapi.GetLineEvent(f.Fd(), &er)
+	require.Nil(t, err)
+
+	evt, err := readEventTimeout(uintptr(er.Fd), time.Second)
+	assert.Nil(t, err)
+	assert.Nil(t, evt, "spurious event")
+
+	c.SetValue(1, 1)
+	c.SetValue(1, 0)
+	c.SetValue(1, 1)
+	c.SetValue(1, 0)
+
+	var ed uapi.EventData
+	b := make([]byte, unsafe.Sizeof(ed)*3)
+	fmt.Printf("buffer size %d\n", len(b))
+	n, err := unix.Read(int(er.Fd), b[:])
+	assert.Nil(t, err)
+	fmt.Printf("read %d\n", n)
+	assert.Equal(t, len(b), n)
+
+	unix.Close(int(er.Fd))
 }
 
 func TestOutputSets(t *testing.T) {
