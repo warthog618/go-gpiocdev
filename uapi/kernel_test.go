@@ -48,6 +48,54 @@ func TestRepeatedLines(t *testing.T) {
 
 }
 
+func TestAsIs(t *testing.T) {
+	mockupRequired(t)
+	c, err := mock.Chip(0)
+	require.Nil(t, err)
+
+	f, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f.Close()
+
+	hr := uapi.HandleRequest{
+		Flags: uapi.HandleRequestInput,
+		Lines: uint32(1),
+	}
+	copy(hr.Consumer[:31], "test-as-is")
+	hr.Offsets[0] = uint32(3)
+	err = uapi.GetLineHandle(f.Fd(), &hr)
+	require.Nil(t, err)
+	li, err := uapi.GetLineInfo(f.Fd(), 3)
+	assert.Nil(t, err)
+	xli := uapi.LineInfo{
+		Offset: 3,
+		Flags:  uapi.LineFlagRequested,
+	}
+	copy(xli.Name[:], li.Name[:]) // don't care about name
+	copy(xli.Consumer[:31], "test-as-is")
+	assert.Equal(t, xli, li)
+	unix.Close(int(hr.Fd))
+
+	li, err = uapi.GetLineInfo(f.Fd(), 3)
+	assert.Nil(t, err)
+	xli = uapi.LineInfo{
+		Offset: 3,
+		Flags:  0,
+	}
+	copy(xli.Name[:], li.Name[:]) // don't care about name
+	assert.Equal(t, xli, li)
+
+	hr.Flags = 0
+	err = uapi.GetLineHandle(f.Fd(), &hr)
+	require.Nil(t, err)
+	li, err = uapi.GetLineInfo(f.Fd(), 3)
+	assert.Nil(t, err)
+	copy(xli.Consumer[:31], "test-as-is")
+	xli.Flags = 1
+	assert.Equal(t, xli, li)
+	unix.Close(int(hr.Fd))
+}
+
 func TestWatchIsolation(t *testing.T) {
 	t.Skip("fails on patch v1")
 	mockupRequired(t)
