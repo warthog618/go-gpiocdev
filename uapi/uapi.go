@@ -169,9 +169,6 @@ var (
 // Size of name and consumer strings.
 const nameSize = 32
 
-// endian to use to decode reads from the local kernel.
-var nativeEndian binary.ByteOrder
-
 func init() {
 	// ioctls require struct sizes which are only available at runtime.
 	var ci ChipInfo
@@ -187,8 +184,6 @@ func init() {
 	setLineValuesIoctl = iorw(0xB4, 0x09, unsafe.Sizeof(hd))
 	var hc HandleConfig
 	setLineConfigIoctl = iorw(0xB4, 0x0a, unsafe.Sizeof(hc))
-
-	nativeEndian = findEndian()
 }
 
 // ChipInfo contains the details of a GPIO chip.
