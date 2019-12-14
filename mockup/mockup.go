@@ -16,10 +16,11 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strconv"
 	"sync"
-	"time"
 
+	"github.com/pilebones/go-udev/netlink"
 	"golang.org/x/sys/unix"
 )
 
@@ -68,6 +69,13 @@ func New(lines []int, namedLines bool) (*Mockup, error) {
 	rangesArg = rangesArg[:len(rangesArg)-1]
 	args = append(args, rangesArg)
 	cmd = exec.Command("modprobe", args...)
+
+	um, err := newUdevMonitor()
+	if err != nil {
+		return nil, fmt.Errorf("failed to start udev monitor: %s", err)
+	}
+	defer um.close()
+
 	err = cmd.Run()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load gpio-mockup: %s", err)
@@ -77,22 +85,27 @@ func New(lines []int, namedLines bool) (*Mockup, error) {
 	if err != nil {
 		return nil, err
 	}
-	// !!! wait for udev to complete
-	// https://github.com/jochenvg/go-udev
-	// and maybe kmod binding??
-	// https://github.com/ElyKar/golang-kmod (needs extension for params)
-	time.Sleep(10 * time.Millisecond)
+	evts := make([]netlink.UEvent, 2)
+	um.waitEvents(evts)
+	sort.Slice(evts, func(i, j int) bool {
+		return evts[i].Env["DEVNAME"] < evts[j].Env["DEVNAME"]
+	})
+	// apply udev events to chips
 	cc := make([]Chip, len(lines))
-	mLabel := 'A'
 	for i, l := range lines {
-		// !!! udev to get chip details - for the moment make them up (works on an empty VM)
+		devpath := evts[i].Env["DEVNAME"]
+		name := devpath[len("/dev/"):]
+		var num int
+		_, err = fmt.Sscanf(name, "gpiochip%d", &num)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse chip num: %s", err)
+		}
 		cc[i] = Chip{
-			Name:      fmt.Sprintf("gpiochip%d", i),
-			Label:     fmt.Sprintf("gpio-mockup-%c", mLabel),
+			Name:      name,
+			Label:     fmt.Sprintf("gpio-mockup-%c", 'A'+i),
 			Lines:     l,
-			DevPath:   fmt.Sprintf("/dev/gpiochip%d", i),
-			DbgfsPath: fmt.Sprintf("/sys/kernel/debug/gpio-mockup/gpiochip%d/", i)}
-		mLabel++
+			DevPath:   devpath,
+			DbgfsPath: fmt.Sprintf("/sys/kernel/debug/gpio-mockup/gpiochip%d/", num)}
 	}
 	m := Mockup{cc: cc}
 	return &m, nil
