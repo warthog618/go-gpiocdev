@@ -2,6 +2,14 @@
 //
 // Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
 
+// Package spi provides an example bit-bashed spi driver.
+//
+// The intent of the package is to demonstrate using GPIO pins to implement
+// bit-bashed interfaces for prototyping.
+//
+// The package is not related to the SPI device drivers provided by the Linux
+// kernel.  Kernel device drivers are the preferred solution for production
+// applications.
 package spi
 
 import (
@@ -12,16 +20,33 @@ import (
 
 // SPI represents a device connected an SPI bus using 4 GPIO lines.
 //
-// This is the basis for bit bashed SPI interfaces using GPIO pins. It is not
-// related to the SPI device drivers provided by Linux.
+// This is the basis for bit bashed SPI interfaces using GPIO pins.
+// It is not related to the SPI device drivers provided by the Linux kernel.
 type SPI struct {
 	// time between clock edges (i.e. half the cycle time)
 	Tclk time.Duration
+
+	// Clock line
 	Sclk *gpiod.Line
-	Ssz  *gpiod.Line
+
+	// Slave select - active low
+	Ssz *gpiod.Line
+
+	// Master-out slave-in
 	Mosi *gpiod.Line
+
+	// Master-in slave-out
 	Miso *gpiod.Line
+
+	// Polarity of idle state
 	cpol int
+
+	// Phase - clock edge used for reads and writes
+	//
+	// 0 => out side writes on trailing clock edge
+	// 1 => out side writes on leading clock edge
+	//
+	// In side reads on the opposite clock edge.
 	cpha int
 }
 
@@ -149,7 +174,7 @@ func WithCPOL(cpol int) Option {
 	}
 }
 
-// WithCPHA sets the cpol for the SPI.
+// WithCPHA sets the cpha for the SPI.
 func WithCPHA(cpha int) Option {
 	return func(s *SPI) {
 		s.cpha = cpha
