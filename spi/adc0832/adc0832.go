@@ -76,10 +76,10 @@ func (adc *ADC0832) read(ch int, sgl int) (uint8, error) {
 		return 0, err
 	}
 	if s.Mosi == s.Miso {
-		panic("setting line direction not currently supported")
-		// !!! s.Mosi.Output(1)
+		err = s.Mosi.Reconfigure(gpiod.AsOutput(1))
+	} else {
+		err = s.Mosi.SetValue(1)
 	}
-	err = s.Mosi.SetValue(1)
 	if err != nil {
 		return 0, err
 	}
@@ -107,8 +107,7 @@ func (adc *ADC0832) read(ch int, sgl int) (uint8, error) {
 	}
 	// mux settling
 	if s.Mosi == s.Miso {
-		panic("setting line direction not currently supported")
-		// !!! s.Miso.Input()
+		s.Miso.Reconfigure(gpiod.AsInput)
 	}
 	time.Sleep(adc.tset)
 	_, err = s.ClockIn() // sample time - junk
