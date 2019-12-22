@@ -248,7 +248,7 @@ recent kernel that supports the **gpio-mockup** loadable module.
 load and unload the module.
 
 The tests require a kernel release 5.1.0 or later to run.  For all the tests to
-pass a kernel 5.3.0 or later is required.
+pass a kernel 5.5.0 or later is required.
 
 ### Benchmarks
 
