@@ -307,11 +307,11 @@ func (c *Chip) getHandleRequest(offsets []int, lo LineOptions) (uintptr, error) 
 		Flags: lo.HandleFlags,
 	}
 	copy(hr.Consumer[:len(hr.Consumer)-1], lo.consumer)
-	//copy(hr.Offsets[:], offsets) - with cast
+	// copy(hr.Offsets[:], offsets) - with cast
 	for i, o := range offsets {
 		hr.Offsets[i] = uint32(o)
 	}
-	//copy(hr.DefaultValues[:], lo.InitialValues) - with cast
+	// copy(hr.DefaultValues[:], lo.InitialValues) - with cast
 	for i, v := range lo.InitialValues {
 		hr.DefaultValues[i] = uint8(v)
 	}
