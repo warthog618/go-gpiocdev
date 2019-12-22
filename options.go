@@ -2,8 +2,6 @@
 //
 // Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
 
-// +build linux
-
 package gpiod
 
 import "github.com/warthog618/gpiod/uapi"
@@ -28,7 +26,6 @@ type ConsumerOption string
 // requested by the chip.
 func WithConsumer(consumer string) ConsumerOption {
 	return ConsumerOption(consumer)
-
 }
 
 func (o ConsumerOption) applyChipOption(c *ChipOptions) {
