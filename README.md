@@ -107,7 +107,16 @@ Get the values of a set of lines (which must be requested first):
     vv,_ := ll.GetValues()
 ```
 
-Error handling omitted for brevity.
+When no longer required, both chip and lines should be closed to release resources:
+
+```go
+    c.Close()
+    l.Close()
+```
+
+Closing a chip does not close, or otherwise alter, any lines requested from the chip.
+
+Error handling omitted from these examples for brevity.
 
 ### API
 
