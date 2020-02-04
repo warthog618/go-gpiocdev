@@ -3,7 +3,6 @@ module github.com/warthog618/gpiod
 go 1.12
 
 require (
-	github.com/kr/pretty v0.1.0
 	github.com/pilebones/go-udev v0.0.0-20180820235104-043677e09b13
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.5 // indirect
