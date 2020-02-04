@@ -7,7 +7,9 @@
 
 A native Go library for Linux GPIO.
 
-The goal of this library is to provide the Go equivalent of **[libgpiod](https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/)**.
+**gpiod** is a library for accessing GPIO pins/lines on Linux platforms using the GPIO character device.
+
+The goal of this library is to provide the Go equivalent of the C **[libgpiod](https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/)** library.
 
 The intent is not to mirror the **libgpiod** API but to provide the equivalent functionality.
 
@@ -15,16 +17,18 @@ The intent is not to mirror the **libgpiod** API but to provide the equivalent f
 
 Supports the following functionality per line and for groups of lines:
 
-- direction (input / output)
-- write (active / inactive)
-- read (active / inactive)
+- direction (input/output)
+- write (active/inactive)
+- read (active/inactive)
 - active high/low (defaults to high)
-- output mode (normal / open drain / open source)
+- output mode (normal/open-drain/open-source)
 - pull up/down<sup>1</sup>
-- edge detection (rising / falling / both)
+- watches and edge detection (rising/falling/both)
 - chip and line labels
 
 <sup>1</sup>Note that pull up/down support requires Linux v5.5 or later.
+
+All library functions are safe to call from different goroutines.
 
 ## Usage
 
@@ -32,144 +36,212 @@ Supports the following functionality per line and for groups of lines:
 import "github.com/warthog618/gpiod"
 ```
 
-The following provides a quick overview of common use cases using **gpiod**:
+Error handling is omitted from the following examples for brevity.
 
-Get a chip and set the default label to apply to requested lines:
+### Chip Initialization
 
-```go
-    c, _ := gpiod.NewChip("gpiochip0", gpiod.WithConsumer("gpiodetect"))
-```
+The Chip object is used to request lines from that chip.
 
-Get info about a line:
-
-```go
-    inf, _ := c.LineInfo(2)
-```
-
-Note that the line info does not include the value.  The line must be requested
-to access the value.
-
-Request a line as is, so not altering direction settings:
+A Chip object is constructed using the
+[NewChip](https://godoc.org/github.com/warthog618/gpiod#NewChip) function.
 
 ```go
-    l, _ := c.RequestLine(2)
+c, _ := gpiod.NewChip("gpiochip0")
 ```
 
-Request a line as input, so altering direction settings:
-
-```go
-    l, _ = c.RequestLine(2, gpiod.AsInput)
-```
-
-Request a line as output - initially set active, then set inactive:
-
-```go
-    l, _ = c.RequestLine(3, gpiod.AsOutput(1))
-    // ...
-    l.SetValue(0)
-```
-
-Note that sets can only be applied to lines explicitly requested as outputs, as
-is the case here.
-
-Request a line as an open-drain output:
-
-```go
-    l, _ = c.RequestLine(3, gpiod.AsOpenDrain)
-```
-
-Get the value of a line (which must be requested first):
-
-```go
-    v,_ := l.Value()
-```
-
-Request a line with edge detection:
-
-```go
-    handler := func(evt gpiod.LineEvent) {
-        // handle the edge event here
-    }
-    l, _ = c.RequestLine(4, gpiod.WithRisingEdge(handler))
-```
-
-Request a bunch of lines as output and set initial values, then change later:
-
-```go
-    ll, _ := c.RequestLines([]int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1))
-    // ...
-    ll.SetValues([]int{0, 1, 1, 0})
-```
-
-Get the values of a set of lines (which must be requested first):
-
-```go
-    vv,_ := ll.GetValues()
-```
-
-When no longer required, both chip and lines should be closed to release resources:
-
-```go
-    c.Close()
-    l.Close()
-```
-
-Closing a chip does not close, or otherwise alter, any lines requested from the chip.
-
-Error handling omitted from these examples for brevity.
-
-### API
-
-The API consists of three major objects - the Chip and the Line/Lines.
-
-The [Chip](https://godoc.org/github.com/warthog618/gpiod#Chip) represents the
-GPIO chip itself.  The Chip is the source of chip and line info and the
-constructor of Line/Lines.
+The parameter is the chip name, which corresponds to the name of the device in
+the **/dev** directory, so in this example **/dev/gpiochip0**.
 
 Default attributes for Lines requested from the Chip can be set via
-options to [NewChip](https://godoc.org/github.com/warthog618/gpiod#NewChip).
-Only the options from the Info, Level and Bias categories may be set via the Chip.
+[options](#line-options) to
+[NewChip](https://godoc.org/github.com/warthog618/gpiod#NewChip).
 
-Lines must be requested from the Chip, using
-[Chip.RequestLine](https://godoc.org/github.com/warthog618/gpiod#Chip.RequestLine)
-or
-[Chip.RequestLines](https://godoc.org/github.com/warthog618/gpiod#Chip.RequestLines),
-before you can do anything useful with them, such as setting or getting values,
-or detecting edges.
+```go
+c, _ := gpiod.NewChip("gpiochip0", gpiod.WithConsumer("myapp"))
+```
 
-Line attributes are set via options to Chip.RequestLine(s) and Line.Reconfigure<sup>1</sup>.  These override any default which may be set in NewChip.  Only one option from each category may be applied.  If multiple options from a category are applied then all but the last are ignored.
+In this example the consumer label is defaulted to "myapp". Only the line
+options from the Info, Level and Bias categories may be defaulted via the
+*NewChip*.
+
+When no longer required, the chip should be closed to release resources:
+
+```go
+c.Close()
+```
+
+Closing a chip does not close or otherwise alter the state of any lines
+requested from the chip.
+
+### Line Requests
+
+To alter the state of a
+[line](https://godoc.org/github.com/warthog618/gpiod#Line) it must first be
+requested from the Chip, using
+[Chip.RequestLine](https://godoc.org/github.com/warthog618/gpiod#Chip.RequestLine):
+
+```go
+l, _ := c.RequestLine(4)                    // in its existing state
+l, _ := c.RequestLine(rpi.J8p7)             // using Raspberry Pi J8 mapping
+l, _ := c.RequestLine(4,gpiod.AsOutput(1))  // as an output line
+```
+
+The initial state of the line can be set by providing [line
+options](#line-options), as shown in the *AsOutput* example.
+
+Multiple lines from the same chip may be requested as a group of
+[lines](https://godoc.org/github.com/warthog618/gpiod#Lines) using
+[Chip.RequestLines](https://godoc.org/github.com/warthog618/gpiod#Chip.RequestLines):
+
+```go
+ll, _ := c.RequestLines([]int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1))
+```
+
+Note that [line options](#line-options) applied to a group of lines apply to all
+lines in the group.
+
+When no longer required, the line(s) should be closed to release resources:
+
+```go
+l.Close()
+ll.Close()
+```
+
+### Line Info
+
+[Info](https://godoc.org/github.com/warthog618/gpiod#LineInfo) about a line can
+be read at any time from the chip:
+
+```go
+inf, _ := c.LineInfo(4)
+inf, _ := c.LineInfo(rpi.J8p7) // Using Raspberry Pi J8 mapping
+```
+
+The offset parameter identifies the line on the chip, and is specific to the
+GPIO chip.  To improve readability, convenience mappings can be provided for
+specific devices, such as the Raspberry Pi example shown here.
+
+Note that the line info does not include the value.  The line must be requested
+from the chip to access the value.  Once requested, the line info can also be
+read from the line:
+
+```go
+inf, _ := l.Info()
+```
+
+### Active Level
+
+The values used throughout the API for line values are the logical value, which
+is 0 for inactive and 1 for active. The physical level considered active can be
+controlled using the *AsActiveHigh* and *AsActiveLow* [line
+options](#line-options):
+
+```go
+l, _ := c.RequestLine(4,gpiod.AsActiveLow) // during request
+l.Reconfigure(gpiod.AsActiveHigh)          // once requested
+```
+
+Lines are typically active high by default.
+
+### Direction
+
+The line direction can be controlled using the *AsInput* and *AsOutput* [line
+options](#line-options):
+
+```go
+l, _ := c.RequestLine(4,gpiod.AsInput) // during request
+l.Reconfigure(gpiod.AsInput)           // set direction to Input
+l.Reconfigure(gpiod.AsOutput(0))       // set direction to Output (and value to inactive)
+```
+
+### Read Input
+
+```go
+r, _ := l.Value()  // Read state from line (active / inactive)
+
+rr := []int{0, 0, 0, 0} // buffer to read into...
+ll.Values(rr)           // Read state from a group of lines
+```
+
+### Write Output
+
+```go
+l.SetValue(1)     // Set line active
+l.SetValue(0)     // Set line inactive
+
+ll.SetValues([]int{0, 1, 0, 1}) // Set a group of lines
+```
+
+Also see the [blinker](example/blinker/blinker.go) example.
+
+### Bias
+
+The bias controls the pull up/down state of the line.  The bias state can be set
+using the Bias options:
+
+```go
+l,_ := c.RequestLine(4,gpiod.WithPullUp)  // during request
+l.Reconfigure(gpiod.WithBiasDisable)      // once requested
+```
+
+Note that bias options require Linux v5.5 or later.
+
+### Watches
+
+The state of an input line can be watched and trigger calls to handler
+functions.
+
+The watch can be on rising or falling edges, or both.
+
+The handler function is passed the details of the event, which includes the
+triggering pin, the time the edge was detected and the type of edge detected:
+
+```go
+func handler(evt gpiod.LineEvent) {
+  // handle change in line state
+}
+
+l, _ := c.RequestLine(rpi.J8p7, gpiod.WithBothEdges(handler)))
+```
+
+A watch can be removed by closing the line:
+
+```go
+l.Close()
+```
+
+Also see the [watcher](example/watcher/watcher.go) example.
+
+### Line Options
+
+Line attributes are set via options to *Chip.RequestLine(s)* and
+*Line.Reconfigure*<sup>1</sup>.  These override any default which may be set in
+*NewChip*.  Only one option from each category may be applied.  If multiple
+options from a category are applied then all but the last are ignored.
 
 The line options are:
 
 Option | Category | Description
 ---|---|---
-WithConsumer<sup>1</sup>|Info|Set the consumer label for the lines
-AsActiveLow|Level|Treat a low physical line level as active
-AsActiveHigh|Level|Treat a high physical line level as active (default)
-AsInput|Direction|Request lines as input
-AsIs|Direction|Request lines in their current input/output state (default)
-AsOutput(\<values\>...)|Direction|Request lines as output with initial values
-AsPushPull|Drive|Request output lines drive both high and low (default)
-AsOpenDrain|Drive|Request lines as open drain outputs
-AsOpenSource|Drive|Request lines as open source outputs
-WithFallingEdge(eh)|Edge|Request lines with falling edge detection, with events passed to the provided event handler
-WithRisingEdge(eh)|Edge|Request lines with rising edge detection, with events passed to the provided event handler
-WithBothEdges(eh)|Edge|Request lines with rising and falling edge detection, with events passed to the provided event handler
-WithBiasDisable|Bias<sup>2</sup>|Request the lines have internal bias disabled
-WithPullDown|Bias<sup>2</sup>|Request the lines have internal pull-down enabled
-WithPullUp|Bias<sup>2</sup>|Request the lines have internal pull-up enabled
+*WithConsumer*<sup>1</sup>|Info|Set the consumer label for the lines
+*AsActiveLow*|Level|Treat a low physical line level as active
+*AsActiveHigh*|Level|Treat a high physical line level as active (default)
+*AsInput*|Direction|Request lines as input
+*AsIs*|Direction|Request lines in their current input/output state (default)
+*AsOutput(\<values\>...)*|Direction|Request lines as output with initial values
+*AsPushPull*|Drive|Request output lines drive both high and low (default)
+*AsOpenDrain*|Drive|Request lines as open drain outputs
+*AsOpenSource*|Drive|Request lines as open source outputs
+*WithFallingEdge(eh)*|Edge|Request lines with falling edge detection, with events passed to the provided event handler
+*WithRisingEdge(eh)*|Edge|Request lines with rising edge detection, with events passed to the provided event handler
+*WithBothEdges(eh)*|Edge|Request lines with rising and falling edge detection, with events passed to the provided event handler
+*WithBiasDisable*|Bias<sup>2</sup>|Request the lines have internal bias disabled
+*WithPullDown*|Bias<sup>2</sup>|Request the lines have internal pull-down enabled
+*WithPullUp*|Bias<sup>2</sup>|Request the lines have internal pull-up enabled
 
-<sup>1</sup> WithConsumer should be provided to either NewChip or Chip.RequestLine(s) and cannot be used with Line.Reconfigure.
+<sup>1</sup> WithConsumer should be provided to either *NewChip* or *Chip.RequestLine(s)* and cannot be used with *Line.Reconfigure*.
 
 <sup>2</sup> Bias options require Linux v5.5 or later.
-
-The [Line](https://godoc.org/github.com/warthog618/gpiod#Line) and
-[Lines](https://godoc.org/github.com/warthog618/gpiod#Lines) are essentially the
-same.  They both represent a requested set of lines, but in the case of the Line
-that set is one.  The Line API is slightly simplified as it only has to deal
-with the one line, not a larger set.
-
-Both Chip and Line/Lines methods are safe to call from different goroutines.
 
 ## Tools
 
@@ -284,7 +356,9 @@ PASS
 The library targets Linux with support for the GPIO character device API.  That
 generally means that **/dev/gpiochip0** exists.
 
-The Bias line options and Reconfigure method both require Linux v5.5 or later.
+The Bias line options and the Line.Reconfigure method both require Linux v5.5 or
+later.
 
-The caller must have access to the character device - **/dev/gpiochip0**.  That
-is generally root unless you have changed the permissions of that device.
+The caller must have access to the character device - typically
+**/dev/gpiochip0**.  That is generally root unless you have changed the
+permissions of that device.
