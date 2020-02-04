@@ -316,7 +316,7 @@ func TestLineInfo(t *testing.T) {
 	li, err := l.Info()
 	assert.Nil(t, err)
 	require.NotNil(t, li)
-	assert.Equal(t, cli, *li)
+	assert.Equal(t, cli, li)
 }
 
 func TestLineOffset(t *testing.T) {

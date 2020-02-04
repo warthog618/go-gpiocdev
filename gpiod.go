@@ -405,26 +405,29 @@ func (l *Line) Offset() int {
 }
 
 // Info returns the information about the line.
-func (l *Line) Info() (*LineInfo, error) {
+func (l *Line) Info() (info LineInfo, err error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.closed {
-		return nil, ErrClosed
+		err = ErrClosed
+		return
 	}
 	if l.info != nil {
-		return l.info[0], nil
+		info = *l.info[0]
+		return
 	}
 	c, err := NewChip(l.chip)
 	if err != nil {
-		return nil, err
+		return
 	}
 	defer c.Close()
 	inf, err := c.LineInfo(l.offsets[0])
 	if err != nil {
-		return nil, err
+		return
 	}
 	l.info = []*LineInfo{&inf}
-	return l.info[0], nil
+	info = *l.info[0]
+	return
 }
 
 // Value returns the current value (active state) of the line.
