@@ -26,8 +26,9 @@ func main() {
 	defer c.Close()
 
 	values := map[int]string{0: "inactive", 1: "active"}
+	offset := rpi.GPIO4
 	v := 0
-	l, err := c.RequestLine(rpi.GPIO4, gpiod.AsOutput(v))
+	l, err := c.RequestLine(offset, gpiod.AsOutput(v))
 	if err != nil {
 		panic(err)
 	}
@@ -35,7 +36,7 @@ func main() {
 		l.Reconfigure(gpiod.AsInput)
 		l.Close()
 	}()
-	fmt.Printf("Set %s\n", values[v])
+	fmt.Printf("Set pin %d %s\n", offset, values[v])
 
 	// capture exit signals to ensure pin is reverted to input on exit.
 	quit := make(chan os.Signal, 1)
@@ -47,7 +48,7 @@ func main() {
 		case <-time.After(2 * time.Second):
 			v ^= 1
 			l.SetValue(v)
-			fmt.Printf("Set %s\n", values[v])
+			fmt.Printf("Set pin %d %s\n", offset, values[v])
 		case <-quit:
 			return
 		}

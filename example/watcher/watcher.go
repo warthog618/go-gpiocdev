@@ -21,15 +21,15 @@ func main() {
 	defer c.Close()
 
 	offset := rpi.J8p7
-	edges := map[gpiod.LineEventType]string{1: "rising", 2: "falling"}
 	l, err := c.RequestLine(offset,
 		gpiod.WithPullUp,
 		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
-			t := time.Time{}.Add(evt.Timestamp)
-			fmt.Printf("Pin %d event: %s %s\n",
-				evt.Offset,
-				t.Format(time.StampMicro),
-				edges[evt.Type])
+			t := time.Unix(0, evt.Timestamp.Nanoseconds())
+			edge := "rising"
+			if evt.Type == gpiod.LineEventFallingEdge {
+				edge = "falling"
+			}
+			fmt.Printf("event:%3d %-7s %s\n", evt.Offset, edge, t.Format(time.RFC3339Nano))
 		}))
 	if err != nil {
 		panic(err)
