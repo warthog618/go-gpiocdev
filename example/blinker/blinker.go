@@ -25,6 +25,7 @@ func main() {
 	}
 	defer c.Close()
 
+	values := map[int]string{0: "inactive", 1: "active"}
 	v := 0
 	l, err := c.RequestLine(rpi.GPIO4, gpiod.AsOutput(v))
 	if err != nil {
@@ -34,6 +35,7 @@ func main() {
 		l.Reconfigure(gpiod.AsInput)
 		l.Close()
 	}()
+	fmt.Printf("Set %s\n", values[v])
 
 	// capture exit signals to ensure pin is reverted to input on exit.
 	quit := make(chan os.Signal, 1)
@@ -42,10 +44,10 @@ func main() {
 
 	for {
 		select {
-		case <-time.After(500 * time.Millisecond):
+		case <-time.After(2 * time.Second):
 			v ^= 1
 			l.SetValue(v)
-			fmt.Println("Toggled", v)
+			fmt.Printf("Set %s\n", values[v])
 		case <-quit:
 			return
 		}
