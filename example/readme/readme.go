@@ -67,6 +67,15 @@ func main() {
 
 	// Chip Initialisation (2)
 	c.Close()
+
+}
+
+func find() *gpiod.Line {
+	chipname, offset, _ := gpiod.FindLine("LED A")
+	c, _ := gpiod.NewChip(chipname, gpiod.WithConsumer("myapp"))
+	l, _ := c.RequestLine(offset)
+	return l
+
 }
 
 func handler(evt gpiod.LineEvent) {

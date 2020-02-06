@@ -1,7 +1,7 @@
 # gpiod
 
 [![Build Status](https://travis-ci.org/warthog618/gpiod.svg)](https://travis-ci.org/warthog618/gpiod)
-[![GoDoc](https://godoc.org/github.com/warthog618/gpiod?status.svg)](https://godoc.org/github.com/warthog618/gpiod)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://pkg.go.dev/github.com/warthog618/gpiod)
 [![Go Report Card](https://goreportcard.com/badge/github.com/warthog618/gpiod)](https://goreportcard.com/report/github.com/warthog618/gpiod)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/warthog618/gpiod/blob/master/LICENSE)
 
@@ -9,13 +9,14 @@ A native Go library for Linux GPIO.
 
 **gpiod** is a library for accessing GPIO pins/lines on Linux platforms using the GPIO character device.
 
-The goal of this library is to provide the Go equivalent of the C **[libgpiod](https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/)** library.
-
-The intent is not to mirror the **libgpiod** API but to provide the equivalent functionality.
+The goal of this library is to provide the Go equivalent of the C
+**[libgpiod](https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/)**
+library. The intent is not to mirror the **libgpiod** API but to provide the
+equivalent functionality.
 
 ## Features
 
-Supports the following functionality per line and for groups of lines:
+Supports the following functionality per line and for collections of lines:
 
 - direction (input/output)
 - write (active/inactive)
@@ -40,10 +41,10 @@ Error handling is omitted from the following examples for brevity.
 
 ### Chip Initialization
 
-The Chip object is used to request lines from that chip.
+The Chip object is used to request lines from a GPIO chip.
 
 A Chip object is constructed using the
-[NewChip](https://godoc.org/github.com/warthog618/gpiod#NewChip) function.
+[NewChip](https://pkg.go.dev/github.com/warthog618/gpiod#NewChip) function.
 
 ```go
 c, _ := gpiod.NewChip("gpiochip0")
@@ -54,7 +55,7 @@ the **/dev** directory, so in this example **/dev/gpiochip0**.
 
 Default attributes for Lines requested from the Chip can be set via
 [options](#line-options) to
-[NewChip](https://godoc.org/github.com/warthog618/gpiod#NewChip).
+[NewChip](https://pkg.go.dev/github.com/warthog618/gpiod#NewChip).
 
 ```go
 c, _ := gpiod.NewChip("gpiochip0", gpiod.WithConsumer("myapp"))
@@ -76,29 +77,39 @@ requested from the chip.
 ### Line Requests
 
 To alter the state of a
-[line](https://godoc.org/github.com/warthog618/gpiod#Line) it must first be
+[line](https://pkg.go.dev/github.com/warthog618/gpiod#Line) it must first be
 requested from the Chip, using
-[Chip.RequestLine](https://godoc.org/github.com/warthog618/gpiod#Chip.RequestLine):
+[Chip.RequestLine](https://pkg.go.dev/github.com/warthog618/gpiod#Chip.RequestLine):
 
 ```go
 l, _ := c.RequestLine(4)                    // in its existing state
+```
+
+The offset parameter identifies the line on the chip, and is specific to the
+GPIO chip.  To improve readability, convenience mappings can be provided for
+specific devices, such as the Raspberry Pi:
+
+```go
 l, _ := c.RequestLine(rpi.J8p7)             // using Raspberry Pi J8 mapping
-l, _ := c.RequestLine(4,gpiod.AsOutput(1))  // as an output line
 ```
 
 The initial state of the line can be set by providing [line
-options](#line-options), as shown in the *AsOutput* example.
+options](#line-options), as shown in this *AsOutput* example:
 
-Multiple lines from the same chip may be requested as a group of
-[lines](https://godoc.org/github.com/warthog618/gpiod#Lines) using
-[Chip.RequestLines](https://godoc.org/github.com/warthog618/gpiod#Chip.RequestLines):
+```go
+l, _ := c.RequestLine(4,gpiod.AsOutput(1))  // as an output line
+```
+
+Multiple lines from the same chip may be requested as a collection of
+[lines](https://pkg.go.dev/github.com/warthog618/gpiod#Lines) using
+[Chip.RequestLines](https://pkg.go.dev/github.com/warthog618/gpiod#Chip.RequestLines):
 
 ```go
 ll, _ := c.RequestLines([]int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1))
 ```
 
-Note that [line options](#line-options) applied to a group of lines apply to all
-lines in the group.
+Note that [line options](#line-options) applied to a collection of lines apply to all
+lines in the collection.
 
 When no longer required, the line(s) should be closed to release resources:
 
@@ -109,17 +120,13 @@ ll.Close()
 
 ### Line Info
 
-[Info](https://godoc.org/github.com/warthog618/gpiod#LineInfo) about a line can
+[Info](https://pkg.go.dev/github.com/warthog618/gpiod#LineInfo) about a line can
 be read at any time from the chip:
 
 ```go
 inf, _ := c.LineInfo(4)
 inf, _ := c.LineInfo(rpi.J8p7) // Using Raspberry Pi J8 mapping
 ```
-
-The offset parameter identifies the line on the chip, and is specific to the
-GPIO chip.  To improve readability, convenience mappings can be provided for
-specific devices, such as the Raspberry Pi example shown here.
 
 Note that the line info does not include the value.  The line must be requested
 from the chip to access the value.  Once requested, the line info can also be
@@ -128,20 +135,6 @@ read from the line:
 ```go
 inf, _ := l.Info()
 ```
-
-### Active Level
-
-The values used throughout the API for line values are the logical value, which
-is 0 for inactive and 1 for active. The physical level considered active can be
-controlled using the *AsActiveHigh* and *AsActiveLow* [line
-options](#line-options):
-
-```go
-l, _ := c.RequestLine(4,gpiod.AsActiveLow) // during request
-l.Reconfigure(gpiod.AsActiveHigh)          // once requested
-```
-
-Lines are typically active high by default.
 
 ### Direction
 
@@ -160,7 +153,7 @@ l.Reconfigure(gpiod.AsOutput(0))       // set direction to Output (and value to 
 r, _ := l.Value()  // Read state from line (active / inactive)
 
 rr := []int{0, 0, 0, 0} // buffer to read into...
-ll.Values(rr)           // Read state from a group of lines
+ll.Values(rr)           // Read the state of a collection of lines
 ```
 
 ### Write Output
@@ -169,22 +162,10 @@ ll.Values(rr)           // Read state from a group of lines
 l.SetValue(1)     // Set line active
 l.SetValue(0)     // Set line inactive
 
-ll.SetValues([]int{0, 1, 0, 1}) // Set a group of lines
+ll.SetValues([]int{0, 1, 0, 1}) // Set a collection of lines
 ```
 
 Also see the [blinker](example/blinker/blinker.go) example.
-
-### Bias
-
-The bias controls the pull up/down state of the line.  The bias state can be set
-using the Bias options:
-
-```go
-l,_ := c.RequestLine(4,gpiod.WithPullUp)  // during request
-l.Reconfigure(gpiod.WithBiasDisable)      // once requested
-```
-
-Note that bias options require Linux v5.5 or later.
 
 ### Watches
 
@@ -211,6 +192,51 @@ l.Close()
 ```
 
 Also see the [watcher](example/watcher/watcher.go) example.
+
+### Find
+
+Lines can be found by the GPIO label name returned in line info and set by device-tree:
+
+```go
+chipname, offset, _ := gpiod.FindLine("LED A")
+c, _ := gpiod.NewChip(chipname, gpiod.WithConsumer("myapp"))
+l, _ := c.RequestLine(offset)
+```
+
+### Active Level
+
+The values used throughout the API for line values are the logical value, which
+is 0 for inactive and 1 for active. The physical level considered active can be
+controlled using the *AsActiveHigh* and *AsActiveLow* [line
+options](#line-options):
+
+```go
+l, _ := c.RequestLine(4,gpiod.AsActiveLow) // during request
+l.Reconfigure(gpiod.AsActiveHigh)          // once requested
+```
+
+Lines are typically active high by default.
+
+### Bias
+
+The bias [line options](#line-options) control the pull up/down state of the
+line:
+
+```go
+l,_ := c.RequestLine(4,gpiod.WithPullUp)  // during request
+l.Reconfigure(gpiod.WithBiasDisable)      // once requested
+```
+
+Note that bias options require Linux v5.5 or later.
+
+### Drive
+
+The drive options control how an output line is driven when active and inactive:
+
+```go
+l,_ := c.RequestLine(4,gpiod.AsOpenDrain) // during request
+l.Reconfigure(gpiod.AsOpenSource)         // once requested
+```
 
 ### Line Options
 
