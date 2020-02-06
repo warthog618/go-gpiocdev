@@ -4,7 +4,8 @@
 
 // +build linux
 
-// Package gpiod provides a library for the Linux GPIO descriptor UAPI.
+// Package gpiod is a library for accessing GPIO pins/lines on Linux platforms
+// using the GPIO character device.
 //
 // This is a Go equivalent of libgpiod.
 package gpiod
@@ -357,7 +358,7 @@ func (l *baseLine) Close() error {
 	return nil
 }
 
-// Reconfigure updates the configuration of the requested line.
+// Reconfigure updates the configuration of the requested line(s).
 //
 // Configuration for options other than those passed in remain unchanged.
 //
