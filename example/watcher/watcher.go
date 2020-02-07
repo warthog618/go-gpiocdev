@@ -40,5 +40,5 @@ func main() {
 	// But we'll just run for a minute then exit.
 	fmt.Printf("Watching Pin %d...\n", offset)
 	time.Sleep(time.Minute)
-	fmt.Println("exitting...")
+	fmt.Println("exiting...")
 }
