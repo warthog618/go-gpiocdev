@@ -89,7 +89,6 @@ func New(c *gpiod.Chip, sclk, ssz, mosi, miso int, options ...Option) (*SPI, err
 	s.Miso = l
 	if miso == mosi {
 		s.Mosi = s.Miso
-		panic("setting line direction not currently supported")
 	} else {
 		l, err := c.RequestLine(mosi, gpiod.AsOutput(0))
 		if err != nil {
