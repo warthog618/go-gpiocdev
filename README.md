@@ -18,16 +18,19 @@ equivalent functionality.
 
 Supports the following functionality per line and for collections of lines:
 
-- direction (input/output)
+- direction (input/output)<sup>1</sup>
 - write (active/inactive)
 - read (active/inactive)
 - active high/low (defaults to high)
 - output mode (normal/open-drain/open-source)
-- pull up/down<sup>1</sup>
+- pull up/down<sup>2</sup>
 - watches and edge detection (rising/falling/both)
 - chip and line labels
 
-<sup>1</sup>Note that pull up/down support requires Linux v5.5 or later.
+<sup>1</sup>Dynamically changing line direction without releasing the line
+requires Linux v5.5 or later.
+
+<sup>2</sup>Pull up/down support requires Linux v5.5 or later.
 
 All library functions are safe to call from different goroutines.
 
@@ -238,12 +241,15 @@ l,_ := c.RequestLine(4,gpiod.AsOpenDrain) // during request
 l.Reconfigure(gpiod.AsOpenSource)         // once requested
 ```
 
+The default drive for output lines is push-pull, which drives the line in both
+directions.
+
 ### Line Options
 
 Line attributes are set via options to *Chip.RequestLine(s)* and
-*Line.Reconfigure*<sup>1</sup>.  These override any default which may be set in
-*NewChip*.  Only one option from each category may be applied.  If multiple
-options from a category are applied then all but the last are ignored.
+*Line.Reconfigure*.  These override any default which may be set in *NewChip*.
+Only one option from each category may be applied.  If multiple options from a
+category are applied then all but the last are ignored.
 
 The line options are:
 
@@ -253,21 +259,31 @@ Option | Category | Description
 *AsActiveLow*|Level|Treat a low physical line level as active
 *AsActiveHigh*|Level|Treat a high physical line level as active (default)
 *AsInput*|Direction|Request lines as input
-*AsIs*|Direction|Request lines in their current input/output state (default)
-*AsOutput(\<values\>...)*|Direction|Request lines as output with initial values
-*AsPushPull*|Drive|Request output lines drive both high and low (default)
-*AsOpenDrain*|Drive|Request lines as open drain outputs
-*AsOpenSource*|Drive|Request lines as open source outputs
-*WithFallingEdge(eh)*|Edge|Request lines with falling edge detection, with events passed to the provided event handler
-*WithRisingEdge(eh)*|Edge|Request lines with rising edge detection, with events passed to the provided event handler
-*WithBothEdges(eh)*|Edge|Request lines with rising and falling edge detection, with events passed to the provided event handler
-*WithBiasDisable*|Bias<sup>2</sup>|Request the lines have internal bias disabled
-*WithPullDown*|Bias<sup>2</sup>|Request the lines have internal pull-down enabled
-*WithPullUp*|Bias<sup>2</sup>|Request the lines have internal pull-up enabled
+*AsIs*<sup>2</sup>|Direction|Request lines in their current input/output state (default)
+*AsOutput(\<values\>...)*<sup>3</sup>|Direction|Request lines as output with initial values
+*AsPushPull*|Drive<sup>3</sup>|Request output lines drive both high and low (default)
+*AsOpenDrain*|Drive<sup>3</sup>|Request lines as open drain outputs
+*AsOpenSource*|Drive<sup>3</sup>|Request lines as open source outputs
+*WithFallingEdge(eh)*|Edge<sup>4</sup>|Request lines with falling edge detection, with events passed to the provided event handler
+*WithRisingEdge(eh)*|Edge<sup>4</sup>|Request lines with rising edge detection, with events passed to the provided event handler
+*WithBothEdges(eh)*|Edge<sup>4</sup>|Request lines with rising and falling edge detection, with events passed to the provided event handler
+*WithBiasDisable*|Bias<sup>5</sup>|Request the lines have internal bias disabled
+*WithPullDown*|Bias<sup>5</sup>|Request the lines have internal pull-down enabled
+*WithPullUp*|Bias<sup>5</sup>|Request the lines have internal pull-up enabled
 
-<sup>1</sup> WithConsumer should be provided to either *NewChip* or *Chip.RequestLine(s)* and cannot be used with *Line.Reconfigure*.
+<sup>1</sup> WithConsumer can be provided to either *NewChip* or
+*Chip.RequestLine(s)*, and cannot be used with *Line.Reconfigure*.
 
-<sup>2</sup> Bias options require Linux v5.5 or later.
+<sup>2</sup> The AsIs option can only be provided to *Chip.RequestLine(s)*, and
+cannot be used with *NewChip* or *Line.Reconfigure*.
+
+<sup>3</sup> The AsOutput and Drive options can only be provided to either
+*Chip.RequestLine(s)* or *Line.Reconfigure*, and cannot be used with *NewChip*.
+
+<sup>4</sup> Edge options can only be provided to *Chip.RequestLine(s)*, and
+cannot be used with *NewChip* or *Line.Reconfigure*.
+
+<sup>5</sup> Bias options require Linux v5.5 or later.
 
 ## Tools
 
