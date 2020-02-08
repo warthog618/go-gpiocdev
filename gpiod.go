@@ -8,6 +8,35 @@
 // using the GPIO character device.
 //
 // This is a Go equivalent of libgpiod.
+//
+// Supports:
+// - Line direction (input/output)
+// - Line write (active/inactive)
+// - Line read (active/inactive)
+// - Line bias (pull-up/pull-down/disabled)
+// - Line drive (push-pull/open-drain/open-source)
+// - Line level (active-high/active-low)
+// - Line edge detection (rising/falling/both)
+// - Line labels
+// - Collections of lines for near simultaneous reads and writes on multiple lines
+//
+// Example of use:
+//
+//  c, err := gpiod.NewChip("gpiochip0")
+//  if err != nil {
+//  	panic(err)
+//  }
+//  v := 0
+//  l, err := c.RequestLine(4, gpiod.AsOutput(v))
+//  if err != nil {
+//  	panic(err)
+//  }
+//  for {
+//  	<-time.After(time.Second)
+//  	v ^= 1
+//  	l.SetValue(v)
+//  }
+//
 package gpiod
 
 import (
