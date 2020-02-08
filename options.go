@@ -82,11 +82,20 @@ type InputOption struct{}
 // OpenSource options.
 var AsInput = InputOption{}
 
-func (o InputOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^(uapi.HandleRequestOutput |
+func (o InputOption) updateFlags(f uapi.HandleFlag) uapi.HandleFlag {
+	f &= ^(uapi.HandleRequestOutput |
 		uapi.HandleRequestOpenDrain |
 		uapi.HandleRequestOpenSource)
-	l.HandleFlags |= uapi.HandleRequestInput
+	f |= uapi.HandleRequestInput
+	return f
+}
+
+func (o InputOption) applyChipOption(c *ChipOptions) {
+	c.HandleFlags = o.updateFlags(c.HandleFlags)
+}
+
+func (o InputOption) applyLineOption(l *LineOptions) {
+	l.HandleFlags = o.updateFlags(l.HandleFlags)
 }
 
 func (o InputOption) applyLineConfig(l *LineOptions) {
@@ -155,7 +164,7 @@ var AsActiveLow = LevelOption{uapi.HandleRequestActiveLow}
 // This is the default active level.
 var AsActiveHigh = LevelOption{}
 
-// DriveOption determines if a line is open drain or open source.
+// DriveOption determines if a line is open drain, open source or push-pull.
 type DriveOption struct {
 	flag uapi.HandleFlag
 }
