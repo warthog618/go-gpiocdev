@@ -200,6 +200,8 @@ var AsOpenSource = DriveOption{uapi.HandleRequestOpenSource}
 var AsPushPull = DriveOption{}
 
 // BiasOption indicates how a line is to be biased.
+//
+// Bias options require Linux v5.5 or later.
 type BiasOption struct {
 	flag uapi.HandleFlag
 }
@@ -227,16 +229,22 @@ func (o BiasOption) applyLineConfig(l *LineOptions) {
 // WithBiasDisable indicates that a line have its internal bias disabled.
 //
 // This option overrides and clears any previous bias options.
+//
+// Requires Linux v5.5 or later.
 var WithBiasDisable = BiasOption{uapi.HandleRequestBiasDisable}
 
 // WithPullDown indicates that a line have its internal pull-down enabled.
 //
 // This option overrides and clears any previous bias options.
+//
+// Requires Linux v5.5 or later.
 var WithPullDown = BiasOption{uapi.HandleRequestPullDown}
 
 // WithPullUp indicates that a line have its internal pull-up enabled.
 //
 // This option overrides and clears any previous bias options.
+//
+// Requires Linux v5.5 or later.
 var WithPullUp = BiasOption{uapi.HandleRequestPullUp}
 
 // EdgeOption indicates that a line will generate events when edges are detected.
