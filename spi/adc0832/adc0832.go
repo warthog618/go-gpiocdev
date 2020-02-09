@@ -93,15 +93,7 @@ func (adc *ADC0832) read(ch int, sgl int) (uint8, error) {
 	if ch != 0 {
 		odd = 1
 	}
-	err = s.ClockOut(1) // Start
-	if err != nil {
-		return 0, err
-	}
-	err = s.ClockOut(sgl) // SGL/DIFZ
-	if err != nil {
-		return 0, err
-	}
-	err = s.ClockOut(odd) // ODD/Sign
+	err = adc.clockOutBits(1, sgl, odd) // Start, SGL/DIFZ, ODD/Sign
 	if err != nil {
 		return 0, err
 	}
@@ -116,9 +108,33 @@ func (adc *ADC0832) read(ch int, sgl int) (uint8, error) {
 	}
 
 	// MSB first byte
+	d, err := adc.clockInData()
+	if err != nil {
+		return 0, err
+	}
+
+	// ignore LSB bits - same as MSB just reversed order
+	err = s.Ssz.SetValue(1)
+	if err != nil {
+		return 0, err
+	}
+	return d, nil
+}
+
+func (adc *ADC0832) clockOutBits(vv ...int) error {
+	for _, v := range vv {
+		err := adc.s.ClockOut(v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (adc *ADC0832) clockInData() (uint8, error) {
 	var d uint8
 	for i := uint(0); i < 8; i++ {
-		v, err := s.ClockIn()
+		v, err := adc.s.ClockIn()
 		if err != nil {
 			return 0, err
 		}
@@ -126,11 +142,6 @@ func (adc *ADC0832) read(ch int, sgl int) (uint8, error) {
 		if v != 0 {
 			d = d | 0x01
 		}
-	}
-	// ignore LSB bits - same as MSB just reversed order
-	err = s.Ssz.SetValue(1)
-	if err != nil {
-		return 0, err
 	}
 	return d, nil
 }

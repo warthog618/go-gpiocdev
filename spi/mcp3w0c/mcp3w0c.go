@@ -105,23 +105,13 @@ func (adc *MCP3w0c) read(ch int, sgl int) (uint16, error) {
 		return 0, err
 	}
 
-	err = s.ClockOut(1) // Start
+	bits := []int{1, sgl, 0, 0, 0} // START, SGL/DIFFZ, CH.2, CH.1, CH.0
+	for i := 0; i <= 2; i++ {
+		bits[4-i] = (ch >> uint(i) & 0x01)
+	}
+	err = adc.clockOutBits(bits...)
 	if err != nil {
 		return 0, err
-	}
-	err = s.ClockOut(sgl) // SGL/DIFFZ
-	if err != nil {
-		return 0, err
-	}
-	for i := 2; i >= 0; i-- {
-		d := 0
-		if (ch >> uint(i) & 0x01) == 0x01 {
-			d = 1
-		}
-		err = s.ClockOut(d)
-		if err != nil {
-			return 0, err
-		}
 	}
 	// mux settling
 	if s.Mosi == s.Miso {
@@ -138,9 +128,32 @@ func (adc *MCP3w0c) read(ch int, sgl int) (uint16, error) {
 		return 0, err
 	}
 
+	d, err := adc.clockInData()
+	if err != nil {
+		return 0, err
+	}
+
+	err = s.Ssz.SetValue(1)
+	if err != nil {
+		return 0, err
+	}
+	return d, nil
+}
+
+func (adc *MCP3w0c) clockOutBits(vv ...int) error {
+	for _, v := range vv {
+		err := adc.s.ClockOut(v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (adc *MCP3w0c) clockInData() (uint16, error) {
 	var d uint16
 	for i := uint(0); i < adc.width; i++ {
-		v, err := s.ClockIn()
+		v, err := adc.s.ClockIn()
 		if err != nil {
 			return 0, err
 		}
@@ -148,10 +161,6 @@ func (adc *MCP3w0c) read(ch int, sgl int) (uint16, error) {
 		if v != 0 {
 			d = d | 0x01
 		}
-	}
-	err = s.Ssz.SetValue(1)
-	if err != nil {
-		return 0, err
 	}
 	return d, nil
 }
