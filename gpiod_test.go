@@ -576,6 +576,7 @@ type Platform interface {
 	FloatingLines() []int
 	TriggerIntr(int)
 	ReadOut() int
+	SupportsAsIs() bool
 	Close()
 }
 
@@ -698,6 +699,10 @@ func (c *RaspberryPi) ReadOut() int {
 	return v
 }
 
+func (c *RaspberryPi) SupportsAsIs() bool {
+	return false
+}
+
 func (c *RaspberryPi) TriggerIntr(value int) {
 	if c.wline != nil {
 		c.wline.SetValue(value)
@@ -746,6 +751,10 @@ func (c *Mockup) ReadOut() int {
 		return -1
 	}
 	return v
+}
+
+func (c *Mockup) SupportsAsIs() bool {
+	return true
 }
 
 func (c *Mockup) TriggerIntr(value int) {

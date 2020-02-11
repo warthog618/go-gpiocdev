@@ -81,8 +81,7 @@ func TestAsIs(t *testing.T) {
 	assert.Nil(t, err)
 	inf, err = c.LineInfo(platform.FloatingLines()[0])
 	assert.Nil(t, err)
-	// !!! this fails on Raspberry Pi, but passes on mockup...
-	assert.True(t, inf.IsOut)
+	assert.Equal(t, platform.SupportsAsIs(), inf.IsOut)
 }
 
 func testLineDirectionOption(t *testing.T,
