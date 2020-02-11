@@ -66,43 +66,23 @@ func (adc *ADC0832) read(ch int, sgl int) (uint8, error) {
 	if adc.s == nil {
 		return 0, ErrClosed
 	}
-	s := adc.s
-	err := s.Ssz.SetValue(1)
-	if err != nil {
-		return 0, err
-	}
-	err = s.Sclk.SetValue(0)
-	if err != nil {
-		return 0, err
-	}
-	if s.Mosi == s.Miso {
-		err = s.Mosi.Reconfigure(gpiod.AsOutput(1))
-	} else {
-		err = s.Mosi.SetValue(1)
-	}
-	if err != nil {
-		return 0, err
-	}
-	time.Sleep(adc.s.Tclk)
-	err = s.Ssz.SetValue(0)
+
+	err := selectChip(adc.s)
 	if err != nil {
 		return 0, err
 	}
 
-	odd := 0
-	if ch != 0 {
-		odd = 1
-	}
-	err = adc.clockOutBits(1, sgl, odd) // Start, SGL/DIFZ, ODD/Sign
+	err = selectChannel(adc.s, sgl, ch)
 	if err != nil {
 		return 0, err
 	}
+
 	// mux settling
-	if s.Mosi == s.Miso {
-		s.Miso.Reconfigure(gpiod.AsInput)
+	if adc.s.Mosi == adc.s.Miso {
+		adc.s.Miso.Reconfigure(gpiod.AsInput)
 	}
 	time.Sleep(adc.tset)
-	_, err = s.ClockIn() // sample time - junk
+	_, err = adc.s.ClockIn() // sample time - junk
 	if err != nil {
 		return 0, err
 	}
@@ -114,16 +94,46 @@ func (adc *ADC0832) read(ch int, sgl int) (uint8, error) {
 	}
 
 	// ignore LSB bits - same as MSB just reversed order
-	err = s.Ssz.SetValue(1)
+	err = deselectChip(adc.s)
 	if err != nil {
 		return 0, err
 	}
 	return d, nil
 }
 
-func (adc *ADC0832) clockOutBits(vv ...int) error {
-	for _, v := range vv {
-		err := adc.s.ClockOut(v)
+func selectChip(s *spi.SPI) error {
+	err := s.Ssz.SetValue(1)
+	if err != nil {
+		return err
+	}
+	err = s.Sclk.SetValue(0)
+	if err != nil {
+		return err
+	}
+	if s.Mosi == s.Miso {
+		err = s.Mosi.Reconfigure(gpiod.AsOutput(1))
+	} else {
+		err = s.Mosi.SetValue(1)
+	}
+	if err != nil {
+		return err
+	}
+	time.Sleep(s.Tclk)
+	return s.Ssz.SetValue(0)
+}
+
+func deselectChip(s *spi.SPI) error {
+	return s.Ssz.SetValue(1)
+}
+
+func selectChannel(s *spi.SPI, sgl, ch int) error {
+	odd := 0
+	if ch != 0 {
+		odd = 1
+	}
+	bits := []int{1, sgl, odd} // Start, SGL/DIFZ, ODD/Sign
+	for _, v := range bits {
+		err := s.ClockOut(v)
 		if err != nil {
 			return err
 		}
