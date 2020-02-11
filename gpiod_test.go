@@ -71,7 +71,7 @@ func TestChips(t *testing.T) {
 	requirePlatform(t)
 
 	cc := gpiod.Chips()
-	require.Equal(t, 1, len(cc))
+	require.GreaterOrEqual(t, len(cc), 1)
 	assert.Equal(t, platform.Name(), cc[0])
 }
 
