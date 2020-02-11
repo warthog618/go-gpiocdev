@@ -205,6 +205,9 @@ func testChipLevelOption(t *testing.T, option gpiod.ChipOption,
 	assert.Nil(t, err)
 	assert.Equal(t, info.ActiveLow, inf.ActiveLow)
 
+	// can get initial state events on some platforms (e.g. RPi AsActiveHigh)
+	clearEvents(ich)
+
 	// test correct edge polarity in events
 	testEdgeEventPolarity(t, l, ich, activeLevel)
 }
@@ -593,11 +596,18 @@ func waitEvent(t *testing.T, ch <-chan gpiod.LineEvent, etype gpiod.LineEventTyp
 	}
 }
 
-func waitNoEvent(t *testing.T, ch chan gpiod.LineEvent) {
+func waitNoEvent(t *testing.T, ch <-chan gpiod.LineEvent) {
 	t.Helper()
 	select {
 	case evt := <-ch:
 		assert.Fail(t, "received unexpected event", evt)
+	case <-time.After(20 * time.Millisecond):
+	}
+}
+
+func clearEvents(ch <-chan gpiod.LineEvent) {
+	select {
+	case <-ch:
 	case <-time.After(20 * time.Millisecond):
 	}
 }
