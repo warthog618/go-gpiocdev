@@ -12,6 +12,7 @@ package mockup
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -19,6 +20,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/pilebones/go-udev/netlink"
 	"golang.org/x/sys/unix"
@@ -85,8 +87,14 @@ func New(lines []int, namedLines bool) (*Mockup, error) {
 	if err != nil {
 		return nil, err
 	}
-	evts := make([]netlink.UEvent, 2)
-	um.waitEvents(evts)
+	evts := make([]netlink.UEvent, len(lines))
+	for i := range evts {
+		select {
+		case evts[i] = <-um.queue:
+		case <-time.After(100 * time.Millisecond):
+			return nil, errors.New("timeout waiting for udev events")
+		}
+	}
 	sort.Slice(evts, func(i, j int) bool {
 		return evts[i].Env["DEVNAME"] < evts[j].Env["DEVNAME"]
 	})

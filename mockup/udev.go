@@ -2,6 +2,7 @@ package mockup
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/pilebones/go-udev/netlink"
 )
@@ -29,9 +30,12 @@ func newUdevMonitor() (*udevMonitor, error) {
 	mon := udevMonitor{conn: conn, queue: queue, quit: quit}
 	go func() {
 		for {
-			<-errors
-			//err := <-errors
-			//log.Printf("ERROR: %v", err)
+			select {
+			case err := <-errors:
+				log.Printf("ERROR: %v", err)
+			case <-quit:
+				return
+			}
 		}
 	}()
 	return &mon, nil
@@ -40,10 +44,4 @@ func newUdevMonitor() (*udevMonitor, error) {
 func (m *udevMonitor) close() {
 	m.quit <- struct{}{}
 	m.conn.Close()
-}
-
-func (m *udevMonitor) waitEvents(evts []netlink.UEvent) {
-	for i := range evts {
-		evts[i] = <-m.queue
-	}
 }
