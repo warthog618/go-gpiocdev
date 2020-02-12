@@ -146,6 +146,7 @@ func TestAsInput(t *testing.T) {
 	requirePlatform(t)
 
 	info := gpiod.LineInfo{IsOut: false}
+	testChipAsInputOption(t)
 	testLineDirectionOption(t, gpiod.AsOutput(), gpiod.AsInput, info)
 	testLineDirectionReconfigure(t, gpiod.AsOutput(), gpiod.AsInput, info)
 }
@@ -178,6 +179,33 @@ func testEdgeEventPolarity(t *testing.T, l *gpiod.Line,
 	assert.Equal(t, 1, v)
 	err = l.Close()
 	assert.Nil(t, err)
+}
+
+func testChipAsInputOption(t *testing.T) {
+
+	t.Helper()
+
+	c, err := gpiod.NewChip(platform.Devpath(), gpiod.AsInput)
+
+	assert.Nil(t, err)
+	require.NotNil(t, c)
+	defer c.Close()
+
+	// force line to output
+	l, err := c.RequestLine(platform.OutLine(),
+		gpiod.AsOutput(0))
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	l.Close()
+
+	// request with Chip default
+	l, err = c.RequestLine(platform.OutLine())
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	inf, err := c.LineInfo(platform.OutLine())
+	assert.Nil(t, err)
+	assert.False(t, inf.IsOut)
 }
 
 func testChipLevelOption(t *testing.T, option gpiod.ChipOption,
