@@ -7,7 +7,8 @@
 
 A native Go library for Linux GPIO.
 
-**gpiod** is a library for accessing GPIO pins/lines on Linux platforms using the GPIO character device.
+**gpiod** is a library for accessing GPIO pins/lines on Linux platforms using
+the GPIO character device.
 
 The goal of this library is to provide the Go equivalent of the C
 **[libgpiod](https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/)**
@@ -47,7 +48,7 @@ Error handling is omitted from the following examples for brevity.
 The Chip object is used to request lines from a GPIO chip.
 
 A Chip object is constructed using the
-[NewChip](https://pkg.go.dev/github.com/warthog618/gpiod#NewChip) function.
+[*NewChip*](https://pkg.go.dev/github.com/warthog618/gpiod#NewChip) function.
 
 ```go
 c, _ := gpiod.NewChip("gpiochip0")
@@ -58,15 +59,13 @@ the **/dev** directory, so in this example **/dev/gpiochip0**.
 
 Default attributes for Lines requested from the Chip can be set via
 [options](#line-options) to
-[NewChip](https://pkg.go.dev/github.com/warthog618/gpiod#NewChip).
+[*NewChip*](https://pkg.go.dev/github.com/warthog618/gpiod#NewChip).
 
 ```go
 c, _ := gpiod.NewChip("gpiochip0", gpiod.WithConsumer("myapp"))
 ```
 
-In this example the consumer label is defaulted to "myapp". Only the line
-options from the Info, Level and Bias categories may be defaulted via the
-*NewChip*.
+In this example the consumer label is defaulted to "myapp".
 
 When no longer required, the chip should be closed to release resources:
 
@@ -82,7 +81,7 @@ requested from the chip.
 To alter the state of a
 [line](https://pkg.go.dev/github.com/warthog618/gpiod#Line) it must first be
 requested from the Chip, using
-[Chip.RequestLine](https://pkg.go.dev/github.com/warthog618/gpiod#Chip.RequestLine):
+[*Chip.RequestLine*](https://pkg.go.dev/github.com/warthog618/gpiod#Chip.RequestLine):
 
 ```go
 l, _ := c.RequestLine(4)                    // in its existing state
@@ -105,14 +104,14 @@ l, _ := c.RequestLine(4,gpiod.AsOutput(1))  // as an output line
 
 Multiple lines from the same chip may be requested as a collection of
 [lines](https://pkg.go.dev/github.com/warthog618/gpiod#Lines) using
-[Chip.RequestLines](https://pkg.go.dev/github.com/warthog618/gpiod#Chip.RequestLines):
+[*Chip.RequestLines*](https://pkg.go.dev/github.com/warthog618/gpiod#Chip.RequestLines):
 
 ```go
 ll, _ := c.RequestLines([]int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1))
 ```
 
-Note that [line options](#line-options) applied to a collection of lines apply to all
-lines in the collection.
+Note that [line options](#line-options) applied to a collection of lines apply
+to all lines in the collection.
 
 When no longer required, the line(s) should be closed to release resources:
 
@@ -124,7 +123,9 @@ ll.Close()
 ### Line Info
 
 [Info](https://pkg.go.dev/github.com/warthog618/gpiod#LineInfo) about a line can
-be read at any time from the chip:
+be read at any time from the chip using the
+[*LineInfo*](https://pkg.go.dev/github.com/warthog618/gpiod#Chip.LineInfo)
+method:
 
 ```go
 inf, _ := c.LineInfo(4)
@@ -137,6 +138,7 @@ read from the line:
 
 ```go
 inf, _ := l.Info()
+infs, _ := ll.Info()
 ```
 
 ### Direction
@@ -152,23 +154,43 @@ l.Reconfigure(gpiod.AsOutput(0))       // set direction to Output (and value to 
 
 ### Read Input
 
+The current line level can be read with the
+[*Value*](https://pkg.go.dev/github.com/warthog618/gpiod#Line.Value)
+method:
+
 ```go
 r, _ := l.Value()  // Read state from line (active / inactive)
+```
 
+For collections of lines, the level of all lines is read simultaneously using
+the [*Values*](https://pkg.go.dev/github.com/warthog618/gpiod#Lines.SetValues)
+method:
+
+```go
 rr := []int{0, 0, 0, 0} // buffer to read into...
 ll.Values(rr)           // Read the state of a collection of lines
 ```
 
 ### Write Output
 
+The current line level can be set with the
+[*SetValue*](https://pkg.go.dev/github.com/warthog618/gpiod#Line.SetValue)
+method:
+
 ```go
 l.SetValue(1)     // Set line active
 l.SetValue(0)     // Set line inactive
-
-ll.SetValues([]int{0, 1, 0, 1}) // Set a collection of lines
 ```
 
-Also see the [blinker](example/blinker/blinker.go) example.
+Also refer to the [blinker](example/blinker/blinker.go) example.
+
+For collections of lines, all lines are set simultaneously using the
+[*SetValues*](https://pkg.go.dev/github.com/warthog618/gpiod#Lines.SetValues)
+method:
+
+```go
+ll.SetValues([]int{0, 1, 0, 1}) // Set a collection of lines
+```
 
 ### Watches
 
@@ -177,8 +199,10 @@ functions.
 
 The watch can be on rising or falling edges, or both.
 
-The handler function is passed the details of the event, which includes the
-triggering pin, the time the edge was detected and the type of edge detected:
+The handler function is passed a
+[*LineEvent*](https://pkg.go.dev/github.com/warthog618/gpiod#LineEvent), which
+contains the offset of the triggering line, the time the edge was detected and
+the type of edge detected:
 
 ```go
 func handler(evt gpiod.LineEvent) {
@@ -198,7 +222,9 @@ Also see the [watcher](example/watcher/watcher.go) example.
 
 ### Find
 
-Lines can be found by the GPIO label name returned in line info and set by device-tree:
+Lines can be found by the GPIO label name as returned in line info and set by
+device-tree using the
+[*FindLine*](https://pkg.go.dev/github.com/warthog618/gpiod#FindLine) function:
 
 ```go
 chipname, offset, _ := gpiod.FindLine("LED A")

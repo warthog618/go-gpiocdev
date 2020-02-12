@@ -31,7 +31,9 @@ func main() {
 	inf, _ := c.LineInfo(2)
 	inf, _ = c.LineInfo(rpi.J8p7)
 	inf, _ = l.Info()
+	infs, _ := ll.Info()
 	fmt.Printf("name: %s\n", inf.Name)
+	fmt.Printf("name: %s\n", infs[0].Name)
 
 	// Active Level
 	l, _ = c.RequestLine(4, gpiod.AsActiveLow) // during request
@@ -67,7 +69,6 @@ func main() {
 
 	// Chip Initialisation (2)
 	c.Close()
-
 }
 
 func find() *gpiod.Line {
@@ -79,5 +80,5 @@ func find() *gpiod.Line {
 }
 
 func handler(evt gpiod.LineEvent) {
-	// handle change in pin value
+	// handle change in line state
 }
