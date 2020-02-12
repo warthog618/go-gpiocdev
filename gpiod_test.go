@@ -8,6 +8,7 @@ package gpiod_test
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"testing"
@@ -15,28 +16,30 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/warthog618/gpiod"
+	"github.com/warthog618/gpiod/device/rpi"
 	"github.com/warthog618/gpiod/mockup"
 	"github.com/warthog618/gpiod/uapi"
 	"golang.org/x/sys/unix"
 )
 
 var platform Platform
-var setupError error
 
 func TestMain(m *testing.M) {
-	detectPlatform()
-	if platform == nil {
-		fmt.Println("Platform not supported -", setupError)
+	var pname string
+	flag.StringVar(&pname, "platform", "mockup", "test platform")
+	flag.Parse()
+	p, err := newPlatform(pname)
+	if err != nil {
+		fmt.Println("Platform not supported -", err)
 		os.Exit(-1)
 	}
+	platform = p
 	rc := m.Run()
 	platform.Close()
 	os.Exit(rc)
 }
 
 func TestNewChip(t *testing.T) {
-	requirePlatform(t)
-
 	// non-existent
 	c, err := gpiod.NewChip(platform.Devpath() + "not")
 	assert.NotNil(t, err)
@@ -68,15 +71,12 @@ func TestNewChip(t *testing.T) {
 }
 
 func TestChips(t *testing.T) {
-	requirePlatform(t)
-
 	cc := gpiod.Chips()
 	require.GreaterOrEqual(t, len(cc), 1)
-	assert.Equal(t, platform.Name(), cc[0])
+	assert.Contains(t, cc, platform.Name())
 }
 
 func TestFindLine(t *testing.T) {
-	requirePlatform(t)
 	cname, n, err := gpiod.FindLine(platform.IntrName())
 	assert.Nil(t, err)
 	intr := platform.IntrLine()
@@ -94,8 +94,6 @@ func TestFindLine(t *testing.T) {
 }
 
 func TestChipClose(t *testing.T) {
-	requirePlatform(t)
-
 	// without lines
 	c := getChip(t)
 	err := c.Close()
@@ -131,7 +129,6 @@ func TestChipClose(t *testing.T) {
 }
 
 func TestChipFindLine(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	n, err := c.FindLine(platform.IntrName())
 	assert.Nil(t, err)
@@ -148,7 +145,6 @@ func TestChipFindLine(t *testing.T) {
 }
 
 func TestChipFindLines(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	nn, err := c.FindLines(platform.IntrName(), platform.IntrName())
 	assert.Nil(t, err)
@@ -165,7 +161,6 @@ func TestChipFindLines(t *testing.T) {
 }
 
 func TestChipLineInfo(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	xli := gpiod.LineInfo{}
 
@@ -190,7 +185,6 @@ func TestChipLineInfo(t *testing.T) {
 }
 
 func TestChipLines(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	defer c.Close()
 	lines := c.Lines()
@@ -198,7 +192,6 @@ func TestChipLines(t *testing.T) {
 }
 
 func TestChipRequestLine(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	defer c.Close()
 
@@ -238,7 +231,6 @@ func TestChipRequestLine(t *testing.T) {
 }
 
 func TestChipRequestLines(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	defer c.Close()
 
@@ -278,7 +270,6 @@ func TestChipRequestLines(t *testing.T) {
 }
 
 func TestLineChip(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	defer c.Close()
 	l, err := c.RequestLine(platform.IntrLine())
@@ -290,7 +281,6 @@ func TestLineChip(t *testing.T) {
 }
 
 func TestLineClose(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	defer c.Close()
 	l, err := c.RequestLine(platform.IntrLine())
@@ -304,7 +294,6 @@ func TestLineClose(t *testing.T) {
 }
 
 func TestLineInfo(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	defer c.Close()
 	l, err := c.RequestLine(platform.IntrLine())
@@ -320,7 +309,6 @@ func TestLineInfo(t *testing.T) {
 }
 
 func TestLineOffset(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	defer c.Close()
 	l, err := c.RequestLine(platform.IntrLine())
@@ -332,7 +320,6 @@ func TestLineOffset(t *testing.T) {
 }
 
 func TestLineValue(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	defer c.Close()
 
@@ -351,7 +338,6 @@ func TestLineValue(t *testing.T) {
 }
 
 func TestLineSetValue(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	defer c.Close()
 
@@ -374,7 +360,6 @@ func TestLineSetValue(t *testing.T) {
 }
 
 func TestLinesChip(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	defer c.Close()
 	l, err := c.RequestLines(platform.FloatingLines())
@@ -386,7 +371,6 @@ func TestLinesChip(t *testing.T) {
 }
 
 func TestLinesClose(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	defer c.Close()
 	l, err := c.RequestLines(platform.FloatingLines())
@@ -400,7 +384,6 @@ func TestLinesClose(t *testing.T) {
 }
 
 func TestLinesInfo(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	defer c.Close()
 	l, err := c.RequestLines(platform.FloatingLines())
@@ -420,7 +403,6 @@ func TestLinesInfo(t *testing.T) {
 }
 
 func TestLineOffsets(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	defer c.Close()
 	l, err := c.RequestLines(platform.FloatingLines())
@@ -432,7 +414,6 @@ func TestLineOffsets(t *testing.T) {
 }
 
 func TestLinesValues(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	defer c.Close()
 
@@ -470,7 +451,6 @@ func TestLinesValues(t *testing.T) {
 }
 
 func TestLinesSetValues(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	defer c.Close()
 
@@ -580,13 +560,6 @@ type Platform interface {
 	Close()
 }
 
-func requirePlatform(t *testing.T) {
-	t.Helper()
-	if platform == nil {
-		t.Skip("Platform not supported -", setupError)
-	}
-}
-
 type RaspberryPi struct {
 	gpiochip
 	chip  *gpiod.Chip
@@ -614,8 +587,9 @@ func isPi(path string) error {
 }
 
 func newPi(path string) (*RaspberryPi, error) {
-	// from here on we know we have a Raspberry Pi, so any errors should be
-	// fatal.
+	if err := isPi(path); err != nil {
+		return nil, err
+	}
 	ch, err := gpiod.NewChip(path)
 	if err != nil {
 		return nil, err
@@ -631,10 +605,10 @@ func newPi(path string) (*RaspberryPi, error) {
 			label:     "pinctrl-bcm2835",
 			devpath:   path,
 			lines:     int(ch.Lines()),
-			intro:     J8p15,
+			intro:     rpi.J8p15,
 			introName: "",
-			outo:      J8p16,
-			ff:        []int{J8p11, J8p12},
+			outo:      rpi.J8p16,
+			ff:        []int{rpi.J8p11, rpi.J8p12},
 		},
 		chip: ch,
 	}
@@ -761,52 +735,13 @@ func (c *Mockup) TriggerIntr(value int) {
 	c.c.SetValue(c.intro, value)
 }
 
-func detectPlatform() {
-	path := "/dev/gpiochip0"
-	if isPi(path) == nil {
-		if pi, err := newPi(path); err == nil {
-			platform = pi
-		} else {
-			setupError = err
-		}
-		return
+func newPlatform(pname string) (Platform, error) {
+	switch pname {
+	case "mockup":
+		return newMockup()
+	case "rpi":
+		return newPi("/dev/gpiochip0")
+	default:
+		return nil, fmt.Errorf("unknown platform '%s'", pname)
 	}
-	mock, err := newMockup()
-	if err != nil {
-		setupError = err
-		return
-	}
-	platform = mock
 }
-
-// Raspberry Pi BCM GPIO pins
-const (
-	J8p27 = iota
-	J8p28
-	J8p3
-	J8p5
-	J8p7
-	J8p29
-	J8p31
-	J8p26
-	J8p24
-	J8p21
-	J8p19
-	J8p23
-	J8p32
-	J8p33
-	J8p8
-	J8p10
-	J8p36
-	J8p11
-	J8p12
-	J8p35
-	J8p38
-	J8p40
-	J8p15
-	J8p16
-	J8p18
-	J8p22
-	J8p37
-	J8p13
-)

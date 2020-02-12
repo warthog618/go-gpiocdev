@@ -361,12 +361,25 @@ gpiomon | Report edges detected on a line or set of lines on one gpiochip.
 The library is fully tested, other than some error cases and sanity checks that
 are difficult to trigger.
 
+The tests require a kernel release 5.1.0 or later to run.  For all the tests to
+pass a kernel 5.5.0 or later is required.
+
+The test user must have access to the **/dev/gpiochip0** character device.
+
 ### Platforms
 
 The tests can be run on either of two platforms:
 
+- gpio-mockup (default)
 - Raspberry Pi
-- gpio-mockup
+
+#### gpio-mockup
+
+The gpio-mockup platform is any Linux platform with a recent kernel that supports
+the **gpio-mockup** loadable module. **gpio-mockup** must be built as a module
+and the test user must have rights to load and unload the module.
+
+The **gpio-mockup** is the default platform for tests and benchmarks as it does not interact with physical hardware and so is always safe to run.
 
 #### Raspberry Pi
 
@@ -375,7 +388,11 @@ On Raspberry Pi, the tests are intended to be run on a board with J8 pins 11 and
 across the header.  The tests set J8 pins 11, 12 and 16 to outputs so **DO NOT**
 run them on hardware where any of those pins is being externally driven.
 
-The test user must have access to the **/dev/gpiochip0** character device.
+The Raspberry Pi platform is selected by specifying the platform parameter on the test command line:
+
+```sh
+go test -platform=rpi
+```
 
 Tests have been run successfully on Raspberry Pi Zero W and Pi 4B.  The library
 should also work on other Raspberry Pi variants, I just haven't gotten around to
@@ -389,16 +406,6 @@ GOOS=linux GOARCH=arm GOARM=6 go test -c
 
 Later Pis can also use ARM7 (GOARM=7).
 
-#### gpio-mockup
-
-Other than the Raspberry Pi, the tests can be run on any Linux platform with a
-recent kernel that supports the **gpio-mockup** loadable module.
-**gpio-mockup** must be built as a module and the test user must have rights to
-load and unload the module.
-
-The tests require a kernel release 5.1.0 or later to run.  For all the tests to
-pass a kernel 5.5.0 or later is required.
-
 ### Benchmarks
 
 The tests include benchmarks on reads, writes, bulk reads and writes,  and
@@ -407,7 +414,7 @@ interrupt latency.
 These are the results from a Raspberry Pi Zero W built with Go 1.13:
 
 ```sh
-$ ./gpiod.test -test.bench=.*
+$ ./gpiod.test -platform=rpi -test.bench=.*
 goos: linux
 goarch: arm
 pkg: gpiod

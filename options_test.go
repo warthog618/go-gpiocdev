@@ -16,8 +16,6 @@ import (
 )
 
 func TestWithConsumer(t *testing.T) {
-	requirePlatform(t)
-
 	// default from chip
 	c, err := gpiod.NewChip(platform.Devpath(),
 		gpiod.WithConsumer("gpiod-test-chip"))
@@ -45,7 +43,6 @@ func TestWithConsumer(t *testing.T) {
 }
 
 func TestAsIs(t *testing.T) {
-	requirePlatform(t)
 	c := getChip(t)
 	defer c.Close()
 
@@ -143,8 +140,6 @@ func testLineDirectionReconfigure(t *testing.T, createOption gpiod.LineOption,
 }
 
 func TestAsInput(t *testing.T) {
-	requirePlatform(t)
-
 	info := gpiod.LineInfo{IsOut: false}
 	testChipAsInputOption(t)
 	testLineDirectionOption(t, gpiod.AsOutput(), gpiod.AsInput, info)
@@ -152,12 +147,9 @@ func TestAsInput(t *testing.T) {
 }
 
 func TestAsOutput(t *testing.T) {
-	requirePlatform(t)
-
 	info := gpiod.LineInfo{IsOut: true}
 	testLineDirectionOption(t, gpiod.AsInput, gpiod.AsOutput(), info)
 	testLineDirectionReconfigure(t, gpiod.AsInput, gpiod.AsOutput(), info)
-
 }
 
 func testEdgeEventPolarity(t *testing.T, l *gpiod.Line,
@@ -318,8 +310,6 @@ func testLineLevelReconfigure(t *testing.T, createOption gpiod.LineOption,
 }
 
 func TestAsActiveLow(t *testing.T) {
-	requirePlatform(t)
-
 	info := gpiod.LineInfo{ActiveLow: true}
 	testChipLevelOption(t, gpiod.AsActiveLow, info, 0)
 	testLineLevelOptionInput(t, gpiod.AsActiveLow, info, 0)
@@ -328,8 +318,6 @@ func TestAsActiveLow(t *testing.T) {
 }
 
 func TestAsActiveHigh(t *testing.T) {
-	requirePlatform(t)
-
 	info := gpiod.LineInfo{ActiveLow: false}
 	testChipLevelOption(t, gpiod.AsActiveHigh, info, 1)
 	testLineLevelOptionInput(t, gpiod.AsActiveHigh, info, 1)
@@ -390,8 +378,6 @@ func testLineDriveReconfigure(t *testing.T, createOption gpiod.LineOption,
 }
 
 func TestAsOpenDrain(t *testing.T) {
-	requirePlatform(t)
-
 	info := gpiod.LineInfo{OpenDrain: true}
 	// Testing float high requires specific hardware, so assume that is
 	// covered by the kernel anyway...
@@ -400,8 +386,6 @@ func TestAsOpenDrain(t *testing.T) {
 }
 
 func TestAsOpenSource(t *testing.T) {
-	requirePlatform(t)
-
 	info := gpiod.LineInfo{OpenSource: true}
 	// Testing float low requires specific hardware, so assume that is
 	// covered by the kernel anyway.
@@ -410,8 +394,6 @@ func TestAsOpenSource(t *testing.T) {
 }
 
 func TestAsPushPull(t *testing.T) {
-	requirePlatform(t)
-
 	info := gpiod.LineInfo{}
 	testLineDriveOption(t, gpiod.AsPushPull, info, 0, 1)
 	testLineDriveReconfigure(t, gpiod.AsOpenDrain, gpiod.AsPushPull, info, 0, 1)
@@ -498,8 +480,6 @@ func testLineBiasReconfigure(t *testing.T, createOption gpiod.LineOption,
 }
 
 func TestWithBiasDisable(t *testing.T) {
-	requirePlatform(t)
-
 	info := gpiod.LineInfo{BiasDisable: true}
 	// can't test value - is indeterminate without external bias.
 	testChipBiasOption(t, gpiod.WithBiasDisable, info, -1)
@@ -508,16 +488,12 @@ func TestWithBiasDisable(t *testing.T) {
 }
 
 func TestWithPullDown(t *testing.T) {
-	requirePlatform(t)
-
 	info := gpiod.LineInfo{PullDown: true}
 	testChipBiasOption(t, gpiod.WithPullDown, info, 0)
 	testLineBiasOption(t, gpiod.WithPullDown, info, 0)
 	testLineBiasReconfigure(t, gpiod.WithPullUp, gpiod.WithPullDown, info, 0)
 }
 func TestWithPullUp(t *testing.T) {
-	requirePlatform(t)
-
 	info := gpiod.LineInfo{PullUp: true}
 	testChipBiasOption(t, gpiod.WithPullUp, info, 1)
 	testLineBiasOption(t, gpiod.WithPullUp, info, 1)
@@ -525,7 +501,6 @@ func TestWithPullUp(t *testing.T) {
 }
 
 func TestWithFallingEdge(t *testing.T) {
-	requirePlatform(t)
 	platform.TriggerIntr(1)
 	c := getChip(t)
 	defer c.Close()
@@ -552,7 +527,6 @@ func TestWithFallingEdge(t *testing.T) {
 }
 
 func TestWithRisingEdge(t *testing.T) {
-	requirePlatform(t)
 	platform.TriggerIntr(0)
 	c := getChip(t)
 	defer c.Close()
@@ -579,7 +553,6 @@ func TestWithRisingEdge(t *testing.T) {
 }
 
 func TestWithBothEdges(t *testing.T) {
-	requirePlatform(t)
 	platform.TriggerIntr(0)
 	c := getChip(t)
 	defer c.Close()
