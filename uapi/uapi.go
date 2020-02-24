@@ -263,20 +263,17 @@ type LineInfo struct {
 //
 // This is returned via the chip fd in response to changes to watched lines.
 type LineInfoChanged struct {
+	// The updated info.
+	Info LineInfo
+
 	// The time the change occured.
 	Timestamp uint64
 
 	// The type of change.
 	Type ChangeType
 
-	// The updated info.
-	Info LineInfo
-
 	// reserved for future use.
-	_ [4]uint32
-
-	// pad to workaround 64bit OS padding - if not __packed
-	//_ uint32
+	_ [5]uint32
 }
 
 // ChangeType indicates the type of change that has occured to a line.
