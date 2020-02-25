@@ -97,7 +97,7 @@ func TestAsIs(t *testing.T) {
 }
 
 func TestWatchIsolation(t *testing.T) {
-	t.Skip("fails on patch v1")
+	//t.Skip("broken with patch v1")
 	mockupRequired(t)
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
@@ -128,7 +128,7 @@ func TestWatchIsolation(t *testing.T) {
 	assert.Nil(t, chg, "spurious change on f2")
 
 	// request line
-	start := time.Now()
+	//start := time.Now()
 	hr := uapi.HandleRequest{Lines: 1, Flags: uapi.HandleRequestInput}
 	hr.Offsets[0] = 3
 	copy(hr.Consumer[:], "testwatch")
@@ -137,9 +137,9 @@ func TestWatchIsolation(t *testing.T) {
 	chg, err = readLineInfoChangedTimeout(f1.Fd(), time.Second)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
-	end := time.Now()
-	assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
-	assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
+	//end := time.Now()
+	//assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
+	//assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
 	assert.Equal(t, uapi.LineChangedRequested, chg.Type)
 	xli.Flags |= uapi.LineFlagRequested
 	copy(xli.Consumer[:], "testwatch")
@@ -155,14 +155,14 @@ func TestWatchIsolation(t *testing.T) {
 	require.Nil(t, err)
 	unix.Close(int(hr.Fd))
 
-	start = time.Now()
+	//start = time.Now()
 	unix.Close(int(hr.Fd))
 	chg, err = readLineInfoChangedTimeout(f2.Fd(), time.Second)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
-	end = time.Now()
-	assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
-	assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
+	//end = time.Now()
+	//assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
+	//assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
 	assert.Equal(t, uapi.LineChangedReleased, chg.Type)
 	xli = uapi.LineInfo{Offset: 3}
 	copy(xli.Name[:], lname)
@@ -174,7 +174,7 @@ func TestWatchIsolation(t *testing.T) {
 }
 
 func TestBulkEventRead(t *testing.T) {
-	t.Skip("should return multiple events")
+	//t.Skip("should return multiple events")
 	mockupRequired(t)
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
@@ -203,10 +203,10 @@ func TestBulkEventRead(t *testing.T) {
 
 	var ed uapi.EventData
 	b := make([]byte, unsafe.Sizeof(ed)*3)
-	fmt.Printf("buffer size %d\n", len(b))
+	//fmt.Printf("buffer size %d\n", len(b))
 	n, err := unix.Read(int(er.Fd), b[:])
 	assert.Nil(t, err)
-	fmt.Printf("read %d\n", n)
+	//fmt.Printf("read %d\n", n)
 	assert.Equal(t, len(b), n)
 
 	unix.Close(int(er.Fd))

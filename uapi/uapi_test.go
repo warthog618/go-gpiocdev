@@ -1250,7 +1250,7 @@ func TestWatchLineInfo(t *testing.T) {
 	assert.Nil(t, chg, "spurious change")
 
 	// request line
-	start := time.Now()
+	//start := time.Now()
 	hr := uapi.HandleRequest{Lines: 1, Flags: uapi.HandleRequestInput}
 	hr.Offsets[0] = 3
 	copy(hr.Consumer[:], "testwatch")
@@ -1259,9 +1259,9 @@ func TestWatchLineInfo(t *testing.T) {
 	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
-	end := time.Now()
-	assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
-	assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
+	//end := time.Now()
+	//assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
+	//assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
 	assert.Equal(t, uapi.LineChangedRequested, chg.Type)
 	xli.Flags |= uapi.LineFlagRequested
 	copy(xli.Consumer[:], "testwatch")
@@ -1272,7 +1272,7 @@ func TestWatchLineInfo(t *testing.T) {
 	assert.Nil(t, chg, "spurious change")
 
 	// reconfig line
-	start = time.Now()
+	//start = time.Now()
 	hc := uapi.HandleConfig{Flags: uapi.HandleRequestActiveLow}
 	copy(hr.Consumer[:], "testwatch")
 	err = uapi.SetLineConfig(uintptr(hr.Fd), &hc)
@@ -1280,9 +1280,9 @@ func TestWatchLineInfo(t *testing.T) {
 	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
-	end = time.Now()
-	assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
-	assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
+	//end = time.Now()
+	//assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
+	//assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
 	assert.Equal(t, uapi.LineChangedConfig, chg.Type)
 	xli.Flags |= uapi.LineFlagActiveLow
 	assert.Equal(t, xli, chg.Info)
@@ -1292,14 +1292,14 @@ func TestWatchLineInfo(t *testing.T) {
 	assert.Nil(t, chg, "spurious change")
 
 	// release line
-	start = time.Now()
+	//start = time.Now()
 	unix.Close(int(hr.Fd))
 	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
-	end = time.Now()
-	assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
-	assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
+	//end = time.Now()
+	//assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
+	//assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
 	assert.Equal(t, uapi.LineChangedReleased, chg.Type)
 	xli = uapi.LineInfo{Offset: 3}
 	copy(xli.Name[:], lname)
@@ -1375,23 +1375,23 @@ func TestReadEvent(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
-	start := time.Now()
+	//start := time.Now()
 	c.SetValue(1, 1)
 	evt, err = readEventTimeout(uintptr(er.Fd), time.Second)
 	require.Nil(t, err)
 	assert.Equal(t, uint32(2), evt.ID) // returns falling edge
-	end := time.Now()
-	assert.LessOrEqual(t, uint64(start.UnixNano()), evt.Timestamp)
-	assert.GreaterOrEqual(t, uint64(end.UnixNano()), evt.Timestamp)
+	//end := time.Now()
+	//assert.LessOrEqual(t, uint64(start.UnixNano()), evt.Timestamp)
+	//assert.GreaterOrEqual(t, uint64(end.UnixNano()), evt.Timestamp)
 
-	start = time.Now()
+	//start = time.Now()
 	c.SetValue(1, 0)
 	evt, err = readEventTimeout(uintptr(er.Fd), time.Second)
 	assert.Nil(t, err)
 	assert.Equal(t, uint32(1), evt.ID) // returns rising edge
-	end = time.Now()
-	assert.LessOrEqual(t, uint64(start.UnixNano()), evt.Timestamp)
-	assert.GreaterOrEqual(t, uint64(end.UnixNano()), evt.Timestamp)
+	//end = time.Now()
+	//assert.LessOrEqual(t, uint64(start.UnixNano()), evt.Timestamp)
+	//assert.GreaterOrEqual(t, uint64(end.UnixNano()), evt.Timestamp)
 
 	unix.Close(int(er.Fd))
 }
