@@ -1232,11 +1232,22 @@ func TestWatchLineInfo(t *testing.T) {
 	require.Nil(t, err)
 	defer f.Close()
 
+	// unwatched
+	hr := uapi.HandleRequest{Lines: 1, Flags: uapi.HandleRequestInput}
+	hr.Offsets[0] = 3
+	copy(hr.Consumer[:], "testwatch")
+	err = uapi.GetLineHandle(f.Fd(), &hr)
+	assert.Nil(t, err)
+	chg, err := readLineInfoChangedTimeout(f.Fd(), time.Second)
+	assert.Nil(t, err)
+	assert.Nil(t, chg, "spurious change")
+	unix.Close(int(hr.Fd))
+
+	// set watch
 	li := uapi.LineInfo{Offset: uint32(c.Lines + 1)}
 	err = uapi.WatchLineInfo(f.Fd(), &li)
 	require.Equal(t, syscall.Errno(0x16), err)
 
-	// set watch
 	li = uapi.LineInfo{Offset: 3}
 	lname := c.Label + "-3"
 	err = uapi.WatchLineInfo(f.Fd(), &li)
@@ -1245,13 +1256,13 @@ func TestWatchLineInfo(t *testing.T) {
 	copy(xli.Name[:], lname)
 	assert.Equal(t, xli, li)
 
-	chg, err := readLineInfoChangedTimeout(f.Fd(), time.Second)
+	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")
 
 	// request line
 	//start := time.Now()
-	hr := uapi.HandleRequest{Lines: 1, Flags: uapi.HandleRequestInput}
+	hr = uapi.HandleRequest{Lines: 1, Flags: uapi.HandleRequestInput}
 	hr.Offsets[0] = 3
 	copy(hr.Consumer[:], "testwatch")
 	err = uapi.GetLineHandle(f.Fd(), &hr)
