@@ -1535,7 +1535,7 @@ func lineFromHandle(hf uapi.HandleFlag) uapi.LineFlag {
 
 func requireKernel(t *testing.T, min version) {
 	if err := mockup.CheckKernelVersion([]byte(min)); err != nil {
-		t.Skip(fmt.Sprintf("Requires kernel v%s", min))
+		t.Skip(fmt.Sprintf("Requires kernel v%s or later", min))
 	}
 }
 
