@@ -26,7 +26,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	mockupReload()
+	reloadMockup()
 	rc := m.Run()
 	if mock != nil {
 		mock.Close()
@@ -34,14 +34,14 @@ func TestMain(m *testing.M) {
 	os.Exit(rc)
 }
 
-func mockupReload() {
+func reloadMockup() {
 	if mock != nil {
 		mock.Close()
 	}
 	mock, setupError = mockup.New([]int{4, 8}, true)
 }
 
-func mockupRequired(t *testing.T) {
+func requireMockup(t *testing.T) {
 	t.Helper()
 	if setupError != nil {
 		t.Fail()
@@ -50,8 +50,8 @@ func mockupRequired(t *testing.T) {
 }
 
 func TestGetChipInfo(t *testing.T) {
-	mockupReload() // test assumes clean mockups
-	mockupRequired(t)
+	reloadMockup() // test assumes clean mockups
+	requireMockup(t)
 	for n := 0; n < mock.Chips(); n++ {
 		c, err := mock.Chip(n)
 		require.Nil(t, err)
@@ -78,7 +78,7 @@ func TestGetChipInfo(t *testing.T) {
 }
 
 func TestGetLineInfo(t *testing.T) {
-	mockupRequired(t)
+	requireMockup(t)
 	for n := 0; n < mock.Chips(); n++ {
 		c, err := mock.Chip(n)
 		require.Nil(t, err)
@@ -108,7 +108,7 @@ func TestGetLineInfo(t *testing.T) {
 }
 
 func TestGetLineEvent(t *testing.T) {
-	mockupRequired(t)
+	requireMockup(t)
 	patterns := []struct {
 		name       string // unique name for pattern (hf/ef/offsets/xval combo)
 		cnum       int
@@ -276,7 +276,7 @@ func TestGetLineEvent(t *testing.T) {
 }
 
 func TestGetLineHandle(t *testing.T) {
-	mockupRequired(t)
+	requireMockup(t)
 	patterns := []struct {
 		name       string // unique name for pattern (hf/ef/offsets/xval combo)
 		cnum       int
@@ -483,7 +483,7 @@ func TestGetLineHandle(t *testing.T) {
 }
 
 func TestGetLineValues(t *testing.T) {
-	mockupRequired(t)
+	requireMockup(t)
 	patterns := []struct {
 		name       string // unique name for pattern (hf/ef/offsets/xval combo)
 		cnum       int
@@ -694,7 +694,7 @@ func TestGetLineValues(t *testing.T) {
 }
 
 func TestSetLineValues(t *testing.T) {
-	mockupRequired(t)
+	requireMockup(t)
 	patterns := []struct {
 		name       string // unique name for pattern (hf/ef/offsets/xval combo)
 		cnum       int
@@ -852,7 +852,7 @@ func TestSetLineValues(t *testing.T) {
 }
 
 func TestSetLineHandleConfig(t *testing.T) {
-	mockupRequired(t)
+	requireMockup(t)
 	patterns := []struct {
 		name        string
 		cnum        int
@@ -1143,7 +1143,8 @@ func TestSetLineHandleConfig(t *testing.T) {
 }
 
 func TestSetLineEventConfig(t *testing.T) {
-	mockupRequired(t)
+	requireKernel(t, []byte{5, 5, 0})
+	requireMockup(t)
 	patterns := []struct {
 		name        string
 		cnum        int
@@ -1224,7 +1225,8 @@ func TestSetLineEventConfig(t *testing.T) {
 func TestWatchLineInfo(t *testing.T) {
 	// also covers ReadLineInfoChanged
 
-	mockupRequired(t)
+	requireKernel(t, []byte{5, 7, 0})
+	requireMockup(t)
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
 
@@ -1261,7 +1263,6 @@ func TestWatchLineInfo(t *testing.T) {
 	assert.Nil(t, chg, "spurious change")
 
 	// request line
-	//start := time.Now()
 	hr = uapi.HandleRequest{Lines: 1, Flags: uapi.HandleRequestInput}
 	hr.Offsets[0] = 3
 	copy(hr.Consumer[:], "testwatch")
@@ -1270,9 +1271,6 @@ func TestWatchLineInfo(t *testing.T) {
 	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
-	//end := time.Now()
-	//assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
-	//assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
 	assert.Equal(t, uapi.LineChangedRequested, chg.Type)
 	xli.Flags |= uapi.LineFlagRequested
 	copy(xli.Consumer[:], "testwatch")
@@ -1283,7 +1281,6 @@ func TestWatchLineInfo(t *testing.T) {
 	assert.Nil(t, chg, "spurious change")
 
 	// reconfig line
-	//start = time.Now()
 	hc := uapi.HandleConfig{Flags: uapi.HandleRequestActiveLow}
 	copy(hr.Consumer[:], "testwatch")
 	err = uapi.SetLineConfig(uintptr(hr.Fd), &hc)
@@ -1291,9 +1288,6 @@ func TestWatchLineInfo(t *testing.T) {
 	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
-	//end = time.Now()
-	//assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
-	//assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
 	assert.Equal(t, uapi.LineChangedConfig, chg.Type)
 	xli.Flags |= uapi.LineFlagActiveLow
 	assert.Equal(t, xli, chg.Info)
@@ -1303,14 +1297,10 @@ func TestWatchLineInfo(t *testing.T) {
 	assert.Nil(t, chg, "spurious change")
 
 	// release line
-	//start = time.Now()
 	unix.Close(int(hr.Fd))
 	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
-	//end = time.Now()
-	//assert.LessOrEqual(t, uint64(start.UnixNano()), chg.Timestamp)
-	//assert.GreaterOrEqual(t, uint64(end.UnixNano()), chg.Timestamp)
 	assert.Equal(t, uapi.LineChangedReleased, chg.Type)
 	xli = uapi.LineInfo{Offset: 3}
 	copy(xli.Name[:], lname)
@@ -1322,7 +1312,8 @@ func TestWatchLineInfo(t *testing.T) {
 }
 
 func TestUnwatchLineInfo(t *testing.T) {
-	mockupRequired(t)
+	requireKernel(t, []byte{5, 7, 0})
+	requireMockup(t)
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
 
@@ -1365,7 +1356,7 @@ func TestUnwatchLineInfo(t *testing.T) {
 }
 
 func TestReadEvent(t *testing.T) {
-	mockupRequired(t)
+	requireMockup(t)
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
 	f, err := os.Open(c.DevPath)
@@ -1386,30 +1377,24 @@ func TestReadEvent(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
-	//start := time.Now()
 	c.SetValue(1, 1)
 	evt, err = readEventTimeout(uintptr(er.Fd), time.Second)
 	require.Nil(t, err)
+	require.NotNil(t, evt)
 	assert.Equal(t, uint32(2), evt.ID) // returns falling edge
-	//end := time.Now()
-	//assert.LessOrEqual(t, uint64(start.UnixNano()), evt.Timestamp)
-	//assert.GreaterOrEqual(t, uint64(end.UnixNano()), evt.Timestamp)
 
-	//start = time.Now()
 	c.SetValue(1, 0)
 	evt, err = readEventTimeout(uintptr(er.Fd), time.Second)
 	assert.Nil(t, err)
+	require.NotNil(t, evt)
 	assert.Equal(t, uint32(1), evt.ID) // returns rising edge
-	//end = time.Now()
-	//assert.LessOrEqual(t, uint64(start.UnixNano()), evt.Timestamp)
-	//assert.GreaterOrEqual(t, uint64(end.UnixNano()), evt.Timestamp)
 
 	unix.Close(int(er.Fd))
 }
 
 func readEventTimeout(fd uintptr, t time.Duration) (*uapi.EventData, error) {
 	pollfd := unix.PollFd{Fd: int32(fd), Events: unix.POLLIN}
-	n, err := unix.Poll([]unix.PollFd{pollfd}, int(t.Seconds()))
+	n, err := unix.Poll([]unix.PollFd{pollfd}, int(t.Milliseconds()))
 	if err != nil || n != 1 {
 		return nil, err
 	}
@@ -1424,7 +1409,7 @@ func readLineInfoChangedTimeout(fd uintptr,
 	t time.Duration) (*uapi.LineInfoChanged, error) {
 
 	pollfd := unix.PollFd{Fd: int32(fd), Events: unix.POLLIN}
-	n, err := unix.Poll([]unix.PollFd{pollfd}, int(t.Seconds()))
+	n, err := unix.Poll([]unix.PollFd{pollfd}, int(t.Milliseconds()))
 	if err != nil || n != 1 {
 		return nil, err
 	}
@@ -1546,4 +1531,24 @@ func lineFromHandle(hf uapi.HandleFlag) uapi.LineFlag {
 		lf |= uapi.LineFlagBiasDisable
 	}
 	return lf
+}
+
+func requireKernel(t *testing.T, min version) {
+	if err := mockup.CheckKernelVersion([]byte(min)); err != nil {
+		t.Skip(fmt.Sprintf("Requires kernel v%s", min))
+	}
+}
+
+// 3 part version, Major, Minor, Patch.
+type version []byte
+
+func (v version) String() string {
+	if len(v) == 0 {
+		return ""
+	}
+	vstr := fmt.Sprintf("%d", v[0])
+	for i := 1; i < len(v); i++ {
+		vstr += fmt.Sprintf(".%d", v[i])
+	}
+	return vstr
 }
