@@ -598,8 +598,13 @@ type LineEvent struct {
 	// The line offset within the GPIO chip.
 	Offset int
 
-	// Timestamp is the time the event was detected.
-	// This is the Unix epoch - nsec since Jan 1 1970.
+	// Timestamp indicates the time the event was detected.
+	//
+	// The timestamp is intended for accurately measuring intervals between
+	// events.
+	//
+	// It is not guaranteed to be based on a particular clock. It has been based
+	// on CLOCK_REALTIME, but from Linux v5.7 it is based on CLOCK_MONOTONIC.
 	Timestamp time.Duration
 
 	// The type of state change event this structure represents.

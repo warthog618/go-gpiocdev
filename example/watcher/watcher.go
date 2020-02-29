@@ -24,12 +24,16 @@ func main() {
 	l, err := c.RequestLine(offset,
 		gpiod.WithPullUp,
 		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
-			t := time.Unix(0, evt.Timestamp.Nanoseconds())
+			t := time.Now()
 			edge := "rising"
 			if evt.Type == gpiod.LineEventFallingEdge {
 				edge = "falling"
 			}
-			fmt.Printf("event:%3d %-7s %s\n", evt.Offset, edge, t.Format(time.RFC3339Nano))
+			fmt.Printf("event:%3d %-7s %s (%s)\n",
+				evt.Offset,
+				edge,
+				t.Format(time.RFC3339Nano),
+				evt.Timestamp)
 		}))
 	if err != nil {
 		panic(err)

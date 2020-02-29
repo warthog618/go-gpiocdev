@@ -58,12 +58,16 @@ func wait(cfg *config.Config, evtchan <-chan gpiod.LineEvent) {
 		select {
 		case evt := <-evtchan:
 			if !silent {
-				t := time.Unix(0, evt.Timestamp.Nanoseconds())
+				t := time.Now()
 				edge := "rising"
 				if evt.Type == gpiod.LineEventFallingEdge {
 					edge = "falling"
 				}
-				fmt.Printf("event:%3d %-7s %s\n", evt.Offset, edge, t.Format(time.RFC3339Nano))
+				fmt.Printf("event:%3d %-7s %s (%s)\n",
+					evt.Offset,
+					edge,
+					t.Format(time.RFC3339Nano),
+					evt.Timestamp)
 			}
 			count++
 			if num > 0 && count >= num {
