@@ -12,17 +12,14 @@ package mockup
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"regexp"
-	"sort"
 	"strconv"
 	"sync"
-	"time"
 
-	"github.com/pilebones/go-udev/netlink"
+	"github.com/warthog618/gpiod"
 	"golang.org/x/sys/unix"
 )
 
@@ -72,11 +69,11 @@ func New(lines []int, namedLines bool) (*Mockup, error) {
 	args = append(args, rangesArg)
 	cmd = exec.Command("modprobe", args...)
 
-	um, err := newUdevMonitor()
+	mm, err := newModprobeMonitor()
 	if err != nil {
-		return nil, fmt.Errorf("failed to start udev monitor: %s", err)
+		return nil, fmt.Errorf("failed to start modprobe monitor: %s", err)
 	}
-	defer um.close()
+	defer mm.Close()
 
 	err = cmd.Run()
 	if err != nil {
@@ -85,38 +82,56 @@ func New(lines []int, namedLines bool) (*Mockup, error) {
 	// check debug path exists
 	err = unix.Access("/sys/kernel/debug/gpio-mockup", unix.R_OK|unix.W_OK)
 	if err != nil {
+		return nil, fmt.Errorf("can't access /sys/kernel/debug/gpio-mockup: %s", err)
+	}
+	cc, err := mm.Chips(lines)
+	if err != nil {
 		return nil, err
 	}
-	evts := make([]netlink.UEvent, len(lines))
-	for i := range evts {
-		select {
-		case evts[i] = <-um.queue:
-		case <-time.After(100 * time.Millisecond):
-			return nil, errors.New("timeout waiting for udev events")
-		}
+	m := Mockup{cc: cc}
+	return &m, nil
+}
+
+// ModprobeMonitor finds the details of gpio-mockup based gpiochips loaded via
+// modprobe.
+type ModprobeMonitor interface {
+	Chips([]int) ([]Chip, error)
+	Close()
+}
+
+func newModprobeMonitor() (ModprobeMonitor, error) {
+	if len(gpiod.Chips()) != 0 {
+		// need udev monitor to determine chip details...
+		return newUdevMonitor()
 	}
-	sort.Slice(evts, func(i, j int) bool {
-		return evts[i].Env["DEVNAME"] < evts[j].Env["DEVNAME"]
-	})
-	// apply udev events to chips
+	// only gpiochips are gpio-mockups
+	return &SimpleMonitor{}, nil
+}
+
+// SimpleMonitor assumes an empty platform so any added gpiochips will be the
+// first and only gpiochips.
+type SimpleMonitor struct{}
+
+// Chips returns the chips corresponding to the requested number of lines per
+// chip.
+func (m *SimpleMonitor) Chips(lines []int) ([]Chip, error) {
+	// make chips from lines
 	cc := make([]Chip, len(lines))
 	for i, l := range lines {
-		devpath := evts[i].Env["DEVNAME"]
+		devpath := fmt.Sprintf("/dev/gpiochip%d", i)
 		name := devpath[len("/dev/"):]
-		var num int
-		_, err = fmt.Sscanf(name, "gpiochip%d", &num)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse chip num: %s", err)
-		}
 		cc[i] = Chip{
 			Name:      name,
 			Label:     fmt.Sprintf("gpio-mockup-%c", 'A'+i),
 			Lines:     l,
 			DevPath:   devpath,
-			DbgfsPath: fmt.Sprintf("/sys/kernel/debug/gpio-mockup/gpiochip%d/", num)}
+			DbgfsPath: fmt.Sprintf("/sys/kernel/debug/gpio-mockup/gpiochip%d/", i)}
 	}
-	m := Mockup{cc: cc}
-	return &m, nil
+	return cc, nil
+}
+
+// Close is just a stub to fulfil the ModprobeMonitor interface.
+func (m *SimpleMonitor) Close() {
 }
 
 // Chip returns the mocked chip indicated by num.
@@ -215,7 +230,7 @@ func KernelVersion() ([]byte, error) {
 	return v, nil
 }
 
-// CheckKernelVersion returns an error if the kernel verion is less than the
+// CheckKernelVersion returns an error if the kernel version is less than the
 // min.
 func CheckKernelVersion(min version) error {
 	kv, err := KernelVersion()
