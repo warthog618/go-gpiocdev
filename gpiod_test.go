@@ -738,7 +738,11 @@ func (c *Mockup) TriggerIntr(value int) {
 func newPlatform(pname string) (Platform, error) {
 	switch pname {
 	case "mockup":
-		return newMockup()
+		p, err := newMockup()
+		if err != nil {
+			return nil, fmt.Errorf("error loading gpio-mockup: %w", err)
+		}
+		return p, nil
 	case "rpi":
 		return newPi("/dev/gpiochip0")
 	default:
