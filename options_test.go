@@ -157,15 +157,13 @@ func testEdgeEventPolarity(t *testing.T, l *gpiod.Line,
 
 	t.Helper()
 
-	start := time.Now()
 	platform.TriggerIntr(activeLevel ^ 1)
-	waitEvent(t, ich, gpiod.LineEventFallingEdge, start)
+	waitEvent(t, ich, gpiod.LineEventFallingEdge)
 	v, err := l.Value()
 	assert.Nil(t, err)
 	assert.Equal(t, 0, v)
-	start = time.Now()
 	platform.TriggerIntr(activeLevel)
-	waitEvent(t, ich, gpiod.LineEventRisingEdge, start)
+	waitEvent(t, ich, gpiod.LineEventRisingEdge)
 	v, err = l.Value()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, v)
@@ -212,7 +210,7 @@ func testChipLevelOption(t *testing.T, option gpiod.ChipOption,
 	defer c.Close()
 
 	platform.TriggerIntr(activeLevel)
-	ich := make(chan gpiod.LineEvent)
+	ich := make(chan gpiod.LineEvent, 3)
 	l, err := c.RequestLine(platform.IntrLine(),
 		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
 			ich <- evt
@@ -240,7 +238,7 @@ func testLineLevelOptionInput(t *testing.T, option gpiod.LineOption,
 	defer c.Close()
 
 	platform.TriggerIntr(activeLevel)
-	ich := make(chan gpiod.LineEvent)
+	ich := make(chan gpiod.LineEvent, 3)
 	l, err := c.RequestLine(platform.IntrLine(),
 		option,
 		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
@@ -505,7 +503,7 @@ func TestWithFallingEdge(t *testing.T) {
 	c := getChip(t)
 	defer c.Close()
 
-	ich := make(chan gpiod.LineEvent)
+	ich := make(chan gpiod.LineEvent, 3)
 	r, err := c.RequestLine(platform.IntrLine(),
 		gpiod.WithFallingEdge(func(evt gpiod.LineEvent) {
 			ich <- evt
@@ -514,14 +512,12 @@ func TestWithFallingEdge(t *testing.T) {
 	require.NotNil(t, r)
 	defer r.Close()
 	waitNoEvent(t, ich)
-	start := time.Now()
 	platform.TriggerIntr(0)
-	waitEvent(t, ich, gpiod.LineEventFallingEdge, start)
+	waitEvent(t, ich, gpiod.LineEventFallingEdge)
 	platform.TriggerIntr(1)
 	waitNoEvent(t, ich)
-	start = time.Now()
 	platform.TriggerIntr(0)
-	waitEvent(t, ich, gpiod.LineEventFallingEdge, start)
+	waitEvent(t, ich, gpiod.LineEventFallingEdge)
 	platform.TriggerIntr(1)
 	waitNoEvent(t, ich)
 }
@@ -531,7 +527,7 @@ func TestWithRisingEdge(t *testing.T) {
 	c := getChip(t)
 	defer c.Close()
 
-	ich := make(chan gpiod.LineEvent)
+	ich := make(chan gpiod.LineEvent, 3)
 	r, err := c.RequestLine(platform.IntrLine(),
 		gpiod.WithRisingEdge(func(evt gpiod.LineEvent) {
 			ich <- evt
@@ -540,14 +536,12 @@ func TestWithRisingEdge(t *testing.T) {
 	require.NotNil(t, r)
 	defer r.Close()
 	waitNoEvent(t, ich)
-	start := time.Now()
 	platform.TriggerIntr(1)
-	waitEvent(t, ich, gpiod.LineEventRisingEdge, start)
+	waitEvent(t, ich, gpiod.LineEventRisingEdge)
 	platform.TriggerIntr(0)
 	waitNoEvent(t, ich)
-	start = time.Now()
 	platform.TriggerIntr(1)
-	waitEvent(t, ich, gpiod.LineEventRisingEdge, start)
+	waitEvent(t, ich, gpiod.LineEventRisingEdge)
 	platform.TriggerIntr(0)
 	waitNoEvent(t, ich)
 }
@@ -557,7 +551,7 @@ func TestWithBothEdges(t *testing.T) {
 	c := getChip(t)
 	defer c.Close()
 
-	ich := make(chan gpiod.LineEvent)
+	ich := make(chan gpiod.LineEvent, 3)
 	lines := append(platform.FloatingLines(), platform.IntrLine())
 	r, err := c.RequestLines(lines,
 		gpiod.WithPullDown,
@@ -568,30 +562,23 @@ func TestWithBothEdges(t *testing.T) {
 	require.NotNil(t, r)
 	defer r.Close()
 	waitNoEvent(t, ich)
-	start := time.Now()
 	platform.TriggerIntr(1)
-	waitEvent(t, ich, gpiod.LineEventRisingEdge, start)
-	start = time.Now()
+	waitEvent(t, ich, gpiod.LineEventRisingEdge)
 	platform.TriggerIntr(0)
-	waitEvent(t, ich, gpiod.LineEventFallingEdge, start)
-	start = time.Now()
+	waitEvent(t, ich, gpiod.LineEventFallingEdge)
 	platform.TriggerIntr(1)
-	waitEvent(t, ich, gpiod.LineEventRisingEdge, start)
-	start = time.Now()
+	waitEvent(t, ich, gpiod.LineEventRisingEdge)
 	platform.TriggerIntr(0)
-	waitEvent(t, ich, gpiod.LineEventFallingEdge, start)
+	waitEvent(t, ich, gpiod.LineEventFallingEdge)
 	waitNoEvent(t, ich)
 }
 
-func waitEvent(t *testing.T, ch <-chan gpiod.LineEvent, etype gpiod.LineEventType, start time.Time) {
+func waitEvent(t *testing.T, ch <-chan gpiod.LineEvent, etype gpiod.LineEventType) {
 	t.Helper()
 	select {
 	case evt := <-ch:
-		end := time.Now()
 		assert.Equal(t, etype, evt.Type)
-		assert.LessOrEqual(t, start.UnixNano(), evt.Timestamp.Nanoseconds())
-		assert.GreaterOrEqual(t, end.UnixNano(), evt.Timestamp.Nanoseconds())
-	case <-time.After(10 * time.Millisecond):
+	case <-time.After(time.Second):
 		assert.Fail(t, "timeout waiting for event")
 	}
 }
