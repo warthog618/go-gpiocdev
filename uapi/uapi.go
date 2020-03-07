@@ -280,13 +280,15 @@ type LineInfoChanged struct {
 type ChangeType uint32
 
 const (
+	_ ChangeType = iota
+
 	// LineChangedRequested indicates the line has been requested.
-	LineChangedRequested ChangeType = iota + 1
+	LineChangedRequested
 
 	// LineChangedReleased indicates the line has been released.
 	LineChangedReleased
 
-	// LineChangedConfig indicatges the line configuration has changed.
+	// LineChangedConfig indicates the line configuration has changed.
 	LineChangedConfig
 )
 
