@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,6 +39,12 @@ func TestMain(m *testing.M) {
 	platform.Close()
 	os.Exit(rc)
 }
+
+var (
+	biasKernel      = mockup.Semver{5, 5} // bias flags added
+	setConfigKernel = mockup.Semver{5, 5} // setLineConfig ioctl added
+	infoWatchKernel = mockup.Semver{5, 7} // watchLineInfo ioctl added
+)
 
 func TestNewChip(t *testing.T) {
 	// non-existent
@@ -141,6 +148,11 @@ func TestChipFindLine(t *testing.T) {
 
 	n, err = c.FindLine("nonexistent")
 	assert.Equal(t, gpiod.ErrLineNotFound, err)
+	assert.Equal(t, 0, n)
+
+	c.Close()
+	n, err = c.FindLine("closed")
+	assert.Equal(t, gpiod.ErrClosed, err)
 	assert.Equal(t, 0, n)
 }
 
@@ -269,6 +281,94 @@ func TestChipRequestLines(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestChipWatchLineInfo(t *testing.T) {
+	requireKernel(t, infoWatchKernel)
+
+	c := getChip(t)
+
+	lo := platform.FloatingLines()[0]
+	wc1 := make(chan gpiod.LineInfoChangeEvent, 5)
+	watcher1 := func(info gpiod.LineInfoChangeEvent) {
+		wc1 <- info
+	}
+
+	// closed
+	c.Close()
+	_, err := c.WatchLineInfo(lo, watcher1)
+	require.Equal(t, gpiod.ErrClosed, err)
+
+	c = getChip(t)
+	defer c.Close()
+
+	// unwatched
+	_, err = c.WatchLineInfo(lo, watcher1)
+	require.Nil(t, err)
+
+	l, err := c.RequestLine(lo)
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	waitInfoEvent(t, wc1, gpiod.LineRequested)
+	l.Reconfigure(gpiod.AsActiveLow)
+	waitInfoEvent(t, wc1, gpiod.LineReconfigured)
+	l.Close()
+	waitInfoEvent(t, wc1, gpiod.LineReleased)
+
+	wc2 := make(chan gpiod.LineInfoChangeEvent, 2)
+
+	// watched
+	watcher2 := func(info gpiod.LineInfoChangeEvent) {
+		wc2 <- info
+	}
+	_, err = c.WatchLineInfo(lo, watcher2)
+	require.Nil(t, err)
+
+	l, err = c.RequestLine(lo)
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	waitInfoEvent(t, wc2, gpiod.LineRequested)
+	waitNoInfoEvent(t, wc1)
+	l.Close()
+	waitInfoEvent(t, wc2, gpiod.LineReleased)
+	waitNoInfoEvent(t, wc1)
+}
+
+func TestChipUnwatchLineInfo(t *testing.T) {
+	requireKernel(t, infoWatchKernel)
+
+	c := getChip(t)
+	c.Close()
+
+	lo := platform.FloatingLines()[0]
+
+	// closed
+	err := c.UnwatchLineInfo(lo)
+	assert.Nil(t, err)
+
+	c = getChip(t)
+	defer c.Close()
+
+	// Unwatched
+	err = c.UnwatchLineInfo(lo)
+	assert.Nil(t, err)
+
+	// Watched
+	wc := 0
+	watcher := func(info gpiod.LineInfoChangeEvent) {
+		wc++
+	}
+	_, err = c.WatchLineInfo(lo, watcher)
+	require.Nil(t, err)
+	err = c.UnwatchLineInfo(lo)
+	assert.Nil(t, err)
+
+	l, err := c.RequestLine(lo)
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	assert.Zero(t, wc)
+	l.Close()
+	assert.Zero(t, wc)
+}
+
 func TestLineChip(t *testing.T) {
 	c := getChip(t)
 	defer c.Close()
@@ -299,13 +399,24 @@ func TestLineInfo(t *testing.T) {
 	l, err := c.RequestLine(platform.IntrLine())
 	assert.Nil(t, err)
 	require.NotNil(t, l)
-	defer l.Close()
 	cli, err := c.LineInfo(platform.IntrLine())
 	assert.Nil(t, err)
+
 	li, err := l.Info()
 	assert.Nil(t, err)
 	require.NotNil(t, li)
 	assert.Equal(t, cli, li)
+
+	// cached
+	li, err = l.Info()
+	assert.Nil(t, err)
+	require.NotNil(t, li)
+	assert.Equal(t, cli, li)
+
+	// closed
+	l.Close()
+	_, err = l.Info()
+	assert.Equal(t, gpiod.ErrClosed, err)
 }
 
 func TestLineOffset(t *testing.T) {
@@ -317,6 +428,35 @@ func TestLineOffset(t *testing.T) {
 	defer l.Close()
 	lo := l.Offset()
 	assert.Equal(t, platform.IntrLine(), lo)
+}
+
+func TestLineReconfigure(t *testing.T) {
+	requireKernel(t, setConfigKernel)
+
+	c := getChip(t)
+	defer c.Close()
+
+	l, err := c.RequestLine(platform.IntrLine())
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+
+	// no options
+	err = l.Reconfigure()
+	assert.Nil(t, err)
+
+	// closed
+	l.Close()
+	err = l.Reconfigure(gpiod.AsActiveLow)
+	assert.Equal(t, gpiod.ErrClosed, err)
+
+	// event request
+	l, err = c.RequestLine(platform.IntrLine(),
+		gpiod.WithBothEdges(func(gpiod.LineEvent) {}))
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	err = l.Reconfigure(gpiod.AsActiveLow)
+	assert.Equal(t, gpiod.ErrPermissionDenied, err)
+	l.Close()
 }
 
 func TestLineValue(t *testing.T) {
@@ -335,6 +475,8 @@ func TestLineValue(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 1, v)
 	l.Close()
+	_, err = l.Value()
+	assert.Equal(t, gpiod.ErrClosed, err)
 }
 
 func TestLineSetValue(t *testing.T) {
@@ -357,6 +499,8 @@ func TestLineSetValue(t *testing.T) {
 	err = l.SetValue(1)
 	assert.Nil(t, err)
 	l.Close()
+	err = l.SetValue(1)
+	assert.Equal(t, gpiod.ErrClosed, err)
 }
 
 func TestLinesChip(t *testing.T) {
@@ -389,7 +533,8 @@ func TestLinesInfo(t *testing.T) {
 	l, err := c.RequestLines(platform.FloatingLines())
 	assert.Nil(t, err)
 	require.NotNil(t, l)
-	defer l.Close()
+
+	// initial
 	li, err := l.Info()
 	assert.Nil(t, err)
 	for i, o := range platform.FloatingLines() {
@@ -400,6 +545,24 @@ func TestLinesInfo(t *testing.T) {
 			assert.Equal(t, cli, *li[i])
 		}
 	}
+
+	// cached
+	li, err = l.Info()
+	assert.Nil(t, err)
+	for i, o := range platform.FloatingLines() {
+		cli, err := c.LineInfo(o)
+		assert.Nil(t, err)
+		assert.NotNil(t, li[i])
+		if li[0] != nil {
+			assert.Equal(t, cli, *li[i])
+		}
+	}
+
+	// closed
+	l.Close()
+	li, err = l.Info()
+	assert.Equal(t, gpiod.ErrClosed, err)
+	assert.Nil(t, li)
 }
 
 func TestLineOffsets(t *testing.T) {
@@ -428,6 +591,12 @@ func TestLinesValues(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 0, vv[0])
 	platform.TriggerIntr(1)
+	err = l.Values(vv)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, vv[0])
+
+	// subset
+	vv = vv[:len(lines)-2]
 	err = l.Values(vv)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, vv[0])
@@ -475,6 +644,8 @@ func TestLinesSetValues(t *testing.T) {
 	assert.Equal(t, gpiod.ErrInvalidOffset, err)
 
 	l.Close()
+	err = l.SetValues([]int{0, 1})
+	assert.Equal(t, gpiod.ErrClosed, err)
 }
 
 func TestIsChip(t *testing.T) {
@@ -491,6 +662,25 @@ func TestIsChip(t *testing.T) {
 	assert.Equal(t, gpiod.ErrNotCharacterDevice, err)
 
 	// not sure how to test the remaining conditions...
+}
+
+func waitInfoEvent(t *testing.T, ch <-chan gpiod.LineInfoChangeEvent, etype gpiod.LineInfoChangeType) {
+	t.Helper()
+	select {
+	case evt := <-ch:
+		assert.Equal(t, etype, evt.Type)
+	case <-time.After(time.Second):
+		assert.Fail(t, "timeout waiting for event")
+	}
+}
+
+func waitNoInfoEvent(t *testing.T, ch <-chan gpiod.LineInfoChangeEvent) {
+	t.Helper()
+	select {
+	case evt := <-ch:
+		assert.Fail(t, "received unexpected event", evt)
+	case <-time.After(20 * time.Millisecond):
+	}
 }
 
 func getChip(t *testing.T) *gpiod.Chip {
@@ -747,5 +937,11 @@ func newPlatform(pname string) (Platform, error) {
 		return newPi("/dev/gpiochip0")
 	default:
 		return nil, fmt.Errorf("unknown platform '%s'", pname)
+	}
+}
+
+func requireKernel(t *testing.T, min mockup.Semver) {
+	if err := mockup.CheckKernelVersion(min); err != nil {
+		t.Skip(err)
 	}
 }
