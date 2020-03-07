@@ -21,13 +21,13 @@ import (
 )
 
 func TestRepeatedLines(t *testing.T) {
-	t.Skip("leaves line as output as of 5.4-rc1")
 	requireMockup(t)
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
 	require.NotNil(t, c)
 	f, err := os.Open(c.DevPath)
 	require.Nil(t, err)
+	defer f.Close()
 
 	hr := uapi.HandleRequest{
 		Lines: 2,
@@ -46,58 +46,44 @@ func TestRepeatedLines(t *testing.T) {
 	err = uapi.GetLineHandle(f.Fd(), &hr)
 	assert.NotNil(t, err)
 
+	unix.Close(int(hr.Fd))
 }
 
 func TestAsIs(t *testing.T) {
 	requireMockup(t)
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
-
-	f, err := os.Open(c.DevPath)
-	require.Nil(t, err)
-	defer f.Close()
-
-	hr := uapi.HandleRequest{
-		Flags: uapi.HandleRequestInput,
-		Lines: uint32(1),
+	patterns := []uapi.HandleFlag{
+		uapi.HandleRequestInput,
+		uapi.HandleRequestOutput,
 	}
-	copy(hr.Consumer[:31], "test-as-is")
-	hr.Offsets[0] = uint32(3)
-	err = uapi.GetLineHandle(f.Fd(), &hr)
-	require.Nil(t, err)
-	li, err := uapi.GetLineInfo(f.Fd(), 3)
-	assert.Nil(t, err)
-	xli := uapi.LineInfo{
-		Offset: 3,
-		Flags:  uapi.LineFlagRequested,
+	for _, flags := range patterns {
+		label := ""
+		hr := uapi.HandleRequest{
+			Offsets: [uapi.HandlesMax]uint32{2},
+			Lines:   uint32(1),
+		}
+		info := uapi.LineInfo{
+			Offset: 2,
+		}
+		if flags.IsInput() {
+			label += "input"
+			hr.Flags |= uapi.HandleRequestInput
+		}
+		if flags.IsOutput() {
+			label += "output"
+			hr.Flags |= uapi.HandleRequestOutput
+			info.Flags |= uapi.LineFlagIsOut
+		}
+		tf := func(t *testing.T) {
+			testLineAsIs(t, c, hr, info)
+		}
+		t.Run(label, tf)
 	}
-	copy(xli.Name[:], li.Name[:]) // don't care about name
-	copy(xli.Consumer[:31], "test-as-is")
-	assert.Equal(t, xli, li)
-	unix.Close(int(hr.Fd))
-
-	li, err = uapi.GetLineInfo(f.Fd(), 3)
-	assert.Nil(t, err)
-	xli = uapi.LineInfo{
-		Offset: 3,
-		Flags:  0,
-	}
-	copy(xli.Name[:], li.Name[:]) // don't care about name
-	assert.Equal(t, xli, li)
-
-	hr.Flags = 0
-	err = uapi.GetLineHandle(f.Fd(), &hr)
-	require.Nil(t, err)
-	li, err = uapi.GetLineInfo(f.Fd(), 3)
-	assert.Nil(t, err)
-	copy(xli.Consumer[:31], "test-as-is")
-	xli.Flags = 1
-	assert.Equal(t, xli, li)
-	unix.Close(int(hr.Fd))
 }
 
 func TestWatchIsolation(t *testing.T) {
-	requireKernel(t, []byte{5, 7, 0})
+	requireKernel(t, infoWatchKernel)
 	requireMockup(t)
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
@@ -276,5 +262,48 @@ func testLine(t *testing.T, c *mockup.Chip, line int, flags uapi.HandleFlag, ini
 		assert.Equal(t, uint8(initial^1), hd[0], "get value 3")
 	}
 	// release
+	unix.Close(int(hr.Fd))
+}
+
+func testLineAsIs(t *testing.T, c *mockup.Chip, hr uapi.HandleRequest, info uapi.LineInfo) {
+	f, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f.Close()
+
+	line := int(hr.Offsets[0])
+	copy(hr.Consumer[:31], "test-as-is")
+
+	// initial request to set expected state
+	err = uapi.GetLineHandle(f.Fd(), &hr)
+	require.Nil(t, err)
+	li, err := uapi.GetLineInfo(f.Fd(), line)
+	assert.Nil(t, err)
+	var xli uapi.LineInfo = info
+	xli.Flags |= uapi.LineFlagRequested
+	copy(xli.Consumer[:31], "test-as-is")
+	li.Name = xli.Name // don't care about name
+	assert.Equal(t, xli, li)
+	unix.Close(int(hr.Fd))
+
+	// check released
+	li, err = uapi.GetLineInfo(f.Fd(), line)
+	assert.Nil(t, err)
+	xli = info
+	xli.Flags &^= (uapi.LineFlagActiveLow)
+	li.Name = xli.Name // don't care about name
+	assert.Equal(t, xli, li)
+
+	// request as-is and check state and value
+	copy(hr.Consumer[:31], "test-as-is")
+	hr.Flags &^= (uapi.HandleRequestInput | uapi.HandleRequestOutput)
+	err = uapi.GetLineHandle(f.Fd(), &hr)
+	require.Nil(t, err)
+	li, err = uapi.GetLineInfo(f.Fd(), line)
+	assert.Nil(t, err)
+	xli = info
+	copy(xli.Consumer[:31], "test-as-is")
+	xli.Flags |= uapi.LineFlagRequested
+	li.Name = xli.Name // don't care about name
+	assert.Equal(t, xli, li)
 	unix.Close(int(hr.Fd))
 }
