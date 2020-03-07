@@ -64,11 +64,17 @@ type Chip struct {
 	// The number of GPIO lines on this chip.
 	lines int
 
-	// default options for reserved lines
+	// default options for reserved lines.
 	options ChipOptions
 
 	// mutex covers the attributes below it.
 	mu sync.Mutex
+
+	// watcher for line info changes
+	iw *infoWatcher
+
+	// handlers for info changes in watched lines, keyed by offset.
+	ich map[int]InfoChangeHandler
 
 	// indicates the chip has been closed.
 	closed bool
@@ -181,11 +187,15 @@ func NewChip(name string, options ...ChipOption) (*Chip, error) {
 // independently.
 func (c *Chip) Close() error {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.closed {
+	closed := c.closed
+	c.closed = true
+	c.mu.Unlock()
+	if closed {
 		return ErrClosed
 	}
-	c.closed = true
+	if c.iw != nil {
+		c.iw.close()
+	}
 	return c.f.Close()
 }
 
@@ -205,31 +215,45 @@ func (c *Chip) FindLine(name string) (int, error) {
 
 // FindLines returns the offsets of the named lines, or an error unless all are
 // found.
-func (c *Chip) FindLines(names ...string) ([]int, error) {
-	oo := make([]int, len(names))
+func (c *Chip) FindLines(names ...string) (oo []int, err error) {
+	ioo := make([]int, len(names))
 	for i, name := range names {
-		o, err := c.FindLine(name)
+		var o int
+		o, err = c.FindLine(name)
 		if err != nil {
-			return nil, err
+			return
 		}
-		oo[i] = o
+		ioo[i] = o
 	}
-	return oo, nil
+	oo = ioo
+	return
 }
 
 // LineInfo returns the publically available information on the line.
 //
 // This is always available and does not require requesting the line.
-func (c *Chip) LineInfo(offset int) (LineInfo, error) {
+func (c *Chip) LineInfo(offset int) (info LineInfo, err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		err = ErrClosed
+		return
+	}
 	if offset < 0 || offset >= c.lines {
-		return LineInfo{}, ErrInvalidOffset
+		err = ErrInvalidOffset
+		return
 	}
-	li, err := uapi.GetLineInfo(c.f.Fd(), offset)
-	if err != nil {
-		return LineInfo{}, err
+	var li uapi.LineInfo
+	li, err = uapi.GetLineInfo(c.f.Fd(), offset)
+	if err == nil {
+		info = newLineInfo(li)
 	}
+	return
+}
+
+func newLineInfo(li uapi.LineInfo) LineInfo {
 	return LineInfo{
-		Offset:      offset,
+		Offset:      int(li.Offset),
 		Name:        uapi.BytesToString(li.Name[:]),
 		Consumer:    uapi.BytesToString(li.Consumer[:]),
 		Requested:   li.Flags.IsRequested(),
@@ -240,7 +264,7 @@ func (c *Chip) LineInfo(offset int) (LineInfo, error) {
 		BiasDisable: li.Flags.IsBiasDisable(),
 		PullDown:    li.Flags.IsPullDown(),
 		PullUp:      li.Flags.IsPullUp(),
-	}, nil
+	}
 }
 
 // Lines returns the number of lines that exist on the GPIO chip.
@@ -299,6 +323,69 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 		return nil, err
 	}
 	return &ll, nil
+}
+
+// creates the iw and ich
+//
+// Assumes c is locked.
+func (c *Chip) createInfoWatcher() error {
+	iw, err := newInfoWatcher(int(c.f.Fd()),
+		func(lic LineInfoChangeEvent) {
+			c.mu.Lock()
+			ich := c.ich[lic.Info.Offset]
+			c.mu.Unlock() // handler called outside lock
+			if ich != nil {
+				ich(lic)
+			}
+		})
+	if err != nil {
+		return err
+	}
+	c.iw = iw
+	c.ich = map[int]InfoChangeHandler{}
+	return nil
+}
+
+// WatchLineInfo enables watching changes to line info for the specified lines.
+//
+// The changes are reported via the chip InfoChangeHandler.
+// Repeated calls replace the InfoChangeHandler.
+//
+// Requires Linux v5.7 or later.
+func (c *Chip) WatchLineInfo(offset int, lich InfoChangeHandler) (info LineInfo, err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		err = ErrClosed
+		return
+	}
+	if c.iw == nil {
+		err = c.createInfoWatcher()
+		if err != nil {
+			return
+		}
+	}
+	li := uapi.LineInfo{Offset: uint32(offset)}
+	err = uapi.WatchLineInfo(c.f.Fd(), &li)
+	if err != nil {
+		return
+	}
+	c.ich[offset] = lich
+	info = newLineInfo(li)
+	return
+}
+
+// UnwatchLineInfo disables watching changes to line info.
+//
+// Requires Linux v5.7 or later.
+func (c *Chip) UnwatchLineInfo(offset int) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		return nil
+	}
+	delete(c.ich, offset)
+	return uapi.UnwatchLineInfo(c.f.Fd(), uint32(offset))
 }
 
 func (c *Chip) getEventRequest(offsets []int, lo LineOptions) (uintptr, *watcher, error) {
@@ -593,7 +680,7 @@ const (
 	LineEventFallingEdge
 )
 
-// LineEvent represents a change in the state of a monitored line.
+// LineEvent represents a change in the state of a line.
 type LineEvent struct {
 	// The line offset within the GPIO chip.
 	Offset int
@@ -601,15 +688,49 @@ type LineEvent struct {
 	// Timestamp indicates the time the event was detected.
 	//
 	// The timestamp is intended for accurately measuring intervals between
-	// events.
-	//
-	// It is not guaranteed to be based on a particular clock. It has been based
-	// on CLOCK_REALTIME, but from Linux v5.7 it is based on CLOCK_MONOTONIC.
+	// events. It is not guaranteed to be based on a particular clock. It has
+	// been based on CLOCK_REALTIME, but from Linux v5.7 it is based on
+	// CLOCK_MONOTONIC.
 	Timestamp time.Duration
 
 	// The type of state change event this structure represents.
 	Type LineEventType
 }
+
+// LineInfoChangeEvent represents a change in the info a line.
+type LineInfoChangeEvent struct {
+	// Info is the updated line info.
+	Info LineInfo
+
+	// Timestamp indicates the time the event was detected.
+	//
+	// The timestamp is intended for accurately measuring intervals between
+	// events. It is not guaranteed to be based on a particular clock, but from
+	// Linux v5.7 it is based on CLOCK_MONOTONIC.
+	Timestamp time.Duration
+
+	// The type of info change event this structure represents.
+	Type LineInfoChangeType
+}
+
+// LineInfoChangeType indicates the type of change to the line info.
+type LineInfoChangeType int
+
+const (
+	_ LineInfoChangeType = iota
+
+	// LineRequested indicates the line has been requested.
+	LineRequested
+
+	// LineReleased indicates the line has been released.
+	LineReleased
+
+	// LineReconfigured indicates the line configuration has changed.
+	LineReconfigured
+)
+
+// InfoChangeHandler is a receiver for line info change events.
+type InfoChangeHandler func(LineInfoChangeEvent)
 
 // IsChip checks if the named device is an accessible GPIO character device.
 //
@@ -629,6 +750,7 @@ func IsChip(name string) error {
 	}
 	sysfsf, err := os.Open(sysfspath)
 	if err != nil {
+		// changed since Access?
 		return ErrNotCharacterDevice
 	}
 	var sysfsdev [16]byte
