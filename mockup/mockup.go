@@ -204,7 +204,7 @@ func (c *Chip) SetValue(line int, value int) error {
 
 // IsSupported returns an error if this package cannot run on this platform.
 func IsSupported() error {
-	return CheckKernelVersion(version{5, 1, 0})
+	return CheckKernelVersion(Semver{5, 1})
 }
 
 // KernelVersion returns the running kernel version.
@@ -232,22 +232,22 @@ func KernelVersion() ([]byte, error) {
 
 // CheckKernelVersion returns an error if the kernel version is less than the
 // min.
-func CheckKernelVersion(min version) error {
+func CheckKernelVersion(min Semver) error {
 	kv, err := KernelVersion()
 	if err != nil {
 		return err
 	}
 	n := bytes.Compare(kv, min[:])
-	if n < 1 {
+	if n < 0 {
 		return ErrorBadVersion{Need: min, Have: kv}
 	}
 	return nil
 }
 
-// 3 part version, Major, Minor, Patch.
-type version []byte
+// Semver is 3 part version, Major, Minor, Patch.
+type Semver []byte
 
-func (v version) String() string {
+func (v Semver) String() string {
 	if len(v) == 0 {
 		return ""
 	}
@@ -270,8 +270,8 @@ func (e ErrorIndexRange) Error() string {
 
 // ErrorBadVersion indicates the kernel version is insufficient.
 type ErrorBadVersion struct {
-	Need version
-	Have version
+	Need Semver
+	Have Semver
 }
 
 func (e ErrorBadVersion) Error() string {
