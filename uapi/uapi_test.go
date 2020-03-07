@@ -34,6 +34,11 @@ func TestMain(m *testing.M) {
 	os.Exit(rc)
 }
 
+var (
+	setConfigKernel = mockup.Semver{5, 5} // setLineConfig ioctl added
+	infoWatchKernel = mockup.Semver{5, 7} // watchLineInfo ioctl added
+)
+
 func reloadMockup() {
 	if mock != nil {
 		mock.Close()
@@ -1143,7 +1148,7 @@ func TestSetLineHandleConfig(t *testing.T) {
 }
 
 func TestSetLineEventConfig(t *testing.T) {
-	requireKernel(t, []byte{5, 5, 0})
+	requireKernel(t, setConfigKernel)
 	requireMockup(t)
 	patterns := []struct {
 		name        string
@@ -1225,7 +1230,7 @@ func TestSetLineEventConfig(t *testing.T) {
 func TestWatchLineInfo(t *testing.T) {
 	// also covers ReadLineInfoChanged
 
-	requireKernel(t, []byte{5, 7, 0})
+	requireKernel(t, infoWatchKernel)
 	requireMockup(t)
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
@@ -1312,7 +1317,7 @@ func TestWatchLineInfo(t *testing.T) {
 }
 
 func TestUnwatchLineInfo(t *testing.T) {
-	requireKernel(t, []byte{5, 7, 0})
+	requireKernel(t, infoWatchKernel)
 	requireMockup(t)
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
@@ -1533,22 +1538,8 @@ func lineFromHandle(hf uapi.HandleFlag) uapi.LineFlag {
 	return lf
 }
 
-func requireKernel(t *testing.T, min version) {
-	if err := mockup.CheckKernelVersion([]byte(min)); err != nil {
-		t.Skip(fmt.Sprintf("Requires kernel v%s or later", min))
+func requireKernel(t *testing.T, min mockup.Semver) {
+	if err := mockup.CheckKernelVersion(min); err != nil {
+		t.Skip(err)
 	}
-}
-
-// 3 part version, Major, Minor, Patch.
-type version []byte
-
-func (v version) String() string {
-	if len(v) == 0 {
-		return ""
-	}
-	vstr := fmt.Sprintf("%d", v[0])
-	for i := 1; i < len(v); i++ {
-		vstr += fmt.Sprintf(".%d", v[i])
-	}
-	return vstr
 }
