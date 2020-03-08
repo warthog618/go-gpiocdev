@@ -18,11 +18,12 @@ func init() {
 }
 
 var findCmd = &cobra.Command{
-	Use:   "find <line>...",
-	Short: "Find a GPIO line by name",
-	Long:  `Find a GPIO line by name.  The output of this command can be used as input for gpiod get/set.`,
-	Args:  cobra.MinimumNArgs(1),
-	Run:   find,
+	Use:                   "find [flags] <line>...",
+	Short:                 "Find a GPIO line by name",
+	Long:                  `Find a GPIO line by name.  The output of this command can be used as input for gpiod get/set.`,
+	Args:                  cobra.MinimumNArgs(1),
+	Run:                   find,
+	DisableFlagsInUseLine: true,
 }
 
 func find(cmd *cobra.Command, args []string) {

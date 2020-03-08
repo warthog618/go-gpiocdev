@@ -33,11 +33,12 @@ Biases:
 
 var (
 	getCmd = &cobra.Command{
-		Use:   "get <chip> <offset1>...",
-		Short: "Get the state of a line or lines",
-		Long:  `Read the state of a line or lines from a GPIO chip.`,
-		Args:  cobra.MinimumNArgs(2),
-		RunE:  get,
+		Use:                   "get [flags] <chip> <offset1>...",
+		Short:                 "Get the state of a line or lines",
+		Long:                  `Read the state of a line or lines from a GPIO chip.`,
+		Args:                  cobra.MinimumNArgs(2),
+		RunE:                  get,
+		DisableFlagsInUseLine: true,
 	}
 	getOpts = struct {
 		ActiveLow bool

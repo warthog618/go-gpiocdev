@@ -44,11 +44,12 @@ Biases:
 
 var (
 	monCmd = &cobra.Command{
-		Use:   "mon <chip> <offset1>...",
-		Short: "Monitor the state of a line or lines",
-		Long:  `Wait for events on GPIO lines and print them to standard output.`,
-		Args:  cobra.MinimumNArgs(2),
-		RunE:  mon,
+		Use:                   "mon [flags] <chip> <offset1>...",
+		Short:                 "Monitor the state of a line or lines",
+		Long:                  `Wait for events on GPIO lines and print them to standard output.`,
+		Args:                  cobra.MinimumNArgs(2),
+		RunE:                  mon,
+		DisableFlagsInUseLine: true,
 	}
 	monOpts = struct {
 		ActiveLow bool

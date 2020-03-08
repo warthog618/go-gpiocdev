@@ -55,12 +55,13 @@ Note:
 
 var (
 	setCmd = &cobra.Command{
-		Use:     "set <chip> <offset1>=<state1>...",
-		Short:   "Set the state of a line or lines",
-		Long:    `Set the state of lines on a GPIO chip and maintain the state until exit.`,
-		Args:    cobra.MinimumNArgs(2),
-		PreRunE: preset,
-		RunE:    set,
+		Use:                   "set [flags] <chip> <offset1>=<state1>...",
+		Short:                 "Set the state of a line or lines",
+		Long:                  `Set the state of lines on a GPIO chip and maintain the state until exit.`,
+		Args:                  cobra.MinimumNArgs(2),
+		PreRunE:               preset,
+		RunE:                  set,
+		DisableFlagsInUseLine: true,
 	}
 	setOpts = struct {
 		ActiveLow bool

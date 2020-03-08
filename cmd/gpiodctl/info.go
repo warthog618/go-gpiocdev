@@ -21,10 +21,11 @@ func init() {
 }
 
 var infoCmd = &cobra.Command{
-	Use:   "info [chip]...",
-	Short: "Info about chip lines",
-	Long:  `Print information about all lines of the specified GPIO chip(s) (or all gpiochips if none are specified).`,
-	Run:   info,
+	Use:                   "info [flags] [chip]...",
+	Short:                 "Info about chip lines",
+	Long:                  `Print information about all lines of the specified GPIO chip(s) (or all gpiochips if none are specified).`,
+	Run:                   info,
+	DisableFlagsInUseLine: true,
 }
 
 func info(cmd *cobra.Command, args []string) {
