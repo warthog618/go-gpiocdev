@@ -208,26 +208,30 @@ func IsSupported() error {
 }
 
 // KernelVersion returns the running kernel version.
-func KernelVersion() ([]byte, error) {
-	cmd := exec.Command("uname", "-r")
-	release, err := cmd.Output()
+func KernelVersion() (semver []byte, err error) {
+	uname := unix.Utsname{}
+	err = unix.Uname(&uname)
 	if err != nil {
-		return nil, err
+		return
 	}
+	release := string(uname.Release[:])
 	r := regexp.MustCompile(`(\d+)\.(\d+)\.(\d+)`)
-	vers := r.FindStringSubmatch(string(release))
+	vers := r.FindStringSubmatch(release)
 	if len(vers) != 4 {
-		return nil, fmt.Errorf("can't parse uname: %s", release)
+		err = fmt.Errorf("can't parse uname: %s", release)
+		return
 	}
 	v := []byte{0, 0, 0}
 	for i, vf := range vers[1:] {
-		vfi, err := strconv.ParseUint(vf, 10, 64)
+		var vfi uint64
+		vfi, err = strconv.ParseUint(vf, 10, 64)
 		if err != nil {
-			return nil, err
+			return
 		}
 		v[i] = byte(vfi)
 	}
-	return v, nil
+	semver = v
+	return
 }
 
 // CheckKernelVersion returns an error if the kernel version is less than the
