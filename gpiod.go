@@ -80,7 +80,7 @@ type Chip struct {
 	closed bool
 }
 
-// LineInfo contains a summary of publically available information about the
+// LineInfo contains a summary of publicly available information about the
 // line.
 type LineInfo struct {
 	// The line offset within the chip.
