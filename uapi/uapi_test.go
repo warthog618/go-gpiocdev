@@ -83,6 +83,7 @@ func TestGetChipInfo(t *testing.T) {
 }
 
 func TestGetLineInfo(t *testing.T) {
+	reloadMockup() // test assumes clean mockups
 	requireMockup(t)
 	for n := 0; n < mock.Chips(); n++ {
 		c, err := mock.Chip(n)
@@ -92,24 +93,24 @@ func TestGetLineInfo(t *testing.T) {
 				f, err := os.Open(c.DevPath)
 				require.Nil(t, err)
 				defer f.Close()
-				lix := uapi.LineInfo{
+				xli := uapi.LineInfo{
 					Offset: uint32(l),
 					Flags:  0,
 				}
-				copy(lix.Name[:], fmt.Sprintf("%s-%d", c.Label, l))
-				copy(lix.Consumer[:], "")
+				copy(xli.Name[:], fmt.Sprintf("%s-%d", c.Label, l))
+				copy(xli.Consumer[:], "")
 				li, err := uapi.GetLineInfo(f.Fd(), l)
 				assert.Nil(t, err)
-				assert.Equal(t, lix, li)
+				assert.Equal(t, xli, li)
 			}
 			t.Run(fmt.Sprintf("%s-%d", c.Name, l), f)
 		}
 	}
 	// badfd
 	li, err := uapi.GetLineInfo(0, 1)
-	lix := uapi.LineInfo{}
+	xli := uapi.LineInfo{}
 	assert.NotNil(t, err)
-	assert.Equal(t, lix, li)
+	assert.Equal(t, xli, li)
 }
 
 func TestGetLineEvent(t *testing.T) {
@@ -122,126 +123,162 @@ func TestGetLineEvent(t *testing.T) {
 		offset     uint32
 		err        error
 	}{
-		{"as-is",
+		{
+			"as-is",
 			0,
 			0,
 			uapi.EventRequestBothEdges,
 			2,
-			nil},
-		{"atv-lo",
+			nil,
+		},
+		{
+			"atv-lo",
 			1,
 			uapi.HandleRequestActiveLow,
 			uapi.EventRequestBothEdges,
 			2,
-			nil},
-		{"input",
+			nil,
+		},
+		{
+			"input",
 			0,
 			uapi.HandleRequestInput,
 			uapi.EventRequestBothEdges,
 			2,
-			nil},
-		{"input pull-up",
+			nil,
+		},
+		{
+			"input pull-up",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestPullUp,
 			uapi.EventRequestBothEdges,
 			2,
-			nil},
-		{"input pull-down",
+			nil,
+		},
+		{
+			"input pull-down",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestPullDown,
 			uapi.EventRequestBothEdges,
 			2,
-			nil},
-		{"input bias disable",
+			nil,
+		},
+		{
+			"input bias disable",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestBiasDisable,
 			uapi.EventRequestBothEdges,
 			2,
-			nil},
-		{"as-is pull-up",
+			nil,
+		},
+		{
+			"as-is pull-up",
 			0,
 			uapi.HandleRequestPullUp,
 			uapi.EventRequestBothEdges,
 			2,
-			nil},
-		{"as-is pull-down",
+			nil,
+		},
+		{
+			"as-is pull-down",
 			0,
 			uapi.HandleRequestPullDown,
 			uapi.EventRequestBothEdges,
 			2,
-			nil},
-		{"as-is bias disable",
+			nil,
+		},
+		{
+			"as-is bias disable",
 			0,
 			uapi.HandleRequestBiasDisable,
 			uapi.EventRequestBothEdges,
 			2,
-			nil},
+			nil,
+		},
 		// expected errors
-		{"output",
+		{
+			"output",
 			0,
 			uapi.HandleRequestOutput,
 			uapi.EventRequestBothEdges,
 			2,
-			unix.EINVAL},
-		{"oorange",
+			unix.EINVAL,
+		},
+		{
+			"oorange",
 			0,
 			uapi.HandleRequestInput,
 			uapi.EventRequestBothEdges,
 			6,
-			unix.EINVAL},
-		{"input drain",
+			unix.EINVAL,
+		},
+		{
+			"input drain",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestOpenDrain,
 			uapi.EventRequestBothEdges,
 			2,
-			unix.EINVAL},
-		{"input source",
+			unix.EINVAL,
+		},
+		{
+			"input source",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestOpenSource,
 			uapi.EventRequestBothEdges,
 			2,
-			unix.EINVAL},
-		{"as-is drain",
+			unix.EINVAL,
+		},
+		{
+			"as-is drain",
 			0,
 			uapi.HandleRequestOpenDrain,
 			uapi.EventRequestBothEdges,
 			2,
-			unix.EINVAL},
-		{"as-is source",
+			unix.EINVAL,
+		},
+		{
+			"as-is source",
 			0,
 			uapi.HandleRequestOpenSource,
 			uapi.EventRequestBothEdges,
 			2,
-			unix.EINVAL},
-		{"bias disable and pull-up",
+			unix.EINVAL,
+		},
+		{
+			"bias disable and pull-up",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestBiasDisable |
 				uapi.HandleRequestPullUp,
 			uapi.EventRequestBothEdges,
 			2,
-			unix.EINVAL},
-		{"bias disable and pull-down",
+			unix.EINVAL,
+		},
+		{
+			"bias disable and pull-down",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestBiasDisable |
 				uapi.HandleRequestPullDown,
 			uapi.EventRequestBothEdges,
 			2,
-			unix.EINVAL},
-		{"pull-up and pull-down",
+			unix.EINVAL,
+		},
+		{
+			"pull-up and pull-down",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestPullUp |
 				uapi.HandleRequestPullDown,
 			uapi.EventRequestBothEdges,
 			2,
-			unix.EINVAL},
+			unix.EINVAL,
+		},
 	}
 	for _, p := range patterns {
 		c, err := mock.Chip(p.cnum)
@@ -289,164 +326,218 @@ func TestGetLineHandle(t *testing.T) {
 		offsets    []uint32
 		err        error
 	}{
-		{"as-is",
+		{
+			"as-is",
 			0,
 			0,
 			[]uint32{2},
-			nil},
-		{"atv-lo",
+			nil,
+		},
+		{
+			"atv-lo",
 			1,
 			uapi.HandleRequestActiveLow,
 			[]uint32{2},
-			nil},
-		{"input",
+			nil,
+		},
+		{
+			"input",
 			0,
 			uapi.HandleRequestInput,
 			[]uint32{2},
-			nil},
-		{"input pull-up",
+			nil,
+		},
+		{
+			"input pull-up",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestPullUp,
 			[]uint32{2},
-			nil},
-		{"input pull-down",
+			nil,
+		},
+		{
+			"input pull-down",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestPullDown,
 			[]uint32{3},
-			nil},
-		{"input bias disable",
+			nil,
+		},
+		{
+			"input bias disable",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestBiasDisable,
 			[]uint32{3},
-			nil},
-		{"output",
+			nil,
+		},
+		{
+			"output",
 			0,
 			uapi.HandleRequestOutput,
 			[]uint32{2},
-			nil},
-		{"output drain",
+			nil,
+		},
+		{
+			"output drain",
 			0,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestOpenDrain,
 			[]uint32{2},
-			nil},
-		{"output source",
+			nil,
+		},
+		{
+			"output source",
 			0,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestOpenSource,
 			[]uint32{3},
-			nil},
-		{"output pull-up",
+			nil,
+		},
+		{
+			"output pull-up",
 			0,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestPullUp,
 			[]uint32{1},
-			nil},
-		{"output pull-down",
+			nil,
+		},
+		{
+			"output pull-down",
 			0,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestPullDown,
 			[]uint32{2},
-			nil},
-		{"output bias disable",
+			nil,
+		},
+		{
+			"output bias disable",
 			0,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestBiasDisable,
 			[]uint32{2},
-			nil},
+			nil,
+		},
 		// expected errors
-		{"both io",
+		{
+			"both io",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestOutput,
 			[]uint32{2},
-			unix.EINVAL},
-		{"overlength",
+			unix.EINVAL,
+		},
+		{
+			"overlength",
 			0,
 			uapi.HandleRequestInput,
 			[]uint32{0, 1, 2, 3, 4},
-			unix.EINVAL},
-		{"oorange",
+			unix.EINVAL,
+		},
+		{
+			"oorange",
 			0,
 			uapi.HandleRequestInput,
 			[]uint32{6},
-			unix.EINVAL},
-		{"input drain",
+			unix.EINVAL,
+		},
+		{
+			"input drain",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestOpenDrain,
 			[]uint32{1},
-			unix.EINVAL},
-		{"input source",
+			unix.EINVAL,
+		},
+		{
+			"input source",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestOpenSource,
 			[]uint32{2},
-			unix.EINVAL},
-		{"as-is drain",
+			unix.EINVAL,
+		},
+		{
+			"as-is drain",
 			0,
 			uapi.HandleRequestOpenDrain,
 			[]uint32{2},
-			unix.EINVAL},
-		{"as-is source",
+			unix.EINVAL,
+		},
+		{
+			"as-is source",
 			0,
 			uapi.HandleRequestOpenSource,
 			[]uint32{1},
-			unix.EINVAL},
-		{"drain source",
+			unix.EINVAL,
+		},
+		{
+			"drain source",
 			0,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestOpenDrain |
 				uapi.HandleRequestOpenSource,
 			[]uint32{2},
-			unix.EINVAL},
-		{"as-is pull-up",
+			unix.EINVAL,
+		},
+		{
+			"as-is pull-up",
 			0,
 			uapi.HandleRequestPullUp,
 			[]uint32{1},
-			unix.EINVAL},
-		{"as-is pull-down",
+			unix.EINVAL,
+		},
+		{
+			"as-is pull-down",
 			0,
 			uapi.HandleRequestPullDown,
 			[]uint32{2},
-			unix.EINVAL},
-		{"as-is bias disable",
+			unix.EINVAL,
+		},
+		{
+			"as-is bias disable",
 			0,
 			uapi.HandleRequestBiasDisable,
 			[]uint32{2},
-			unix.EINVAL},
-		{"bias disable and pull-up",
+			unix.EINVAL,
+		},
+		{
+			"bias disable and pull-up",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestBiasDisable |
 				uapi.HandleRequestPullUp,
 			[]uint32{2},
-			unix.EINVAL},
-		{"bias disable and pull-down",
+			unix.EINVAL,
+		},
+		{
+			"bias disable and pull-down",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestBiasDisable |
 				uapi.HandleRequestPullDown,
 			[]uint32{2},
-			unix.EINVAL},
-		{"pull-up and pull-down",
+			unix.EINVAL,
+		},
+		{
+			"pull-up and pull-down",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestPullUp |
 				uapi.HandleRequestPullDown,
 			[]uint32{2},
-			unix.EINVAL},
-		{"all bias flags",
+			unix.EINVAL,
+		},
+		{
+			"all bias flags",
 			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestBiasDisable |
 				uapi.HandleRequestPullUp |
 				uapi.HandleRequestPullDown,
 			[]uint32{2},
-			unix.EINVAL},
+			unix.EINVAL,
+		},
 	}
 	for _, p := range patterns {
 		c, err := mock.Chip(p.cnum)
@@ -497,145 +588,191 @@ func TestGetLineValues(t *testing.T) {
 		offsets    []uint32
 		val        []uint8
 	}{
-		{"as-is atv-lo lo",
+		{
+			"as-is atv-lo lo",
 			1,
 			uapi.HandleRequestActiveLow,
 			0,
 			[]uint32{2},
-			[]uint8{0}},
-		{"as-is atv-lo hi",
+			[]uint8{0},
+		},
+		{
+			"as-is atv-lo hi",
 			1,
 			uapi.HandleRequestActiveLow,
 			0,
 			[]uint32{2},
-			[]uint8{1}},
-		{"as-is lo",
+			[]uint8{1},
+		},
+		{
+			"as-is lo",
 			0,
 			0,
 			0,
 			[]uint32{2},
-			[]uint8{0}},
-		{"as-is hi",
+			[]uint8{0},
+		},
+		{
+			"as-is hi",
 			0,
 			0,
 			0,
 			[]uint32{1},
-			[]uint8{1}},
-		{"input lo",
+			[]uint8{1},
+		},
+		{
+			"input lo",
 			0,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{2},
-			[]uint8{0}},
-		{"input hi",
+			[]uint8{0},
+		},
+		{
+			"input hi",
 			0,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{1},
-			[]uint8{1}},
-		{"output lo",
+			[]uint8{1},
+		},
+		{
+			"output lo",
 			0,
 			uapi.HandleRequestOutput,
 			0,
 			[]uint32{2},
-			[]uint8{0}},
-		{"output hi",
+			[]uint8{0},
+		},
+		{
+			"output hi",
 			0,
 			uapi.HandleRequestOutput,
 			0,
 			[]uint32{1},
-			[]uint8{1}},
-		{"both lo",
+			[]uint8{1},
+		},
+		{
+			"both lo",
 			1,
 			0,
 			uapi.EventRequestBothEdges,
 			[]uint32{2},
-			[]uint8{0}},
-		{"both hi",
+			[]uint8{0},
+		},
+		{
+			"both hi",
 			1,
 			0,
 			uapi.EventRequestBothEdges,
 			[]uint32{1},
-			[]uint8{1}},
-		{"falling lo",
+			[]uint8{1},
+		},
+		{
+			"falling lo",
 			0,
 			0,
 			uapi.EventRequestFallingEdge,
 			[]uint32{2},
-			[]uint8{0}},
-		{"falling hi",
+			[]uint8{0},
+		},
+		{
+			"falling hi",
 			0,
 			0,
 			uapi.EventRequestFallingEdge,
 			[]uint32{1},
-			[]uint8{1}},
-		{"rising lo",
+			[]uint8{1},
+		},
+		{
+			"rising lo",
 			0,
 			0,
 			uapi.EventRequestRisingEdge,
 			[]uint32{2},
-			[]uint8{0}},
-		{"rising hi",
+			[]uint8{0},
+		},
+		{
+			"rising hi",
 			0,
 			0,
 			uapi.EventRequestRisingEdge,
 			[]uint32{1},
-			[]uint8{1}},
-		{"input 2a",
+			[]uint8{1},
+		},
+		{
+			"input 2a",
 			0,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{0, 1},
-			[]uint8{1, 0}},
-		{"input 2b",
+			[]uint8{1, 0},
+		},
+		{
+			"input 2b",
 			0,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{2, 1},
-			[]uint8{0, 1}},
-		{"input 3a",
+			[]uint8{0, 1},
+		},
+		{
+			"input 3a",
 			0,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{0, 1, 2},
-			[]uint8{0, 1, 1}},
-		{"input 3b",
+			[]uint8{0, 1, 1},
+		},
+		{
+			"input 3b",
 			0,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{0, 2, 1},
-			[]uint8{0, 1, 0}},
-		{"input 4a",
+			[]uint8{0, 1, 0},
+		},
+		{
+			"input 4a",
 			0,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{0, 1, 2, 3},
-			[]uint8{0, 1, 1, 1}},
-		{"input 4b",
+			[]uint8{0, 1, 1, 1},
+		},
+		{
+			"input 4b",
 			0,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{3, 2, 1, 0},
-			[]uint8{1, 1, 0, 1}},
-		{"input 8a",
+			[]uint8{1, 1, 0, 1},
+		},
+		{
+			"input 8a",
 			1,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{0, 1, 2, 3, 4, 5, 6, 7},
-			[]uint8{0, 1, 1, 1, 1, 1, 0, 0}},
-		{"input 8b",
+			[]uint8{0, 1, 1, 1, 1, 1, 0, 0},
+		},
+		{
+			"input 8b",
 			1,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{3, 2, 1, 0, 4, 5, 6, 7},
-			[]uint8{1, 1, 0, 1, 1, 1, 0, 1}},
-		{"atv-lo 8b",
+			[]uint8{1, 1, 0, 1, 1, 1, 0, 1},
+		},
+		{
+			"atv-lo 8b",
 			1,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestActiveLow,
 			0,
 			[]uint32{3, 2, 1, 0, 4, 6, 7},
-			[]uint8{1, 1, 0, 1, 1, 1, 0, 0}},
+			[]uint8{1, 1, 0, 1, 1, 1, 0, 0},
+		},
 	}
 	for _, p := range patterns {
 		c, err := mock.Chip(p.cnum)
@@ -708,112 +845,146 @@ func TestSetLineValues(t *testing.T) {
 		val        []uint8
 		err        error
 	}{
-		{"output atv-lo lo",
+		{
+			"output atv-lo lo",
 			1,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestActiveLow,
 			[]uint32{2},
 			[]uint8{0},
-			nil},
-		{"output atv-lo hi",
+			nil,
+		},
+		{
+			"output atv-lo hi",
 			1,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestActiveLow,
 			[]uint32{2},
 			[]uint8{1},
-			nil},
-		{"as-is lo",
+			nil,
+		},
+		{
+			"as-is lo",
 			0,
 			uapi.HandleRequestOutput,
 			[]uint32{2},
 			[]uint8{0},
-			nil},
-		{"as-is hi",
+			nil,
+		},
+		{
+			"as-is hi",
 			0,
 			uapi.HandleRequestOutput,
 			[]uint32{1},
 			[]uint8{1},
-			nil},
-		{"output lo",
+			nil,
+		},
+		{
+			"output lo",
 			0,
 			uapi.HandleRequestOutput,
 			[]uint32{2},
 			[]uint8{0},
-			nil},
-		{"output hi",
+			nil,
+		},
+		{
+			"output hi",
 			0,
 			uapi.HandleRequestOutput,
 			[]uint32{1},
 			[]uint8{1},
-			nil},
-		{"output 2a",
+			nil,
+		},
+		{
+			"output 2a",
 			0,
 			uapi.HandleRequestOutput,
 			[]uint32{0, 1},
 			[]uint8{1, 0},
-			nil},
-		{"output 2b",
+			nil,
+		},
+		{
+			"output 2b",
 			0,
 			uapi.HandleRequestOutput,
 			[]uint32{2, 1},
 			[]uint8{0, 1},
-			nil},
-		{"output 3a",
+			nil,
+		},
+		{
+			"output 3a",
 			0,
 			uapi.HandleRequestOutput,
 			[]uint32{0, 1, 2},
 			[]uint8{0, 1, 1},
-			nil},
-		{"output 3b",
+			nil,
+		},
+		{
+			"output 3b",
 			0,
 			uapi.HandleRequestOutput,
 			[]uint32{0, 2, 1},
 			[]uint8{0, 1, 0},
-			nil},
-		{"output 4a",
+			nil,
+		},
+		{
+			"output 4a",
 			0,
 			uapi.HandleRequestOutput,
 			[]uint32{0, 1, 2, 3},
 			[]uint8{0, 1, 1, 1},
-			nil},
-		{"output 4b",
+			nil,
+		},
+		{
+			"output 4b",
 			0,
 			uapi.HandleRequestOutput,
 			[]uint32{3, 2, 1, 0},
 			[]uint8{1, 1, 0, 1},
-			nil},
-		{"output 8a",
+			nil,
+		},
+		{
+			"output 8a",
 			1,
 			uapi.HandleRequestOutput,
 			[]uint32{0, 1, 2, 3, 4, 5, 6, 7},
 			[]uint8{0, 1, 1, 1, 1, 1, 0, 0},
-			nil},
-		{"output 8b",
+			nil,
+		},
+		{
+			"output 8b",
 			1,
 			uapi.HandleRequestOutput,
 			[]uint32{3, 2, 1, 0, 4, 5, 6, 7},
 			[]uint8{1, 1, 0, 1, 1, 1, 0, 1},
-			nil},
-		{"atv-lo 8b",
+			nil,
+		},
+		{
+			"atv-lo 8b",
 			1,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestActiveLow,
 			[]uint32{3, 2, 1, 0, 4, 5, 6, 7},
 			[]uint8{1, 1, 0, 1, 1, 0, 0, 0},
-			nil},
+			nil,
+		},
 		// expected failures....
-		{"input lo",
+		{
+			"input lo",
 			0,
 			uapi.HandleRequestInput,
 			[]uint32{2},
 			[]uint8{0},
-			unix.EPERM},
-		{"input hi",
+			unix.EPERM,
+		},
+		{
+			"input hi",
 			0,
 			uapi.HandleRequestInput,
 			[]uint32{1},
 			[]uint8{1},
-			unix.EPERM},
+			unix.EPERM,
+		},
 	}
 	for _, p := range patterns {
 		tf := func(t *testing.T) {
@@ -868,39 +1039,48 @@ func TestSetLineHandleConfig(t *testing.T) {
 		configVal   []uint8
 		err         error
 	}{
-		{"in to out",
+		{
+			"in to out",
 			1,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestInput,
 			[]uint8{0, 1, 1},
 			uapi.HandleRequestOutput,
 			[]uint8{1, 0, 1},
-			nil},
-		{"out to in",
+			nil,
+		},
+		{
+			"out to in",
 			0,
 			[]uint32{2},
 			uapi.HandleRequestOutput,
 			[]uint8{1, 0, 1},
 			uapi.HandleRequestInput,
 			[]uint8{1, 0, 1},
-			nil},
-		{"as-is atv-hi to as-is atv-lo",
+			nil,
+		},
+		{
+			"as-is atv-hi to as-is atv-lo",
 			0,
 			[]uint32{1, 2, 3},
 			0,
 			[]uint8{1, 0, 1},
 			uapi.HandleRequestActiveLow,
 			[]uint8{1, 0, 1},
-			nil},
-		{"as-is atv-lo to as-is atv-hi",
+			nil,
+		},
+		{
+			"as-is atv-lo to as-is atv-hi",
 			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestActiveLow,
 			[]uint8{1, 0, 1},
 			0,
 			[]uint8{1, 0, 1},
-			nil},
-		{"input atv-lo to input atv-hi",
+			nil,
+		},
+		{
+			"input atv-lo to input atv-hi",
 			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestInput |
@@ -908,8 +1088,10 @@ func TestSetLineHandleConfig(t *testing.T) {
 			[]uint8{1, 0, 1},
 			uapi.HandleRequestInput,
 			[]uint8{1, 0, 1},
-			nil},
-		{"input atv-hi to input atv-lo",
+			nil,
+		},
+		{
+			"input atv-hi to input atv-lo",
 			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestInput,
@@ -917,8 +1099,10 @@ func TestSetLineHandleConfig(t *testing.T) {
 			uapi.HandleRequestInput |
 				uapi.HandleRequestActiveLow,
 			[]uint8{1, 0, 1},
-			nil},
-		{"output atv-lo to output atv-hi",
+			nil,
+		},
+		{
+			"output atv-lo to output atv-hi",
 			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestOutput |
@@ -926,8 +1110,10 @@ func TestSetLineHandleConfig(t *testing.T) {
 			[]uint8{1, 0, 1},
 			uapi.HandleRequestOutput,
 			[]uint8{0, 1, 1},
-			nil},
-		{"output atv-hi to output atv-lo",
+			nil,
+		},
+		{
+			"output atv-hi to output atv-lo",
 			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestOutput,
@@ -935,8 +1121,10 @@ func TestSetLineHandleConfig(t *testing.T) {
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestActiveLow,
 			[]uint8{0, 1, 1},
-			nil},
-		{"input atv-lo to as-is atv-hi",
+			nil,
+		},
+		{
+			"input atv-lo to as-is atv-hi",
 			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestInput |
@@ -944,16 +1132,20 @@ func TestSetLineHandleConfig(t *testing.T) {
 			[]uint8{1, 0, 1},
 			0,
 			[]uint8{1, 0, 1},
-			nil},
-		{"input atv-hi to as-is atv-lo",
+			nil,
+		},
+		{
+			"input atv-hi to as-is atv-lo",
 			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestInput,
 			[]uint8{1, 0, 1},
 			uapi.HandleRequestActiveLow,
 			[]uint8{1, 0, 1},
-			nil},
-		{"input pull-up to input pull-down",
+			nil,
+		},
+		{
+			"input pull-up to input pull-down",
 			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestInput |
@@ -962,8 +1154,10 @@ func TestSetLineHandleConfig(t *testing.T) {
 			uapi.HandleRequestInput |
 				uapi.HandleRequestPullDown,
 			[]uint8{0, 0, 0},
-			nil},
-		{"input pull-down to input pull-up",
+			nil,
+		},
+		{
+			"input pull-down to input pull-up",
 			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestInput |
@@ -972,8 +1166,10 @@ func TestSetLineHandleConfig(t *testing.T) {
 			uapi.HandleRequestInput |
 				uapi.HandleRequestPullUp,
 			[]uint8{1, 1, 1},
-			nil},
-		{"output atv-lo to as-is atv-hi",
+			nil,
+		},
+		{
+			"output atv-lo to as-is atv-hi",
 			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestOutput |
@@ -981,17 +1177,21 @@ func TestSetLineHandleConfig(t *testing.T) {
 			[]uint8{1, 0, 1},
 			0,
 			[]uint8{0, 1, 0}, // must be opposite of initial as mock is not updated
-			nil},
-		{"output atv-hi to as-is atv-lo",
+			nil,
+		},
+		{
+			"output atv-hi to as-is atv-lo",
 			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestOutput,
 			[]uint8{1, 0, 1},
 			uapi.HandleRequestActiveLow,
 			[]uint8{0, 1, 0}, // must be opposite of initial as mock is not updated
-			nil},
+			nil,
+		},
 		// expected errors
-		{"input drain",
+		{
+			"input drain",
 			0,
 			[]uint32{2},
 			uapi.HandleRequestInput,
@@ -999,8 +1199,10 @@ func TestSetLineHandleConfig(t *testing.T) {
 			uapi.HandleRequestInput |
 				uapi.HandleRequestOpenDrain,
 			nil,
-			unix.EINVAL},
-		{"input source",
+			unix.EINVAL,
+		},
+		{
+			"input source",
 			0,
 			[]uint32{2},
 			uapi.HandleRequestInput,
@@ -1008,24 +1210,30 @@ func TestSetLineHandleConfig(t *testing.T) {
 			uapi.HandleRequestInput |
 				uapi.HandleRequestOpenSource,
 			nil,
-			unix.EINVAL},
-		{"as-is drain",
+			unix.EINVAL,
+		},
+		{
+			"as-is drain",
 			0,
 			[]uint32{2},
 			0,
 			nil,
 			uapi.HandleRequestOpenDrain,
 			nil,
-			unix.EINVAL},
-		{"as-is source",
+			unix.EINVAL,
+		},
+		{
+			"as-is source",
 			0,
 			[]uint32{2},
 			0,
 			nil,
 			uapi.HandleRequestOpenSource,
 			nil,
-			unix.EINVAL},
-		{"drain source",
+			unix.EINVAL,
+		},
+		{
+			"drain source",
 			0,
 			[]uint32{2},
 			uapi.HandleRequestOutput,
@@ -1034,8 +1242,10 @@ func TestSetLineHandleConfig(t *testing.T) {
 				uapi.HandleRequestOpenDrain |
 				uapi.HandleRequestOpenSource,
 			nil,
-			unix.EINVAL},
-		{"pull-up and pull-down",
+			unix.EINVAL,
+		},
+		{
+			"pull-up and pull-down",
 			0,
 			[]uint32{2},
 			uapi.HandleRequestOutput,
@@ -1044,8 +1254,10 @@ func TestSetLineHandleConfig(t *testing.T) {
 				uapi.HandleRequestPullUp |
 				uapi.HandleRequestPullDown,
 			nil,
-			unix.EINVAL},
-		{"bias disable and pull-up",
+			unix.EINVAL,
+		},
+		{
+			"bias disable and pull-up",
 			0,
 			[]uint32{2},
 			uapi.HandleRequestOutput,
@@ -1054,8 +1266,10 @@ func TestSetLineHandleConfig(t *testing.T) {
 				uapi.HandleRequestBiasDisable |
 				uapi.HandleRequestPullUp,
 			nil,
-			unix.EINVAL},
-		{"bias disable and pull-down",
+			unix.EINVAL,
+		},
+		{
+			"bias disable and pull-down",
 			0,
 			[]uint32{2},
 			uapi.HandleRequestOutput,
@@ -1064,8 +1278,10 @@ func TestSetLineHandleConfig(t *testing.T) {
 				uapi.HandleRequestBiasDisable |
 				uapi.HandleRequestPullDown,
 			nil,
-			unix.EINVAL},
-		{"all bias flags",
+			unix.EINVAL,
+		},
+		{
+			"all bias flags",
 			0,
 			[]uint32{2},
 			uapi.HandleRequestOutput,
@@ -1075,7 +1291,8 @@ func TestSetLineHandleConfig(t *testing.T) {
 				uapi.HandleRequestPullDown |
 				uapi.HandleRequestPullUp,
 			nil,
-			unix.EINVAL},
+			unix.EINVAL,
+		},
 	}
 	for _, p := range patterns {
 		tf := func(t *testing.T) {
@@ -1159,30 +1376,40 @@ func TestSetLineEventConfig(t *testing.T) {
 		err         error
 	}{
 		// expected errors
-		{"low to high", 0, 1,
+		{
+			"low to high", 0, 1,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestActiveLow,
 			0,
-			unix.EINVAL},
-		{"high to low", 0, 2,
+			unix.EINVAL,
+		},
+		{
+			"high to low", 0, 2,
 			uapi.HandleRequestInput,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestActiveLow,
-			unix.EINVAL},
-		{"in to out", 1, 2,
+			unix.EINVAL,
+		},
+		{
+			"in to out", 1, 2,
 			uapi.HandleRequestInput,
 			uapi.HandleRequestOutput,
-			unix.EINVAL},
-		{"drain", 0, 3,
+			unix.EINVAL,
+		},
+		{
+			"drain", 0, 3,
 			uapi.HandleRequestInput,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestOpenDrain,
-			unix.EINVAL},
-		{"source", 0, 3,
+			unix.EINVAL,
+		},
+		{
+			"source", 0, 3,
 			uapi.HandleRequestInput,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestOpenSource,
-			unix.EINVAL},
+			unix.EINVAL,
+		},
 	}
 	for _, p := range patterns {
 		tf := func(t *testing.T) {
