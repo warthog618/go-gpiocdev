@@ -226,9 +226,9 @@ func init() {
 	getLineValuesIoctl = iorw(0xB4, 0x08, unsafe.Sizeof(hd))
 	setLineValuesIoctl = iorw(0xB4, 0x09, unsafe.Sizeof(hd))
 	var hc HandleConfig
-	setLineConfigIoctl = iorw(0xB4, 0x0a, unsafe.Sizeof(hc))
-	watchLineInfoIoctl = iorw(0xB4, 0x0b, unsafe.Sizeof(li))
-	unwatchLineInfoIoctl = iorw(0xB4, 0x0c, unsafe.Sizeof(li.Offset))
+	setLineConfigIoctl = iorw(0xB4, 0x0A, unsafe.Sizeof(hc))
+	watchLineInfoIoctl = iorw(0xB4, 0x0B, unsafe.Sizeof(li))
+	unwatchLineInfoIoctl = iorw(0xB4, 0x0C, unsafe.Sizeof(li.Offset))
 }
 
 // ChipInfo contains the details of a GPIO chip.
