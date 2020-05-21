@@ -1490,10 +1490,6 @@ func TestWatchLineInfo(t *testing.T) {
 	copy(xli.Name[:], lname)
 	assert.Equal(t, xli, li)
 
-	liv2 := uapi.LineInfoV2{Offset: 3}
-	err = uapi.WatchLineInfoV2(f.Fd(), &liv2)
-	assert.Equal(t, unix.EPERM, err)
-
 	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")

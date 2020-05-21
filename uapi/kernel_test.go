@@ -187,6 +187,52 @@ func TestBulkEventRead(t *testing.T) {
 	unix.Close(int(er.Fd))
 }
 
+func TestWatchInfoVersionLockV1(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
+	requireMockup(t)
+	c, err := mock.Chip(0)
+	require.Nil(t, err)
+
+	f, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f.Close()
+
+	// test that watch locks to v1
+	liv1 := uapi.LineInfo{Offset: 3}
+	err = uapi.WatchLineInfo(f.Fd(), &liv1)
+	require.Nil(t, err)
+
+	li := uapi.LineInfoV2{Offset: 3}
+	err = uapi.WatchLineInfoV2(f.Fd(), &li)
+	assert.Equal(t, unix.EPERM, err)
+
+	err = uapi.WatchLineInfo(f.Fd(), &liv1)
+	require.Nil(t, err)
+}
+
+func TestWatchInfoVersionLockV2(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
+	requireMockup(t)
+	c, err := mock.Chip(0)
+	require.Nil(t, err)
+
+	f, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f.Close()
+
+	// test that watch locks to v2
+	li := uapi.LineInfoV2{Offset: 3}
+	err = uapi.WatchLineInfoV2(f.Fd(), &li)
+	require.Nil(t, err)
+
+	liv1 := uapi.LineInfo{Offset: 3}
+	err = uapi.WatchLineInfo(f.Fd(), &liv1)
+	assert.Equal(t, unix.EPERM, err)
+
+	err = uapi.WatchLineInfoV2(f.Fd(), &li)
+	require.Nil(t, err)
+}
+
 func TestOutputSets(t *testing.T) {
 	t.Skip("contains known failures as of 5.4-rc1")
 	requireMockup(t)
