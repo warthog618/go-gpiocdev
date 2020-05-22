@@ -1572,6 +1572,43 @@ func TestReadLineEvent(t *testing.T) {
 	assert.Equal(t, uint32(1), evt.Offset)
 
 	unix.Close(int(lr.Fd))
+
+	lr.Config.EdgeDetection = uapi.LineEdgeFalling
+	err = uapi.GetLine(f.Fd(), &lr)
+	require.Nil(t, err)
+
+	c.SetValue(1, 1)
+	evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
+	require.Nil(t, err)
+	require.NotNil(t, evt)
+	assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
+	assert.Equal(t, uint32(1), evt.Offset)
+
+	c.SetValue(1, 0)
+	evt, err = readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
+	assert.Nil(t, err)
+	assert.Nil(t, evt, "spurious event")
+
+	unix.Close(int(lr.Fd))
+
+	lr.Config.Flags &^= uapi.LineFlagV2ActiveLow
+	lr.Config.EdgeDetection = uapi.LineEdgeRising
+	err = uapi.GetLine(f.Fd(), &lr)
+	require.Nil(t, err)
+
+	c.SetValue(1, 1)
+	evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
+	require.Nil(t, err)
+	require.NotNil(t, evt)
+	assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
+	assert.Equal(t, uint32(1), evt.Offset)
+
+	c.SetValue(1, 0)
+	evt, err = readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
+	assert.Nil(t, err)
+	assert.Nil(t, evt, "spurious event")
+
+	unix.Close(int(lr.Fd))
 }
 
 func readLineEventTimeout(fd uintptr, t time.Duration) (*uapi.LineEvent, error) {
