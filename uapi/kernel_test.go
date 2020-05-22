@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"testing"
-	"time"
 	"unsafe"
 
 	"github.com/stretchr/testify/assert"
@@ -105,11 +104,11 @@ func TestWatchIsolation(t *testing.T) {
 	copy(xli.Name[:], lname)
 	assert.Equal(t, xli, li)
 
-	chg, err := readLineInfoChangedTimeout(f1.Fd(), time.Second)
+	chg, err := readLineInfoChangedTimeout(f1.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change on f1")
 
-	chg, err = readLineInfoChangedTimeout(f2.Fd(), time.Second)
+	chg, err = readLineInfoChangedTimeout(f2.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change on f2")
 
@@ -119,7 +118,7 @@ func TestWatchIsolation(t *testing.T) {
 	copy(hr.Consumer[:], "testwatch")
 	err = uapi.GetLineHandle(f2.Fd(), &hr)
 	assert.Nil(t, err)
-	chg, err = readLineInfoChangedTimeout(f1.Fd(), time.Second)
+	chg, err = readLineInfoChangedTimeout(f1.Fd(), eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedRequested, chg.Type)
@@ -127,7 +126,7 @@ func TestWatchIsolation(t *testing.T) {
 	copy(xli.Consumer[:], "testwatch")
 	assert.Equal(t, xli, chg.Info)
 
-	chg, err = readLineInfoChangedTimeout(f2.Fd(), time.Second)
+	chg, err = readLineInfoChangedTimeout(f2.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change on f2")
 
@@ -138,7 +137,7 @@ func TestWatchIsolation(t *testing.T) {
 	unix.Close(int(hr.Fd))
 
 	unix.Close(int(hr.Fd))
-	chg, err = readLineInfoChangedTimeout(f2.Fd(), time.Second)
+	chg, err = readLineInfoChangedTimeout(f2.Fd(), eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedReleased, chg.Type)
@@ -146,7 +145,7 @@ func TestWatchIsolation(t *testing.T) {
 	copy(xli.Name[:], lname)
 	assert.Equal(t, xli, chg.Info)
 
-	chg, err = readLineInfoChangedTimeout(f1.Fd(), time.Second)
+	chg, err = readLineInfoChangedTimeout(f1.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change on f1")
 }
@@ -169,7 +168,7 @@ func TestBulkEventRead(t *testing.T) {
 	err = uapi.GetLineEvent(f.Fd(), &er)
 	require.Nil(t, err)
 
-	evt, err := readEventTimeout(uintptr(er.Fd), time.Second)
+	evt, err := readEventTimeout(uintptr(er.Fd), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
@@ -301,13 +300,13 @@ func TestEdgeDetectionLinesMax(t *testing.T) {
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 
-	evt, err := readLineEventTimeout(uintptr(lr.Fd), time.Second)
+	evt, err := readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
 	for i := 0; i < uapi.LinesMax; i++ {
 		c.SetValue(i, 1)
-		evt, err = readLineEventTimeout(uintptr(lr.Fd), time.Second)
+		evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
 		require.Nil(t, err)
 		require.NotNil(t, evt)
 		assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
@@ -316,14 +315,14 @@ func TestEdgeDetectionLinesMax(t *testing.T) {
 
 	for i := 0; i < uapi.LinesMax; i++ {
 		c.SetValue(i, 0)
-		evt, err = readLineEventTimeout(uintptr(lr.Fd), time.Second)
+		evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
 		assert.Nil(t, err)
 		require.NotNil(t, evt)
 		assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
 		assert.Equal(t, uint32(i), evt.Offset)
 	}
 
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), time.Second)
+	evt, err = readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 

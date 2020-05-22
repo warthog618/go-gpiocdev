@@ -37,6 +37,9 @@ func TestMain(m *testing.M) {
 var (
 	setConfigKernel = mockup.Semver{5, 5} // setLineConfig ioctl added
 	infoWatchKernel = mockup.Semver{5, 7} // watchLineInfo ioctl added
+
+	eventWaitTimeout         = 100 * time.Millisecond
+	spuriousEventWaitTimeout = 300 * time.Millisecond
 )
 
 func reloadMockup() {
@@ -1472,7 +1475,7 @@ func TestWatchLineInfo(t *testing.T) {
 	copy(hr.Consumer[:], "testwatch")
 	err = uapi.GetLineHandle(f.Fd(), &hr)
 	assert.Nil(t, err)
-	chg, err := readLineInfoChangedTimeout(f.Fd(), time.Second)
+	chg, err := readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")
 	unix.Close(int(hr.Fd))
@@ -1490,7 +1493,7 @@ func TestWatchLineInfo(t *testing.T) {
 	copy(xli.Name[:], lname)
 	assert.Equal(t, xli, li)
 
-	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
+	chg, err = readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")
 
@@ -1500,7 +1503,7 @@ func TestWatchLineInfo(t *testing.T) {
 	copy(hr.Consumer[:], "testwatch")
 	err = uapi.GetLineHandle(f.Fd(), &hr)
 	assert.Nil(t, err)
-	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
+	chg, err = readLineInfoChangedTimeout(f.Fd(), eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedRequested, chg.Type)
@@ -1508,7 +1511,7 @@ func TestWatchLineInfo(t *testing.T) {
 	copy(xli.Consumer[:], "testwatch")
 	assert.Equal(t, xli, chg.Info)
 
-	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
+	chg, err = readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")
 
@@ -1517,20 +1520,20 @@ func TestWatchLineInfo(t *testing.T) {
 	copy(hr.Consumer[:], "testwatch")
 	err = uapi.SetLineConfig(uintptr(hr.Fd), &hc)
 	assert.Nil(t, err)
-	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
+	chg, err = readLineInfoChangedTimeout(f.Fd(), eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedConfig, chg.Type)
 	xli.Flags |= uapi.LineFlagActiveLow
 	assert.Equal(t, xli, chg.Info)
 
-	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
+	chg, err = readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")
 
 	// release line
 	unix.Close(int(hr.Fd))
-	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
+	chg, err = readLineInfoChangedTimeout(f.Fd(), eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedReleased, chg.Type)
@@ -1538,7 +1541,7 @@ func TestWatchLineInfo(t *testing.T) {
 	copy(xli.Name[:], lname)
 	assert.Equal(t, xli, chg.Info)
 
-	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
+	chg, err = readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")
 }
@@ -1565,7 +1568,7 @@ func TestUnwatchLineInfo(t *testing.T) {
 	copy(xli.Name[:], lname)
 	assert.Equal(t, xli, li)
 
-	chg, err := readLineInfoChangedTimeout(f.Fd(), time.Second)
+	chg, err := readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")
 
@@ -1578,7 +1581,7 @@ func TestUnwatchLineInfo(t *testing.T) {
 	err = uapi.GetLineHandle(f.Fd(), &hr)
 	assert.Nil(t, err)
 	unix.Close(int(hr.Fd))
-	chg, err = readLineInfoChangedTimeout(f.Fd(), time.Second)
+	chg, err = readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")
 
@@ -1606,18 +1609,18 @@ func TestReadEvent(t *testing.T) {
 	require.Nil(t, err)
 	defer unix.Close(int(er.Fd))
 
-	evt, err := readEventTimeout(uintptr(er.Fd), time.Second)
+	evt, err := readEventTimeout(uintptr(er.Fd), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
 	c.SetValue(1, 1)
-	evt, err = readEventTimeout(uintptr(er.Fd), time.Second)
+	evt, err = readEventTimeout(uintptr(er.Fd), eventWaitTimeout)
 	require.Nil(t, err)
 	require.NotNil(t, evt)
 	assert.Equal(t, uapi.EventRequestFallingEdge, evt.ID)
 
 	c.SetValue(1, 0)
-	evt, err = readEventTimeout(uintptr(er.Fd), time.Second)
+	evt, err = readEventTimeout(uintptr(er.Fd), eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, evt)
 	assert.Equal(t, uapi.EventRequestRisingEdge, evt.ID)

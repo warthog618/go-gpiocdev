@@ -1431,7 +1431,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 	copy(lr.Consumer[:], "testwatch")
 	err = uapi.GetLine(f.Fd(), &lr)
 	assert.Nil(t, err)
-	chg, err := readLineInfoChangedV2Timeout(f.Fd(), time.Second)
+	chg, err := readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")
 	unix.Close(int(lr.Fd))
@@ -1453,7 +1453,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 	copy(xli.Name[:], lname)
 	assert.Equal(t, xli, li)
 
-	chg, err = readLineInfoChangedV2Timeout(f.Fd(), time.Second)
+	chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")
 
@@ -1469,7 +1469,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 	copy(lr.Consumer[:], "testwatch")
 	err = uapi.GetLine(f.Fd(), &lr)
 	assert.Nil(t, err)
-	chg, err = readLineInfoChangedV2Timeout(f.Fd(), time.Second)
+	chg, err = readLineInfoChangedV2Timeout(f.Fd(), eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedRequested, chg.Type)
@@ -1477,7 +1477,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 	copy(xli.Consumer[:], "testwatch")
 	assert.Equal(t, xli, chg.Info)
 
-	chg, err = readLineInfoChangedV2Timeout(f.Fd(), time.Second)
+	chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")
 
@@ -1485,20 +1485,20 @@ func TestWatchLineInfoV2(t *testing.T) {
 	lc := uapi.LineConfig{Flags: uapi.LineFlagV2ActiveLow}
 	err = uapi.SetLineConfigV2(uintptr(lr.Fd), &lc)
 	assert.Nil(t, err)
-	chg, err = readLineInfoChangedV2Timeout(f.Fd(), time.Second)
+	chg, err = readLineInfoChangedV2Timeout(f.Fd(), eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedConfig, chg.Type)
 	xli.Flags |= uapi.LineFlagV2ActiveLow
 	assert.Equal(t, xli, chg.Info)
 
-	chg, err = readLineInfoChangedV2Timeout(f.Fd(), time.Second)
+	chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")
 
 	// release line
 	unix.Close(int(lr.Fd))
-	chg, err = readLineInfoChangedV2Timeout(f.Fd(), time.Second)
+	chg, err = readLineInfoChangedV2Timeout(f.Fd(), eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedReleased, chg.Type)
@@ -1510,7 +1510,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 	copy(xli.Name[:], lname)
 	assert.Equal(t, xli, chg.Info)
 
-	chg, err = readLineInfoChangedV2Timeout(f.Fd(), time.Second)
+	chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")
 }
@@ -1539,33 +1539,33 @@ func TestReadLineEvent(t *testing.T) {
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 
-	evt, err := readLineEventTimeout(uintptr(lr.Fd), time.Second)
+	evt, err := readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
 	c.SetValue(1, 1)
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), time.Second)
+	evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
 	require.Nil(t, err)
 	require.NotNil(t, evt)
 	assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
 	assert.Equal(t, uint32(1), evt.Offset)
 
 	c.SetValue(2, 0)
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), time.Second)
+	evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, evt)
 	assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
 	assert.Equal(t, uint32(2), evt.Offset)
 
 	c.SetValue(2, 1)
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), time.Second)
+	evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
 	require.Nil(t, err)
 	require.NotNil(t, evt)
 	assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
 	assert.Equal(t, uint32(2), evt.Offset)
 
 	c.SetValue(1, 0)
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), time.Second)
+	evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, evt)
 	assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
