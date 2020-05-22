@@ -272,7 +272,7 @@ type LineDirection uint8
 
 const (
 	// LineDirectionInput indicates the line is an input.
-	LineDirectionInput LineDirection = iota + 1
+	LineDirectionInput LineDirection = iota
 
 	// LineDirectionOutput indicates the line is an output.
 	LineDirectionOutput
