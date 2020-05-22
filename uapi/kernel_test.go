@@ -270,6 +270,66 @@ func TestOutputSets(t *testing.T) {
 	}
 }
 
+func TestEdgeDetectionLinesMax(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
+	if mock != nil {
+		mock.Close()
+	}
+	defer reloadMockup()
+	mock, err := mockup.New([]int{int(uapi.LinesMax)}, false)
+	require.Nil(t, err)
+	c, err := mock.Chip(0)
+	require.Nil(t, err)
+	f, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f.Close()
+	offsets := [uapi.LinesMax]uint32{}
+	for i := 0; i < uapi.LinesMax; i++ {
+		offsets[i] = uint32(i)
+		err = c.SetValue(i, 0)
+		require.Nil(t, err)
+	}
+	lr := uapi.LineRequest{
+		Lines:   uint32(uapi.LinesMax),
+		Offsets: offsets,
+		Config: uapi.LineConfig{
+			Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
+			Direction:     uapi.LineDirectionInput,
+			EdgeDetection: uapi.LineEdgeBoth,
+		},
+	}
+	err = uapi.GetLine(f.Fd(), &lr)
+	require.Nil(t, err)
+
+	evt, err := readLineEventTimeout(uintptr(lr.Fd), time.Second)
+	assert.Nil(t, err)
+	assert.Nil(t, evt, "spurious event")
+
+	for i := 0; i < uapi.LinesMax; i++ {
+		c.SetValue(i, 1)
+		evt, err = readLineEventTimeout(uintptr(lr.Fd), time.Second)
+		require.Nil(t, err)
+		require.NotNil(t, evt)
+		assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
+		assert.Equal(t, uint32(i), evt.Offset)
+	}
+
+	for i := 0; i < uapi.LinesMax; i++ {
+		c.SetValue(i, 0)
+		evt, err = readLineEventTimeout(uintptr(lr.Fd), time.Second)
+		assert.Nil(t, err)
+		require.NotNil(t, evt)
+		assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
+		assert.Equal(t, uint32(i), evt.Offset)
+	}
+
+	evt, err = readLineEventTimeout(uintptr(lr.Fd), time.Second)
+	assert.Nil(t, err)
+	assert.Nil(t, evt, "spurious event")
+
+	unix.Close(int(lr.Fd))
+}
+
 func testLine(t *testing.T, c *mockup.Chip, line int, flags uapi.HandleFlag, initial, toggle int) {
 	t.Helper()
 	// set mock initial - opposing default
