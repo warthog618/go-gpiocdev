@@ -1013,7 +1013,6 @@ func TestSetLineValuesV2(t *testing.T) {
 	err := uapi.SetLineValuesV2(0, lv)
 	assert.NotNil(t, err)
 }
-
 func TestSetLineConfigV2(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
 	requireMockup(t)
@@ -1517,7 +1516,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 }
 
 func TestReadLineEvent(t *testing.T) {
-	t.Skip("not implemented yet...")
+	requireKernel(t, uapiV2Kernel)
 	requireMockup(t)
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
@@ -1526,11 +1525,13 @@ func TestReadLineEvent(t *testing.T) {
 	defer f.Close()
 	err = c.SetValue(1, 0)
 	require.Nil(t, err)
+	err = c.SetValue(2, 1)
+	require.Nil(t, err)
 	lr := uapi.LineRequest{
-		Lines:   1,
-		Offsets: [uapi.LinesMax]uint32{1},
+		Lines:   2,
+		Offsets: [uapi.LinesMax]uint32{1, 2},
 		Config: uapi.LineConfig{
-			Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
+			Flags:         uapi.LineFlagV2ActiveLow | uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
 			Direction:     uapi.LineDirectionInput,
 			EdgeDetection: uapi.LineEdgeBoth,
 		},
@@ -1546,13 +1547,29 @@ func TestReadLineEvent(t *testing.T) {
 	evt, err = readLineEventTimeout(uintptr(lr.Fd), time.Second)
 	require.Nil(t, err)
 	require.NotNil(t, evt)
-	assert.Equal(t, uint32(2), evt.ID) // returns falling edge
+	assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
+	assert.Equal(t, uint32(1), evt.Offset)
+
+	c.SetValue(2, 0)
+	evt, err = readLineEventTimeout(uintptr(lr.Fd), time.Second)
+	assert.Nil(t, err)
+	require.NotNil(t, evt)
+	assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
+	assert.Equal(t, uint32(2), evt.Offset)
+
+	c.SetValue(2, 1)
+	evt, err = readLineEventTimeout(uintptr(lr.Fd), time.Second)
+	require.Nil(t, err)
+	require.NotNil(t, evt)
+	assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
+	assert.Equal(t, uint32(2), evt.Offset)
 
 	c.SetValue(1, 0)
 	evt, err = readLineEventTimeout(uintptr(lr.Fd), time.Second)
 	assert.Nil(t, err)
 	require.NotNil(t, evt)
-	assert.Equal(t, uint32(1), evt.ID) // returns rising edge
+	assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
+	assert.Equal(t, uint32(1), evt.Offset)
 
 	unix.Close(int(lr.Fd))
 }

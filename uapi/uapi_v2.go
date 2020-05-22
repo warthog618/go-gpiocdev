@@ -326,7 +326,7 @@ const (
 
 // LinesMax is the maximum number of lines that can be requested in a single
 // request.
-const LinesMax uint8 = 64
+const LinesMax int = 64
 
 // LineConfig contains the configuration of a line.
 type LineConfig struct {
