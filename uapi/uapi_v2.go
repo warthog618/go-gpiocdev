@@ -383,6 +383,17 @@ type LineRequest struct {
 // Zero is a logical low and any other value is a logical high.
 type LineValues [LinesMax]uint8
 
+// LineEventID indicates the type of event detected.
+type LineEventID uint32
+
+const (
+	// LineEventRisingEdge indicates the event is a rising edge.
+	LineEventRisingEdge LineEventID = iota + 1
+
+	// LineEventFallingEdge indicates the event is a falling edge.
+	LineEventFallingEdge
+)
+
 // LineEvent contains the details of a particular line event.
 //
 // This is returned via the event request fd in response to events.
@@ -391,7 +402,7 @@ type LineEvent struct {
 	Timestamp uint64
 
 	// The type of event detected.
-	ID uint32
+	ID LineEventID
 
 	// The line that triggered the event.
 	Offset uint32
