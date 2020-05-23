@@ -22,7 +22,6 @@ func main() {
 
 	offset := rpi.J8p7
 	l, err := c.RequestLine(offset,
-		gpiod.WithPullUp,
 		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
 			t := time.Now()
 			edge := "rising"
