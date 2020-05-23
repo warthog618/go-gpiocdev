@@ -186,6 +186,45 @@ func TestBulkEventRead(t *testing.T) {
 	unix.Close(int(er.Fd))
 }
 
+func TestBulkEventReadV2(t *testing.T) {
+	requireMockup(t)
+	c, err := mock.Chip(0)
+	require.Nil(t, err)
+	f, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f.Close()
+	err = c.SetValue(1, 0)
+	require.Nil(t, err)
+	lr := uapi.LineRequest{
+		Lines:   1,
+		Offsets: [uapi.LinesMax]uint32{1},
+		Config: uapi.LineConfig{
+			Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
+			Direction:     uapi.LineDirectionInput,
+			EdgeDetection: uapi.LineEdgeBoth,
+		},
+	}
+	err = uapi.GetLine(f.Fd(), &lr)
+	require.Nil(t, err)
+
+	evt, err := readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
+	assert.Nil(t, err)
+	assert.Nil(t, evt, "spurious event")
+
+	c.SetValue(1, 1)
+	c.SetValue(1, 0)
+	c.SetValue(1, 1)
+	c.SetValue(1, 0)
+
+	var ed uapi.LineEvent
+	b := make([]byte, unsafe.Sizeof(ed)*3)
+	n, err := unix.Read(int(lr.Fd), b[:])
+	assert.Nil(t, err)
+	assert.Equal(t, len(b), n)
+
+	unix.Close(int(lr.Fd))
+}
+
 func TestWatchInfoVersionLockV1(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
 	requireMockup(t)
