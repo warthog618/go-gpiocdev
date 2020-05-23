@@ -22,6 +22,7 @@ func main() {
 
 	offset := rpi.J8p7
 	l, err := c.RequestLine(offset,
+		gpiod.WithPullUp,
 		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
 			t := time.Now()
 			edge := "rising"
@@ -35,6 +36,9 @@ func main() {
 				evt.Timestamp)
 		}))
 	if err != nil {
+		if err.Error() == "invalid argument" {
+			fmt.Println("An error occured, make sure your kernel version is >= 5.5")
+		}
 		panic(err)
 	}
 	defer l.Close()
