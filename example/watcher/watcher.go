@@ -6,6 +6,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"syscall"
 	"time"
 
 	"github.com/warthog618/gpiod"
@@ -36,7 +38,11 @@ func main() {
 				evt.Timestamp)
 		}))
 	if err != nil {
-		panic(err)
+		fmt.Printf("RequestLine returned error: %s\n", err)
+		if err == syscall.Errno(22) {
+			fmt.Println("Note that the WithPullUp option requires kernel V5.5 or later - check your kernel version.")
+		}
+		os.Exit(1)
 	}
 	defer l.Close()
 
