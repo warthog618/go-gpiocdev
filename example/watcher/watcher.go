@@ -37,7 +37,7 @@ func main() {
 		}))
 	if err != nil {
 		if err.Error() == "invalid argument" {
-			fmt.Println("An error occured, make sure your kernel version is >= 5.5")
+			fmt.Println("An error occurred, make sure your kernel version is >= 5.5")
 		}
 		panic(err)
 	}
