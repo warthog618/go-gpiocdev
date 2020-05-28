@@ -35,8 +35,7 @@ func GetChipInfo(fd uintptr) (ChipInfo, error) {
 // The fd is an open GPIO character device.
 // The offset is zero based.
 func GetLineInfo(fd uintptr, offset int) (LineInfo, error) {
-	var li LineInfo
-	li.Offset = uint32(offset)
+	li := LineInfo{Offset: uint32(offset)}
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		fd,
 		uintptr(getLineInfoIoctl),

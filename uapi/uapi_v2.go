@@ -18,8 +18,7 @@ import (
 // The fd is an open GPIO character device.
 // The offset is zero based.
 func GetLineInfoV2(fd uintptr, offset int) (LineInfoV2, error) {
-	var li LineInfoV2
-	li.Offset = uint32(offset)
+	li := LineInfoV2{Offset: uint32(offset)}
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		fd,
 		uintptr(getLineInfoV2Ioctl),
