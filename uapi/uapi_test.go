@@ -1480,11 +1480,12 @@ func TestWatchLineInfo(t *testing.T) {
 	assert.Nil(t, chg, "spurious change")
 	unix.Close(int(hr.Fd))
 
-	// set watch
+	// out of range
 	li := uapi.LineInfo{Offset: uint32(c.Lines + 1)}
 	err = uapi.WatchLineInfo(f.Fd(), &li)
 	require.Equal(t, syscall.Errno(0x16), err)
 
+	// set watch
 	li = uapi.LineInfo{Offset: 3}
 	lname := c.Label + "-3"
 	err = uapi.WatchLineInfo(f.Fd(), &li)
@@ -1492,6 +1493,10 @@ func TestWatchLineInfo(t *testing.T) {
 	xli := uapi.LineInfo{Offset: 3}
 	copy(xli.Name[:], lname)
 	assert.Equal(t, xli, li)
+
+	// repeated watch
+	err = uapi.WatchLineInfo(f.Fd(), &li)
+	assert.Equal(t, unix.EBUSY, err)
 
 	chg, err = readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
@@ -1584,6 +1589,10 @@ func TestUnwatchLineInfo(t *testing.T) {
 	chg, err = readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")
+
+	// repeated unwatch
+	err = uapi.UnwatchLineInfo(f.Fd(), 3)
+	require.Equal(t, unix.EBUSY, err)
 
 	// repeated watch
 	err = uapi.WatchLineInfo(f.Fd(), &li)

@@ -244,6 +244,9 @@ func TestWatchInfoVersionLockV1(t *testing.T) {
 	err = uapi.WatchLineInfoV2(f.Fd(), &li)
 	assert.Equal(t, unix.EPERM, err)
 
+	err = uapi.UnwatchLineInfo(f.Fd(), 3)
+	require.Nil(t, err)
+
 	err = uapi.WatchLineInfo(f.Fd(), &liv1)
 	require.Nil(t, err)
 }
@@ -266,6 +269,9 @@ func TestWatchInfoVersionLockV2(t *testing.T) {
 	liv1 := uapi.LineInfo{Offset: 3}
 	err = uapi.WatchLineInfo(f.Fd(), &liv1)
 	assert.Equal(t, unix.EPERM, err)
+
+	err = uapi.UnwatchLineInfo(f.Fd(), 3)
+	require.Nil(t, err)
 
 	err = uapi.WatchLineInfoV2(f.Fd(), &li)
 	require.Nil(t, err)

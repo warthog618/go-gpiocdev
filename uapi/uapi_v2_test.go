@@ -1973,6 +1973,10 @@ func TestWatchLineInfoV2(t *testing.T) {
 	copy(xli.Name[:], lname)
 	assert.Equal(t, xli, li)
 
+	// repeated watch
+	err = uapi.WatchLineInfoV2(f.Fd(), &li)
+	assert.Equal(t, unix.EBUSY, err)
+
 	chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")
