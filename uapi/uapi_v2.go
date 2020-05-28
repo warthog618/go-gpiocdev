@@ -182,7 +182,7 @@ type LineInfoV2 struct {
 	Debounce uint32
 
 	// reserved for future use.
-	_ [12]uint32
+	Padding [lineInfoV2PadSize]uint32
 }
 
 // LineInfoChangedV2 contains the details of a change to line info.
@@ -199,7 +199,7 @@ type LineInfoChangedV2 struct {
 	Type ChangeType
 
 	// reserved for future use.
-	_ [5]uint32
+	Padding [lineInfoChangedV2PadSize]uint32
 }
 
 // LineFlagV2 are the flags for a line.
@@ -324,9 +324,18 @@ const (
 	LineEdgeBoth
 )
 
-// LinesMax is the maximum number of lines that can be requested in a single
-// request.
-const LinesMax int = 64
+const (
+	// LinesMax is the maximum number of lines that can be requested in a single
+	// request.
+	LinesMax int = 64
+
+	// the pad sizes of each struct
+	lineConfigPadSize        int = 7
+	lineRequestPadSize       int = 4
+	lineEventPadSize         int = 2
+	lineInfoV2PadSize        int = 12
+	lineInfoChangedV2PadSize int = 5
+)
 
 // LineConfig contains the configuration of a line.
 type LineConfig struct {
@@ -353,7 +362,7 @@ type LineConfig struct {
 	Debounce uint32
 
 	// reserved for future use.
-	_ [7]uint32
+	Padding [lineConfigPadSize]uint32
 }
 
 // LineRequest is a request for control of a set of lines.
@@ -372,7 +381,7 @@ type LineRequest struct {
 	Lines uint32
 
 	// reserved for future use.
-	_ [4]uint32
+	Padding [lineRequestPadSize]uint32
 
 	// The file handle for the requested lines.
 	// Set if the request is successful.
@@ -408,5 +417,5 @@ type LineEvent struct {
 	Offset uint32
 
 	// reserved for future use
-	_ [2]uint32
+	Padding [lineEventPadSize]uint32
 }
