@@ -19,7 +19,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func TestRepeatedLines(t *testing.T) {
+func TestRepeatedGetLineHandle(t *testing.T) {
 	requireMockup(t)
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
@@ -29,23 +29,87 @@ func TestRepeatedLines(t *testing.T) {
 	defer f.Close()
 
 	hr := uapi.HandleRequest{
-		Lines: 2,
+		Flags:   uapi.HandleRequestInput,
+		Lines:   2,
+		Offsets: [uapi.HandlesMax]uint32{1, 1},
 	}
-	hr.Offsets[0] = 1
-	hr.Offsets[1] = 1
 
 	// input
 	err = uapi.GetLineHandle(f.Fd(), &hr)
 	assert.NotNil(t, err)
+
+	// busy
+	err = uapi.GetLineHandle(f.Fd(), &hr)
+	assert.Equal(t, unix.EBUSY, err)
 
 	// output
 	hr.Flags = uapi.HandleRequestOutput
 	hr.DefaultValues[0] = 0
 	hr.DefaultValues[1] = 1
 	err = uapi.GetLineHandle(f.Fd(), &hr)
-	assert.NotNil(t, err)
+	assert.Equal(t, unix.EBUSY, err)
 
 	unix.Close(int(hr.Fd))
+}
+
+func TestRepeatedGetLineEvent(t *testing.T) {
+	requireMockup(t)
+	c, err := mock.Chip(0)
+	require.Nil(t, err)
+	require.NotNil(t, c)
+	f, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f.Close()
+
+	er := uapi.EventRequest{
+		Offset:      1,
+		HandleFlags: uapi.HandleRequestInput,
+		EventFlags:  uapi.EventRequestBothEdges,
+	}
+
+	// input
+	err = uapi.GetLineEvent(f.Fd(), &er)
+	assert.Nil(t, err)
+
+	// busy
+	err = uapi.GetLineEvent(f.Fd(), &er)
+	assert.Equal(t, unix.EBUSY, err)
+
+	unix.Close(int(er.Fd))
+}
+
+func TestRepeatedGetLine(t *testing.T) {
+	requireMockup(t)
+	c, err := mock.Chip(0)
+	require.Nil(t, err)
+	require.NotNil(t, c)
+	f, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f.Close()
+
+	lr := uapi.LineRequest{
+		Config: uapi.LineConfig{
+			Flags:     uapi.LineFlagV2Direction,
+			Direction: uapi.LineDirectionInput,
+		},
+		Lines:   2,
+		Offsets: [uapi.LinesMax]uint32{1, 1},
+	}
+
+	// input
+	err = uapi.GetLine(f.Fd(), &lr)
+	assert.NotNil(t, err)
+
+	// busy
+	err = uapi.GetLine(f.Fd(), &lr)
+	assert.Equal(t, unix.EBUSY, err)
+
+	// output
+	lr.Config.Direction = uapi.LineDirectionOutput
+	err = uapi.GetLine(f.Fd(), &lr)
+	assert.Equal(t, unix.EBUSY, err)
+
+	unix.Close(int(lr.Fd))
 }
 
 func TestAsIs(t *testing.T) {
