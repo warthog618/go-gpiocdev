@@ -205,12 +205,12 @@ type LineInfoChangedV2 struct {
 type LineFlagV2 uint32
 
 const (
-	// LineFlagV2Unavailable indicates that the line has been requested.
+	// LineFlagV2Busy indicates that the line is already in use.
 	// It may have been requested by this process or another process,
 	// or may be reserved by the kernel.
 	//
 	// The line cannot be requested until this flag is clear.
-	LineFlagV2Unavailable LineFlagV2 = 1 << iota
+	LineFlagV2Busy LineFlagV2 = 1 << iota
 
 	// LineFlagV2ActiveLow indicates that the line is active low.
 	LineFlagV2ActiveLow
@@ -233,7 +233,12 @@ const (
 
 // IsAvailable returns true if the line is available to be requested.
 func (f LineFlagV2) IsAvailable() bool {
-	return f&LineFlagV2Unavailable == 0
+	return f&LineFlagV2Busy == 0
+}
+
+// IsBusy returns true if the line is not available to be requested.
+func (f LineFlagV2) IsBusy() bool {
+	return f&LineFlagV2Busy != 0
 }
 
 // IsActiveLow returns true if the line is active low.
