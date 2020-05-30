@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -2146,6 +2147,66 @@ func readLineEventTimeout(fd uintptr, t time.Duration) (*uapi.LineEvent, error) 
 		return nil, err
 	}
 	return &evt, nil
+}
+
+func TestDebounce(t *testing.T) {
+	requireMockup(t)
+	c, err := mock.Chip(0)
+	require.Nil(t, err)
+	f, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f.Close()
+	err = c.SetValue(1, 0)
+	require.Nil(t, err)
+	lr := uapi.LineRequest{
+		Lines:   1,
+		Offsets: [uapi.LinesMax]uint32{1},
+		Config: uapi.LineConfig{
+			Flags: uapi.LineFlagV2Direction |
+				uapi.LineFlagV2EdgeDetection |
+				uapi.LineFlagV2Debounce,
+			Direction:     uapi.LineDirectionInput,
+			EdgeDetection: uapi.LineEdgeBoth,
+			Debounce:      10000, // 10msec
+		},
+	}
+	err = uapi.GetLine(f.Fd(), &lr)
+	require.Nil(t, err)
+
+	evt, err := readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
+	assert.Nil(t, err)
+	assert.Nil(t, evt, "spurious event")
+
+	// toggle faster than the debounce period - should be filtered
+	for i := 0; i < 10; i++ {
+		c.SetValue(1, 1)
+		time.Sleep(time.Millisecond)
+		c.SetValue(1, 0)
+		time.Sleep(time.Millisecond)
+	}
+	c.SetValue(1, 1)
+
+	var ed uapi.LineEvent
+	b := make([]byte, unsafe.Sizeof(ed)*6)
+	n, err := unix.Read(int(lr.Fd), b[:])
+	assert.Nil(t, err)
+	assert.Equal(t, int(unsafe.Sizeof(ed)), n)
+
+	// toggle slower than the debounce period - should get through
+	for i := 0; i < 2; i++ {
+		c.SetValue(1, 0)
+		time.Sleep(20 * time.Millisecond)
+		c.SetValue(1, 1)
+		time.Sleep(20 * time.Millisecond)
+	}
+	c.SetValue(1, 0)
+	time.Sleep(20 * time.Millisecond)
+
+	n, err = unix.Read(int(lr.Fd), b[:])
+	assert.Nil(t, err)
+	assert.Equal(t, int(unsafe.Sizeof(ed)*5), n)
+
+	unix.Close(int(lr.Fd))
 }
 
 func readLineInfoChangedV2Timeout(fd uintptr,
