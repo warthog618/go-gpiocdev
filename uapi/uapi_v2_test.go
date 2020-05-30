@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"testing"
 	"time"
-	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -2184,15 +2183,21 @@ func TestDebounce(t *testing.T) {
 		c.SetValue(1, 0)
 		time.Sleep(time.Millisecond)
 	}
+	// but this change will persist and get through...
 	c.SetValue(1, 1)
 
-	var ed uapi.LineEvent
-	b := make([]byte, unsafe.Sizeof(ed)*6)
-	n, err := unix.Read(int(lr.Fd), b[:])
+	evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
 	assert.Nil(t, err)
-	assert.Equal(t, int(unsafe.Sizeof(ed)), n)
+	require.NotNil(t, evt)
+	assert.Equal(t, uint32(1), evt.Offset)
+	assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
+	lastTime := evt.Timestamp
 
-	// toggle slower than the debounce period - should get through
+	evt, err = readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
+	assert.Nil(t, err)
+	assert.Nil(t, evt, "spurious event")
+
+	// toggle slower than the debounce period - should all get through
 	for i := 0; i < 2; i++ {
 		c.SetValue(1, 0)
 		time.Sleep(20 * time.Millisecond)
@@ -2202,9 +2207,32 @@ func TestDebounce(t *testing.T) {
 	c.SetValue(1, 0)
 	time.Sleep(20 * time.Millisecond)
 
-	n, err = unix.Read(int(lr.Fd), b[:])
+	for i := 0; i < 2; i++ {
+		evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
+		assert.Nil(t, err)
+		require.NotNil(t, evt)
+		assert.Equal(t, uint32(1), evt.Offset)
+		assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
+		assert.GreaterOrEqual(t, evt.Timestamp-lastTime, uint64(10000000))
+		lastTime = evt.Timestamp
+
+		evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
+		assert.Nil(t, err)
+		require.NotNil(t, evt)
+		assert.Equal(t, uint32(1), evt.Offset)
+		assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
+		assert.GreaterOrEqual(t, evt.Timestamp-lastTime, uint64(10000000))
+		lastTime = evt.Timestamp
+	}
+	evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
 	assert.Nil(t, err)
-	assert.Equal(t, int(unsafe.Sizeof(ed)*5), n)
+	require.NotNil(t, evt)
+	assert.Equal(t, uint32(1), evt.Offset)
+	assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
+	assert.GreaterOrEqual(t, evt.Timestamp-lastTime, uint64(10000000))
+	evt, err = readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
+	assert.Nil(t, err)
+	assert.Nil(t, evt, "spurious event")
 
 	unix.Close(int(lr.Fd))
 }
