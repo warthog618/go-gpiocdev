@@ -232,7 +232,7 @@ func TestBulkEventRead(t *testing.T) {
 	err = uapi.GetLineEvent(f.Fd(), &er)
 	require.Nil(t, err)
 
-	evt, err := readEventTimeout(uintptr(er.Fd), spuriousEventWaitTimeout)
+	evt, err := readEventTimeout(er.Fd, spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
@@ -271,7 +271,7 @@ func TestBulkEventReadV2(t *testing.T) {
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 
-	evt, err := readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
+	evt, err := readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
@@ -409,13 +409,13 @@ func TestEdgeDetectionLinesMax(t *testing.T) {
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 
-	evt, err := readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
+	evt, err := readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
 	for i := 0; i < uapi.LinesMax; i++ {
 		c.SetValue(i, 1)
-		evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
+		evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 		require.Nil(t, err)
 		require.NotNil(t, evt)
 		assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
@@ -424,14 +424,14 @@ func TestEdgeDetectionLinesMax(t *testing.T) {
 
 	for i := 0; i < uapi.LinesMax; i++ {
 		c.SetValue(i, 0)
-		evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
+		evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 		assert.Nil(t, err)
 		require.NotNil(t, evt)
 		assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
 		assert.Equal(t, uint32(i), evt.Offset)
 	}
 
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
+	evt, err = readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 

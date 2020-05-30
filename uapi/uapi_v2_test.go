@@ -2063,33 +2063,33 @@ func TestReadLineEvent(t *testing.T) {
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 
-	evt, err := readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
+	evt, err := readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
 	c.SetValue(1, 1)
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
+	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 	require.Nil(t, err)
 	require.NotNil(t, evt)
 	assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
 	assert.Equal(t, uint32(1), evt.Offset)
 
 	c.SetValue(2, 0)
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
+	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, evt)
 	assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
 	assert.Equal(t, uint32(2), evt.Offset)
 
 	c.SetValue(2, 1)
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
+	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 	require.Nil(t, err)
 	require.NotNil(t, evt)
 	assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
 	assert.Equal(t, uint32(2), evt.Offset)
 
 	c.SetValue(1, 0)
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
+	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, evt)
 	assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
@@ -2102,14 +2102,14 @@ func TestReadLineEvent(t *testing.T) {
 	require.Nil(t, err)
 
 	c.SetValue(1, 1)
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
+	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 	require.Nil(t, err)
 	require.NotNil(t, evt)
 	assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
 	assert.Equal(t, uint32(1), evt.Offset)
 
 	c.SetValue(1, 0)
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
+	evt, err = readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
@@ -2121,27 +2121,27 @@ func TestReadLineEvent(t *testing.T) {
 	require.Nil(t, err)
 
 	c.SetValue(1, 1)
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
+	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 	require.Nil(t, err)
 	require.NotNil(t, evt)
 	assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
 	assert.Equal(t, uint32(1), evt.Offset)
 
 	c.SetValue(1, 0)
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
+	evt, err = readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
 	unix.Close(int(lr.Fd))
 }
 
-func readLineEventTimeout(fd uintptr, t time.Duration) (*uapi.LineEvent, error) {
+func readLineEventTimeout(fd int32, t time.Duration) (*uapi.LineEvent, error) {
 	pollfd := unix.PollFd{Fd: int32(fd), Events: unix.POLLIN}
 	n, err := unix.Poll([]unix.PollFd{pollfd}, int(t.Milliseconds()))
 	if err != nil || n != 1 {
 		return nil, err
 	}
-	evt, err := uapi.ReadLineEvent(fd)
+	evt, err := uapi.ReadLineEvent(uintptr(fd))
 	if err != nil {
 		return nil, err
 	}
@@ -2172,7 +2172,7 @@ func TestDebounce(t *testing.T) {
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 
-	evt, err := readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
+	evt, err := readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
@@ -2186,14 +2186,14 @@ func TestDebounce(t *testing.T) {
 	// but this change will persist and get through...
 	c.SetValue(1, 1)
 
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
+	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, evt)
 	assert.Equal(t, uint32(1), evt.Offset)
 	assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
 	lastTime := evt.Timestamp
 
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
+	evt, err = readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
@@ -2208,7 +2208,7 @@ func TestDebounce(t *testing.T) {
 	time.Sleep(20 * time.Millisecond)
 
 	for i := 0; i < 2; i++ {
-		evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
+		evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 		assert.Nil(t, err)
 		require.NotNil(t, evt)
 		assert.Equal(t, uint32(1), evt.Offset)
@@ -2216,7 +2216,7 @@ func TestDebounce(t *testing.T) {
 		assert.GreaterOrEqual(t, evt.Timestamp-lastTime, uint64(10000000))
 		lastTime = evt.Timestamp
 
-		evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
+		evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 		assert.Nil(t, err)
 		require.NotNil(t, evt)
 		assert.Equal(t, uint32(1), evt.Offset)
@@ -2224,13 +2224,13 @@ func TestDebounce(t *testing.T) {
 		assert.GreaterOrEqual(t, evt.Timestamp-lastTime, uint64(10000000))
 		lastTime = evt.Timestamp
 	}
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), eventWaitTimeout)
+	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, evt)
 	assert.Equal(t, uint32(1), evt.Offset)
 	assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
 	assert.GreaterOrEqual(t, evt.Timestamp-lastTime, uint64(10000000))
-	evt, err = readLineEventTimeout(uintptr(lr.Fd), spuriousEventWaitTimeout)
+	evt, err = readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
