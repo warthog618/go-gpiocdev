@@ -4,7 +4,11 @@
 
 package gpiod
 
-import "github.com/warthog618/gpiod/uapi"
+import (
+	"time"
+
+	"github.com/warthog618/gpiod/uapi"
+)
 
 // ChipOption defines the interface required to provide a Chip option.
 type ChipOption interface {
@@ -13,8 +17,9 @@ type ChipOption interface {
 
 // ChipOptions contains the options for a Chip.
 type ChipOptions struct {
-	consumer    string
-	HandleFlags uapi.HandleFlag
+	consumer string
+	Config   LineConfig
+	abi      int
 }
 
 // ConsumerOption defines the consumer label for a line.
@@ -42,19 +47,19 @@ type LineOption interface {
 	applyLineOption(*LineOptions)
 }
 
-// LineConfig defines the interface required to update an option for Line and
+// LineReconfig defines the interface required to update an option for Line and
 // Lines.
-type LineConfig interface {
-	applyLineConfig(*LineOptions)
+type LineReconfig interface {
+	applyLineReconfig(*LineOptions)
 }
 
 // LineOptions contains the options for a Line or Lines.
 type LineOptions struct {
-	consumer      string
-	InitialValues []int
-	EventFlags    uapi.EventFlag
-	HandleFlags   uapi.HandleFlag
-	eh            EventHandler
+	consumer string
+	Config   LineConfig
+	values   []int
+	eh       EventHandler
+	abi      int
 }
 
 // EventHandler is a receiver for line events.
@@ -70,7 +75,8 @@ type AsIsOption struct{}
 var AsIs = AsIsOption{}
 
 func (o AsIsOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^(uapi.HandleRequestOutput | uapi.HandleRequestInput)
+	l.Config.Flags &^= uapi.LineFlagV2Direction
+	l.Config.Direction = 0
 }
 
 // InputOption indicates the line direction should be set to an input.
@@ -82,29 +88,24 @@ type InputOption struct{}
 // OpenSource options.
 var AsInput = InputOption{}
 
-func (o InputOption) updateFlags(f uapi.HandleFlag) uapi.HandleFlag {
-	f &= ^(uapi.HandleRequestOutput |
-		uapi.HandleRequestOpenDrain |
-		uapi.HandleRequestOpenSource)
-	f |= uapi.HandleRequestInput
-	return f
-}
-
 func (o InputOption) applyChipOption(c *ChipOptions) {
-	c.HandleFlags = o.updateFlags(c.HandleFlags)
+	c.Config.Flags |= uapi.LineFlagV2Direction
+	c.Config.Direction = uapi.LineDirectionInput
 }
 
 func (o InputOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags = o.updateFlags(l.HandleFlags)
+	l.Config.Flags |= uapi.LineFlagV2Direction
+	l.Config.Direction = uapi.LineDirectionInput
 }
 
-func (o InputOption) applyLineConfig(l *LineOptions) {
-	o.applyLineOption(l)
+func (o InputOption) applyLineReconfig(l *LineOptions) {
+	l.Config.Flags |= uapi.LineFlagV2Direction
+	l.Config.Direction = uapi.LineDirectionInput
 }
 
 // OutputOption indicates the line direction should be set to an output.
 type OutputOption struct {
-	initialValues []int
+	values []int
 }
 
 // AsOutput indicates that a line or lines be requested as an output.
@@ -114,49 +115,52 @@ type OutputOption struct {
 // inactive.
 //
 // This option overrides and clears any previous Input, RisingEdge, FallingEdge,
-// or BothEdges options.
+// BothEdges, or Debounce options.
 func AsOutput(values ...int) OutputOption {
 	vv := append([]int(nil), values...)
 	return OutputOption{vv}
 }
 
 func (o OutputOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^uapi.HandleRequestInput
-	l.HandleFlags |= uapi.HandleRequestOutput
-	l.EventFlags = 0
-	l.InitialValues = o.initialValues
+	l.Config.Flags |= uapi.LineFlagV2Direction
+	l.Config.Direction = uapi.LineDirectionOutput
+	l.values = o.values
+	l.Config.Flags &^= (uapi.LineFlagV2EdgeDetection | uapi.LineFlagV2Debounce)
+	l.Config.EdgeDetection = 0
+	l.Config.Debounce = 0
 }
 
-func (o OutputOption) applyLineConfig(l *LineOptions) {
+func (o OutputOption) applyLineReconfig(l *LineOptions) {
 	o.applyLineOption(l)
 }
 
 // LevelOption determines the line level that is considered active.
 type LevelOption struct {
-	flag uapi.HandleFlag
+	activeLow bool
 }
 
-func (o LevelOption) updateFlags(f uapi.HandleFlag) uapi.HandleFlag {
-	f &= ^uapi.HandleRequestActiveLow
-	f |= o.flag
-	return f
+func (o LevelOption) updateFlags(f uapi.LineFlagV2) uapi.LineFlagV2 {
+	if o.activeLow {
+		return f | uapi.LineFlagV2ActiveLow
+	}
+	return f &^ uapi.LineFlagV2ActiveLow
 }
 
 func (o LevelOption) applyChipOption(c *ChipOptions) {
-	c.HandleFlags = o.updateFlags(c.HandleFlags)
+	c.Config.Flags = o.updateFlags(c.Config.Flags)
 }
 
 func (o LevelOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags = o.updateFlags(l.HandleFlags)
+	l.Config.Flags = o.updateFlags(l.Config.Flags)
 }
 
-func (o LevelOption) applyLineConfig(l *LineOptions) {
-	o.applyLineOption(l)
+func (o LevelOption) applyLineReconfig(l *LineOptions) {
+	l.Config.Flags = o.updateFlags(l.Config.Flags)
 }
 
 // AsActiveLow indicates that a line be considered active when the line level
 // is low.
-var AsActiveLow = LevelOption{uapi.HandleRequestActiveLow}
+var AsActiveLow = LevelOption{true}
 
 // AsActiveHigh indicates that a line be considered active when the line level
 // is high.
@@ -166,63 +170,59 @@ var AsActiveHigh = LevelOption{}
 
 // DriveOption determines if a line is open drain, open source or push-pull.
 type DriveOption struct {
-	flag uapi.HandleFlag
+	drive uapi.LineDrive
 }
 
 func (o DriveOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^(uapi.HandleRequestInput |
-		uapi.HandleRequestOpenDrain |
-		uapi.HandleRequestOpenSource)
-	l.HandleFlags |= (o.flag | uapi.HandleRequestOutput)
-	l.EventFlags = 0
+	l.Config.Flags |= uapi.LineFlagV2Direction | uapi.LineFlagV2Drive
+	l.Config.Flags &^= uapi.LineFlagV2EdgeDetection | uapi.LineFlagV2Debounce
+	l.Config.Direction = uapi.LineDirectionOutput
+	l.Config.Drive = o.drive
+	l.Config.EdgeDetection = 0
+	l.Config.Debounce = 0
 }
 
-func (o DriveOption) applyLineConfig(l *LineOptions) {
+func (o DriveOption) applyLineReconfig(l *LineOptions) {
 	o.applyLineOption(l)
 }
 
 // AsOpenDrain indicates that a line be driven low but left floating for high.
 //
 // This option sets the Output option and overrides and clears any previous
-// Input, RisingEdge, FallingEdge, BothEdges, or OpenSource options.
-var AsOpenDrain = DriveOption{uapi.HandleRequestOpenDrain}
+// Input, RisingEdge, FallingEdge, BothEdges, OpenSource, or Debounce options.
+var AsOpenDrain = DriveOption{uapi.LineDriveOpenDrain}
 
 // AsOpenSource indicates that a line be driven low but left floating for high.
 //
 // This option sets the Output option and overrides and clears any previous
-// Input, RisingEdge, FallingEdge, BothEdges, or OpenDrain options.
-var AsOpenSource = DriveOption{uapi.HandleRequestOpenSource}
+// Input, RisingEdge, FallingEdge, BothEdges, OpenDrain, or Debounce options.
+var AsOpenSource = DriveOption{uapi.LineDriveOpenSource}
 
 // AsPushPull indicates that a line be driven both low and high.
 //
 // This option sets the Output option and overrides and clears any previous
-// Input, RisingEdge, FallingEdge, BothEdges, OpenDrain, or OpenSource options.
+// Input, RisingEdge, FallingEdge, BothEdges, OpenDrain, OpenSource or Debounce
+// options.
 var AsPushPull = DriveOption{}
 
 // BiasOption indicates how a line is to be biased.
 //
 // Bias options require Linux v5.5 or later.
 type BiasOption struct {
-	flag uapi.HandleFlag
-}
-
-func (o BiasOption) updateFlags(f uapi.HandleFlag) uapi.HandleFlag {
-	f &= ^(uapi.HandleRequestBiasDisable |
-		uapi.HandleRequestPullDown |
-		uapi.HandleRequestPullUp)
-	f |= o.flag
-	return f
+	bias uapi.LineBias
 }
 
 func (o BiasOption) applyChipOption(c *ChipOptions) {
-	c.HandleFlags = o.updateFlags(c.HandleFlags)
+	c.Config.Flags |= uapi.LineFlagV2Bias
+	c.Config.Bias = o.bias
 }
 
 func (o BiasOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags = o.updateFlags(l.HandleFlags)
+	l.Config.Flags |= uapi.LineFlagV2Bias
+	l.Config.Bias = o.bias
 }
 
-func (o BiasOption) applyLineConfig(l *LineOptions) {
+func (o BiasOption) applyLineReconfig(l *LineOptions) {
 	o.applyLineOption(l)
 }
 
@@ -231,63 +231,104 @@ func (o BiasOption) applyLineConfig(l *LineOptions) {
 // This option overrides and clears any previous bias options.
 //
 // Requires Linux v5.5 or later.
-var WithBiasDisabled = BiasOption{uapi.HandleRequestBiasDisable}
+var WithBiasDisabled = BiasOption{uapi.LineBiasDisabled}
 
 // WithPullDown indicates that a line have its internal pull-down enabled.
 //
 // This option overrides and clears any previous bias options.
 //
 // Requires Linux v5.5 or later.
-var WithPullDown = BiasOption{uapi.HandleRequestPullDown}
+var WithPullDown = BiasOption{uapi.LineBiasPullDown}
 
 // WithPullUp indicates that a line have its internal pull-up enabled.
 //
 // This option overrides and clears any previous bias options.
 //
 // Requires Linux v5.5 or later.
-var WithPullUp = BiasOption{uapi.HandleRequestPullUp}
+var WithPullUp = BiasOption{uapi.LineBiasPullUp}
 
 // EdgeOption indicates that a line will generate events when edges are detected.
 type EdgeOption struct {
-	e    EventHandler
-	edge uapi.EventFlag
+	eh   EventHandler
+	edge uapi.LineEdge
 }
 
 func (o EdgeOption) applyLineOption(l *LineOptions) {
-	l.HandleFlags &= ^(uapi.HandleRequestOutput |
-		uapi.HandleRequestOpenDrain |
-		uapi.HandleRequestOpenSource)
-	l.HandleFlags |= uapi.HandleRequestInput
-	l.EventFlags = o.edge
-	l.eh = o.e
+	l.Config.Flags |= (uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection)
+	l.Config.Flags &^= uapi.LineFlagV2Drive
+	l.Config.Direction = uapi.LineDirectionInput
+	l.Config.EdgeDetection = o.edge
+	l.Config.Drive = 0
+	l.eh = o.eh
 }
 
 // WithFallingEdge indicates that a line will generate events when its active
 // state transitions from high to low.
 //
 // Events are forwarded to the provided handler function.
+//
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
 func WithFallingEdge(e func(LineEvent)) EdgeOption {
-	return EdgeOption{EventHandler(e), uapi.EventRequestFallingEdge}
+	return EdgeOption{EventHandler(e), uapi.LineEdgeFalling}
 }
 
 // WithRisingEdge indicates that a line will generate events when its active
 // state transitions from low to high.
 //
 // Events are forwarded to the provided handler function.
+//
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
 func WithRisingEdge(e func(LineEvent)) EdgeOption {
-	return EdgeOption{EventHandler(e), uapi.EventRequestRisingEdge}
+	return EdgeOption{EventHandler(e), uapi.LineEdgeRising}
 }
 
 // WithBothEdges indicates that a line will generate events when its active
 // state transitions from low to high and from high to low.
 //
 // Events are forwarded to the provided handler function.
+//
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
 func WithBothEdges(e func(LineEvent)) EdgeOption {
-	return EdgeOption{EventHandler(e), uapi.EventRequestBothEdges}
+	return EdgeOption{EventHandler(e), uapi.LineEdgeBoth}
+}
+
+// DebounceOption indicates that a line will be debounced.
+type DebounceOption struct {
+	period time.Duration
+}
+
+func (o DebounceOption) applyLineOption(l *LineOptions) {
+	l.Config.Debounce = uint32(o.period.Microseconds())
+}
+
+// WithDebounce indicates that a line will be debounced with the specified
+// debounce period.
+//
+// This option sets the Input option and overrides and clears any previous
+// Output, OpenDrain, or OpenSource options.
+func WithDebounce(period time.Duration) DebounceOption {
+	return DebounceOption{period}
+}
+
+// ABIVersionOption selects the version of the GPIO ioctl commands to use.
+//
+// The default is to use the latest version supported by the kernel.
+type ABIVersionOption int
+
+func (o ABIVersionOption) applyChipOption(c *ChipOptions) {
+	c.abi = int(o)
+}
+
+func (o ABIVersionOption) applyLineOption(l *LineOptions) {
+	l.abi = int(o)
+}
+
+// WithABIVersion indicates the version of the GPIO ioctls to use.
+//
+// The default is to use the latest version supported by the kernel.
+func WithABIVersion(version int) ABIVersionOption {
+	return ABIVersionOption(version)
 }

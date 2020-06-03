@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/warthog618/gpiod"
+	"github.com/warthog618/gpiod/uapi"
 )
 
 func TestWithConsumer(t *testing.T) {
@@ -50,14 +51,16 @@ func TestAsIs(t *testing.T) {
 	require.NotNil(t, l)
 	inf, err := c.LineInfo(platform.FloatingLines()[0])
 	assert.Nil(t, err)
-	assert.False(t, inf.IsOut)
+	assert.True(t, inf.Config.Flags.HasDirection())
+	assert.Equal(t, uapi.LineDirectionInput, inf.Config.Direction)
 	l.Close()
 	l, err = c.RequestLine(platform.FloatingLines()[0], gpiod.AsIs)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	inf, err = c.LineInfo(platform.FloatingLines()[0])
 	assert.Nil(t, err)
-	assert.False(t, inf.IsOut)
+	assert.True(t, inf.Config.Flags.HasDirection())
+	assert.Equal(t, uapi.LineDirectionInput, inf.Config.Direction)
 	err = l.Close()
 	assert.Nil(t, err)
 
@@ -67,7 +70,8 @@ func TestAsIs(t *testing.T) {
 	require.NotNil(t, l)
 	inf, err = c.LineInfo(platform.FloatingLines()[0])
 	assert.Nil(t, err)
-	assert.True(t, inf.IsOut)
+	assert.True(t, inf.Config.Flags.HasDirection())
+	assert.Equal(t, uapi.LineDirectionOutput, inf.Config.Direction)
 	l.Close()
 	l, err = c.RequestLine(platform.FloatingLines()[0], gpiod.AsIs)
 	assert.Nil(t, err)
@@ -76,11 +80,12 @@ func TestAsIs(t *testing.T) {
 	assert.Nil(t, err)
 	inf, err = c.LineInfo(platform.FloatingLines()[0])
 	assert.Nil(t, err)
-	assert.Equal(t, platform.SupportsAsIs(), inf.IsOut)
+	assert.True(t, inf.Config.Flags.HasDirection())
+	assert.Equal(t, uapi.LineDirectionOutput, inf.Config.Direction)
 }
 
 func testLineDirectionOption(t *testing.T,
-	contraOption, option gpiod.LineOption, info gpiod.LineInfo) {
+	contraOption, option gpiod.LineOption, config gpiod.LineConfig) {
 
 	t.Helper()
 
@@ -93,14 +98,14 @@ func testLineDirectionOption(t *testing.T,
 	require.NotNil(t, l)
 	inf, err := c.LineInfo(platform.FloatingLines()[0])
 	assert.Nil(t, err)
-	assert.NotEqual(t, info.IsOut, inf.IsOut)
+	assert.NotEqual(t, config.Direction, inf.Config.Direction)
 	l.Close()
 	l, err = c.RequestLine(platform.FloatingLines()[0], option)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	inf, err = c.LineInfo(platform.FloatingLines()[0])
 	assert.Nil(t, err)
-	assert.Equal(t, info.IsOut, inf.IsOut)
+	assert.Equal(t, config.Direction, inf.Config.Direction)
 	err = l.Close()
 	assert.Nil(t, err)
 
@@ -110,13 +115,13 @@ func testLineDirectionOption(t *testing.T,
 	require.NotNil(t, l)
 	inf, err = c.LineInfo(platform.FloatingLines()[0])
 	assert.Nil(t, err)
-	assert.Equal(t, info.IsOut, inf.IsOut)
+	assert.Equal(t, config.Direction, inf.Config.Direction)
 	err = l.Close()
 	assert.Nil(t, err)
 }
 
 func testLineDirectionReconfigure(t *testing.T, createOption gpiod.LineOption,
-	reconfigOption gpiod.LineConfig, info gpiod.LineInfo) {
+	reconfigOption gpiod.LineReconfig, config gpiod.LineConfig) {
 
 	tf := func(t *testing.T) {
 		requireKernel(t, setConfigKernel)
@@ -129,11 +134,11 @@ func testLineDirectionReconfigure(t *testing.T, createOption gpiod.LineOption,
 		require.NotNil(t, l)
 		inf, err := c.LineInfo(platform.FloatingLines()[0])
 		assert.Nil(t, err)
-		assert.NotEqual(t, info.IsOut, inf.IsOut)
+		assert.NotEqual(t, config.Direction, inf.Config.Direction)
 		l.Reconfigure(reconfigOption)
 		inf, err = c.LineInfo(platform.FloatingLines()[0])
 		assert.Nil(t, err)
-		assert.Equal(t, info.IsOut, inf.IsOut)
+		assert.Equal(t, config.Direction, inf.Config.Direction)
 		err = l.Close()
 		assert.Nil(t, err)
 	}
@@ -141,16 +146,21 @@ func testLineDirectionReconfigure(t *testing.T, createOption gpiod.LineOption,
 }
 
 func TestAsInput(t *testing.T) {
-	info := gpiod.LineInfo{IsOut: false}
+	config := gpiod.LineConfig{
+		Flags: uapi.LineFlagV2Direction,
+	}
 	testChipAsInputOption(t)
-	testLineDirectionOption(t, gpiod.AsOutput(), gpiod.AsInput, info)
-	testLineDirectionReconfigure(t, gpiod.AsOutput(), gpiod.AsInput, info)
+	testLineDirectionOption(t, gpiod.AsOutput(), gpiod.AsInput, config)
+	testLineDirectionReconfigure(t, gpiod.AsOutput(), gpiod.AsInput, config)
 }
 
 func TestAsOutput(t *testing.T) {
-	info := gpiod.LineInfo{IsOut: true}
-	testLineDirectionOption(t, gpiod.AsInput, gpiod.AsOutput(), info)
-	testLineDirectionReconfigure(t, gpiod.AsInput, gpiod.AsOutput(), info)
+	config := gpiod.LineConfig{
+		Flags:     uapi.LineFlagV2Direction,
+		Direction: uapi.LineDirectionOutput,
+	}
+	testLineDirectionOption(t, gpiod.AsInput, gpiod.AsOutput(), config)
+	testLineDirectionReconfigure(t, gpiod.AsInput, gpiod.AsOutput(), config)
 }
 
 func testEdgeEventPolarity(t *testing.T, l *gpiod.Line,
@@ -196,11 +206,11 @@ func testChipAsInputOption(t *testing.T) {
 	defer l.Close()
 	inf, err := c.LineInfo(platform.OutLine())
 	assert.Nil(t, err)
-	assert.False(t, inf.IsOut)
+	assert.Equal(t, uapi.LineDirectionInput, inf.Config.Direction)
 }
 
 func testChipLevelOption(t *testing.T, option gpiod.ChipOption,
-	info gpiod.LineInfo, activeLevel int) {
+	isActiveLow bool, activeLevel int) {
 
 	t.Helper()
 
@@ -221,7 +231,7 @@ func testChipLevelOption(t *testing.T, option gpiod.ChipOption,
 	defer l.Close()
 	inf, err := c.LineInfo(platform.IntrLine())
 	assert.Nil(t, err)
-	assert.Equal(t, info.ActiveLow, inf.ActiveLow)
+	assert.Equal(t, isActiveLow, inf.Config.Flags.IsActiveLow())
 
 	// can get initial state events on some platforms (e.g. RPi AsActiveHigh)
 	clearEvents(ich)
@@ -231,7 +241,7 @@ func testChipLevelOption(t *testing.T, option gpiod.ChipOption,
 }
 
 func testLineLevelOptionInput(t *testing.T, option gpiod.LineOption,
-	info gpiod.LineInfo, activeLevel int) {
+	isActiveLow bool, activeLevel int) {
 
 	t.Helper()
 
@@ -248,12 +258,15 @@ func testLineLevelOptionInput(t *testing.T, option gpiod.LineOption,
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	defer l.Close()
+	inf, err := c.LineInfo(platform.IntrLine())
+	assert.Nil(t, err)
+	assert.Equal(t, isActiveLow, inf.Config.Flags.IsActiveLow())
 
 	testEdgeEventPolarity(t, l, ich, activeLevel)
 }
 
 func testLineLevelOptionOutput(t *testing.T, option gpiod.LineOption,
-	info gpiod.LineInfo, activeLevel int) {
+	isActiveLow bool, activeLevel int) {
 
 	t.Helper()
 
@@ -266,7 +279,7 @@ func testLineLevelOptionOutput(t *testing.T, option gpiod.LineOption,
 	require.NotNil(t, l)
 	inf, err := c.LineInfo(platform.OutLine())
 	assert.Nil(t, err)
-	assert.Equal(t, info.ActiveLow, inf.ActiveLow)
+	assert.Equal(t, isActiveLow, inf.Config.Flags.IsActiveLow())
 	v := platform.ReadOut()
 	assert.Equal(t, activeLevel, v)
 	err = l.SetValue(0)
@@ -282,7 +295,7 @@ func testLineLevelOptionOutput(t *testing.T, option gpiod.LineOption,
 }
 
 func testLineLevelReconfigure(t *testing.T, createOption gpiod.LineOption,
-	reconfigOption gpiod.LineConfig, info gpiod.LineInfo, activeLevel int) {
+	reconfigOption gpiod.LineReconfig, isActiveLow bool, activeLevel int) {
 
 	tf := func(t *testing.T) {
 		requireKernel(t, setConfigKernel)
@@ -298,11 +311,11 @@ func testLineLevelReconfigure(t *testing.T, createOption gpiod.LineOption,
 		assert.Equal(t, activeLevel^1, v)
 		inf, err := c.LineInfo(platform.OutLine())
 		assert.Nil(t, err)
-		assert.NotEqual(t, info.ActiveLow, inf.ActiveLow)
+		assert.NotEqual(t, isActiveLow, inf.Config.Flags.IsActiveLow())
 		l.Reconfigure(reconfigOption)
 		inf, err = c.LineInfo(platform.OutLine())
 		assert.Nil(t, err)
-		assert.Equal(t, info.ActiveLow, inf.ActiveLow)
+		assert.Equal(t, isActiveLow, inf.Config.Flags.IsActiveLow())
 		v = platform.ReadOut()
 		assert.Equal(t, activeLevel, v)
 		err = l.Close()
@@ -312,23 +325,21 @@ func testLineLevelReconfigure(t *testing.T, createOption gpiod.LineOption,
 }
 
 func TestAsActiveLow(t *testing.T) {
-	info := gpiod.LineInfo{ActiveLow: true}
-	testChipLevelOption(t, gpiod.AsActiveLow, info, 0)
-	testLineLevelOptionInput(t, gpiod.AsActiveLow, info, 0)
-	testLineLevelOptionOutput(t, gpiod.AsActiveLow, info, 0)
-	testLineLevelReconfigure(t, gpiod.AsActiveHigh, gpiod.AsActiveLow, info, 0)
+	testChipLevelOption(t, gpiod.AsActiveLow, true, 0)
+	testLineLevelOptionInput(t, gpiod.AsActiveLow, true, 0)
+	testLineLevelOptionOutput(t, gpiod.AsActiveLow, true, 0)
+	testLineLevelReconfigure(t, gpiod.AsActiveHigh, gpiod.AsActiveLow, true, 0)
 }
 
 func TestAsActiveHigh(t *testing.T) {
-	info := gpiod.LineInfo{ActiveLow: false}
-	testChipLevelOption(t, gpiod.AsActiveHigh, info, 1)
-	testLineLevelOptionInput(t, gpiod.AsActiveHigh, info, 1)
-	testLineLevelOptionOutput(t, gpiod.AsActiveHigh, info, 1)
-	testLineLevelReconfigure(t, gpiod.AsActiveLow, gpiod.AsActiveHigh, info, 1)
+	testChipLevelOption(t, gpiod.AsActiveHigh, false, 1)
+	testLineLevelOptionInput(t, gpiod.AsActiveHigh, false, 1)
+	testLineLevelOptionOutput(t, gpiod.AsActiveHigh, false, 1)
+	testLineLevelReconfigure(t, gpiod.AsActiveLow, gpiod.AsActiveHigh, false, 1)
 }
 
 func testLineDriveOption(t *testing.T, option gpiod.LineOption,
-	info gpiod.LineInfo, values ...int) {
+	drive uapi.LineDrive, values ...int) {
 
 	t.Helper()
 
@@ -342,8 +353,8 @@ func testLineDriveOption(t *testing.T, option gpiod.LineOption,
 	defer l.Close()
 	inf, err := c.LineInfo(platform.OutLine())
 	assert.Nil(t, err)
-	assert.Equal(t, info.OpenDrain, inf.OpenDrain)
-	assert.Equal(t, info.OpenSource, inf.OpenSource)
+	assert.True(t, inf.Config.Flags.HasDrive())
+	assert.Equal(t, drive, inf.Config.Drive)
 	for _, sv := range values {
 		err = l.SetValue(sv)
 		assert.Nil(t, err)
@@ -353,7 +364,7 @@ func testLineDriveOption(t *testing.T, option gpiod.LineOption,
 }
 
 func testLineDriveReconfigure(t *testing.T, createOption gpiod.LineOption,
-	reconfigOption gpiod.LineConfig, info gpiod.LineInfo, values ...int) {
+	reconfigOption gpiod.LineReconfig, drive uapi.LineDrive, values ...int) {
 
 	tf := func(t *testing.T) {
 		requireKernel(t, setConfigKernel)
@@ -370,8 +381,8 @@ func testLineDriveReconfigure(t *testing.T, createOption gpiod.LineOption,
 		assert.Nil(t, err)
 		inf, err := c.LineInfo(platform.OutLine())
 		assert.Nil(t, err)
-		assert.Equal(t, info.OpenDrain, inf.OpenDrain)
-		assert.Equal(t, info.OpenSource, inf.OpenSource)
+		assert.True(t, inf.Config.Flags.HasDrive())
+		assert.Equal(t, drive, inf.Config.Drive)
 		for _, sv := range values {
 			err = l.SetValue(sv)
 			assert.Nil(t, err)
@@ -383,29 +394,29 @@ func testLineDriveReconfigure(t *testing.T, createOption gpiod.LineOption,
 }
 
 func TestAsOpenDrain(t *testing.T) {
-	info := gpiod.LineInfo{OpenDrain: true}
+	drive := uapi.LineDriveOpenDrain
 	// Testing float high requires specific hardware, so assume that is
 	// covered by the kernel anyway...
-	testLineDriveOption(t, gpiod.AsOpenDrain, info, 0)
-	testLineDriveReconfigure(t, gpiod.AsOpenSource, gpiod.AsOpenDrain, info, 0)
+	testLineDriveOption(t, gpiod.AsOpenDrain, drive, 0)
+	testLineDriveReconfigure(t, gpiod.AsOpenSource, gpiod.AsOpenDrain, drive, 0)
 }
 
 func TestAsOpenSource(t *testing.T) {
-	info := gpiod.LineInfo{OpenSource: true}
+	drive := uapi.LineDriveOpenSource
 	// Testing float low requires specific hardware, so assume that is
 	// covered by the kernel anyway.
-	testLineDriveOption(t, gpiod.AsOpenSource, info, 1)
-	testLineDriveReconfigure(t, gpiod.AsOpenDrain, gpiod.AsOpenSource, info, 1)
+	testLineDriveOption(t, gpiod.AsOpenSource, drive, 1)
+	testLineDriveReconfigure(t, gpiod.AsOpenDrain, gpiod.AsOpenSource, drive, 1)
 }
 
 func TestAsPushPull(t *testing.T) {
-	info := gpiod.LineInfo{}
-	testLineDriveOption(t, gpiod.AsPushPull, info, 0, 1)
-	testLineDriveReconfigure(t, gpiod.AsOpenDrain, gpiod.AsPushPull, info, 0, 1)
+	drive := uapi.LineDrivePushPull
+	testLineDriveOption(t, gpiod.AsPushPull, drive, 0, 1)
+	testLineDriveReconfigure(t, gpiod.AsOpenDrain, gpiod.AsPushPull, drive, 0, 1)
 }
 
 func testChipBiasOption(t *testing.T, option gpiod.ChipOption,
-	info gpiod.LineInfo, expval int) {
+	bias uapi.LineBias, expval int) {
 
 	tf := func(t *testing.T) {
 		requireKernel(t, biasKernel)
@@ -422,9 +433,9 @@ func testChipBiasOption(t *testing.T, option gpiod.ChipOption,
 		defer l.Close()
 		inf, err := c.LineInfo(platform.FloatingLines()[0])
 		assert.Nil(t, err)
-		assert.Equal(t, info.BiasDisable, inf.BiasDisable)
-		assert.Equal(t, info.PullUp, inf.PullUp)
-		assert.Equal(t, info.PullDown, inf.PullDown)
+		// !!! how to test bias not set???
+		assert.True(t, inf.Config.Flags.HasBias())
+		assert.Equal(t, bias, inf.Config.Bias)
 
 		if expval == -1 {
 			return
@@ -437,7 +448,7 @@ func testChipBiasOption(t *testing.T, option gpiod.ChipOption,
 }
 
 func testLineBiasOption(t *testing.T, option gpiod.LineOption,
-	info gpiod.LineInfo, expval int) {
+	bias uapi.LineBias, expval int) {
 
 	tf := func(t *testing.T) {
 		requireKernel(t, biasKernel)
@@ -451,9 +462,8 @@ func testLineBiasOption(t *testing.T, option gpiod.LineOption,
 		defer l.Close()
 		inf, err := c.LineInfo(platform.FloatingLines()[0])
 		assert.Nil(t, err)
-		assert.Equal(t, info.BiasDisable, inf.BiasDisable)
-		assert.Equal(t, info.PullUp, inf.PullUp)
-		assert.Equal(t, info.PullDown, inf.PullDown)
+		assert.True(t, inf.Config.Flags.HasBias())
+		assert.Equal(t, bias, inf.Config.Bias)
 		if expval == -1 {
 			return
 		}
@@ -465,7 +475,7 @@ func testLineBiasOption(t *testing.T, option gpiod.LineOption,
 }
 
 func testLineBiasReconfigure(t *testing.T, createOption gpiod.LineOption,
-	reconfigOption gpiod.LineConfig, info gpiod.LineInfo, expval int) {
+	reconfigOption gpiod.LineReconfig, bias uapi.LineBias, expval int) {
 
 	tf := func(t *testing.T) {
 		requireKernel(t, setConfigKernel)
@@ -480,9 +490,8 @@ func testLineBiasReconfigure(t *testing.T, createOption gpiod.LineOption,
 		l.Reconfigure(reconfigOption)
 		inf, err := c.LineInfo(platform.FloatingLines()[0])
 		assert.Nil(t, err)
-		assert.Equal(t, info.BiasDisable, inf.BiasDisable)
-		assert.Equal(t, info.PullUp, inf.PullUp)
-		assert.Equal(t, info.PullDown, inf.PullDown)
+		assert.True(t, inf.Config.Flags.HasBias())
+		assert.Equal(t, bias, inf.Config.Bias)
 		if expval == -1 {
 			return
 		}
@@ -494,24 +503,24 @@ func testLineBiasReconfigure(t *testing.T, createOption gpiod.LineOption,
 }
 
 func TestWithBiasDisable(t *testing.T) {
-	info := gpiod.LineInfo{BiasDisable: true}
+	bias := uapi.LineBiasDisabled
 	// can't test value - is indeterminate without external bias.
-	testChipBiasOption(t, gpiod.WithBiasDisabled, info, -1)
-	testLineBiasOption(t, gpiod.WithBiasDisabled, info, -1)
-	testLineBiasReconfigure(t, gpiod.WithPullDown, gpiod.WithBiasDisabled, info, -1)
+	testChipBiasOption(t, gpiod.WithBiasDisabled, bias, -1)
+	testLineBiasOption(t, gpiod.WithBiasDisabled, bias, -1)
+	testLineBiasReconfigure(t, gpiod.WithPullDown, gpiod.WithBiasDisabled, bias, -1)
 }
 
 func TestWithPullDown(t *testing.T) {
-	info := gpiod.LineInfo{PullDown: true}
-	testChipBiasOption(t, gpiod.WithPullDown, info, 0)
-	testLineBiasOption(t, gpiod.WithPullDown, info, 0)
-	testLineBiasReconfigure(t, gpiod.WithPullUp, gpiod.WithPullDown, info, 0)
+	bias := uapi.LineBiasPullDown
+	testChipBiasOption(t, gpiod.WithPullDown, bias, 0)
+	testLineBiasOption(t, gpiod.WithPullDown, bias, 0)
+	testLineBiasReconfigure(t, gpiod.WithPullUp, gpiod.WithPullDown, bias, 0)
 }
 func TestWithPullUp(t *testing.T) {
-	info := gpiod.LineInfo{PullUp: true}
-	testChipBiasOption(t, gpiod.WithPullUp, info, 1)
-	testLineBiasOption(t, gpiod.WithPullUp, info, 1)
-	testLineBiasReconfigure(t, gpiod.WithPullDown, gpiod.WithPullUp, info, 1)
+	bias := uapi.LineBiasPullUp
+	testChipBiasOption(t, gpiod.WithPullUp, bias, 1)
+	testLineBiasOption(t, gpiod.WithPullUp, bias, 1)
+	testLineBiasReconfigure(t, gpiod.WithPullDown, gpiod.WithPullUp, bias, 1)
 }
 
 func TestWithFallingEdge(t *testing.T) {
@@ -613,4 +622,8 @@ func clearEvents(ch <-chan gpiod.LineEvent) {
 	case <-ch:
 	case <-time.After(20 * time.Millisecond):
 	}
+}
+
+func TestWithDebounce(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
 }

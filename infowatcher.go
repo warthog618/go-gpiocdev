@@ -23,9 +23,11 @@ type infoWatcher struct {
 
 	// closed once watcher exits
 	doneCh chan struct{}
+
+	abi int
 }
 
-func newInfoWatcher(fd int, ch InfoChangeHandler) (iw *infoWatcher, err error) {
+func newInfoWatcher(fd int, ch InfoChangeHandler, abi int) (iw *infoWatcher, err error) {
 	var epfd int
 	epfd, err = unix.EpollCreate1(unix.EPOLL_CLOEXEC)
 	if err != nil {
@@ -62,6 +64,7 @@ func newInfoWatcher(fd int, ch InfoChangeHandler) (iw *infoWatcher, err error) {
 		ch:      ch,
 		donefds: p,
 		doneCh:  make(chan struct{}),
+		abi:     abi,
 	}
 	go iw.watch()
 	return
@@ -96,16 +99,40 @@ func (iw *infoWatcher) watch() {
 				unix.Close(iw.epfd)
 				return
 			}
-			lic, err := uapi.ReadLineInfoChanged(uintptr(fd))
-			if err != nil {
-				continue
+			if iw.abi == 1 {
+				iw.readInfoChanged(fd)
+			} else {
+				iw.readInfoChangedV2(fd)
 			}
-			lice := LineInfoChangeEvent{
-				Info:      newLineInfo(lic.Info),
-				Timestamp: time.Duration(lic.Timestamp),
-				Type:      LineInfoChangeType(lic.Type),
-			}
-			iw.ch(lice)
 		}
 	}
+}
+
+func (iw *infoWatcher) readInfoChanged(fd int32) {
+	lic, err := uapi.ReadLineInfoChanged(uintptr(fd))
+	if err != nil {
+		fmt.Printf("error reading line change:%s\n", err)
+		return
+	}
+	lice := LineInfoChangeEvent{
+		Info:      newLineInfo(lic.Info),
+		Timestamp: time.Duration(lic.Timestamp),
+		Type:      LineInfoChangeType(lic.Type),
+	}
+	iw.ch(lice)
+
+}
+
+func (iw *infoWatcher) readInfoChangedV2(fd int32) {
+	lic, err := uapi.ReadLineInfoChangedV2(uintptr(fd))
+	if err != nil {
+		fmt.Printf("error reading line change:%s\n", err)
+		return
+	}
+	lice := LineInfoChangeEvent{
+		Info:      newLineInfoV2(lic.Info),
+		Timestamp: time.Duration(lic.Timestamp),
+		Type:      LineInfoChangeType(lic.Type),
+	}
+	iw.ch(lice)
 }

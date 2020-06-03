@@ -42,6 +42,7 @@ var (
 	biasKernel      = mockup.Semver{5, 5} // bias flags added
 	setConfigKernel = mockup.Semver{5, 5} // setLineConfig ioctl added
 	infoWatchKernel = mockup.Semver{5, 7} // watchLineInfo ioctl added
+	uapiV2Kernel    = mockup.Semver{5, 7} // uapi v2 added
 )
 
 func TestNewChip(t *testing.T) {
@@ -173,7 +174,6 @@ func TestChipFindLines(t *testing.T) {
 func TestChipLineInfo(t *testing.T) {
 	c := getChip(t)
 	xli := gpiod.LineInfo{}
-
 	// out of range
 	li, err := c.LineInfo(platform.Lines())
 	assert.Equal(t, gpiod.ErrInvalidOffset, err)
@@ -182,8 +182,13 @@ func TestChipLineInfo(t *testing.T) {
 	// valid
 	li, err = c.LineInfo(platform.IntrLine())
 	assert.Nil(t, err)
-	xli.Offset = platform.IntrLine()
-	xli.Name = platform.IntrName()
+	xli = gpiod.LineInfo{
+		Offset: platform.IntrLine(),
+		Name:   platform.IntrName(),
+		Config: gpiod.LineConfig{
+			Flags: uapi.LineFlagV2Direction,
+		},
+	}
 	assert.Equal(t, xli, li)
 
 	// closed
@@ -318,16 +323,16 @@ func TestChipWatchLineInfo(t *testing.T) {
 		wc2 <- info
 	}
 	_, err = c.WatchLineInfo(lo, watcher2)
-	require.Nil(t, err)
+	assert.Equal(t, unix.EBUSY, err)
 
 	l, err = c.RequestLine(lo)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
-	waitInfoEvent(t, wc2, gpiod.LineRequested)
-	waitNoInfoEvent(t, wc1)
+	waitInfoEvent(t, wc1, gpiod.LineRequested)
+	waitNoInfoEvent(t, wc2)
 	l.Close()
-	waitInfoEvent(t, wc2, gpiod.LineReleased)
-	waitNoInfoEvent(t, wc1)
+	waitInfoEvent(t, wc1, gpiod.LineReleased)
+	waitNoInfoEvent(t, wc2)
 }
 
 func TestChipUnwatchLineInfo(t *testing.T) {
@@ -347,7 +352,7 @@ func TestChipUnwatchLineInfo(t *testing.T) {
 
 	// Unwatched
 	err = c.UnwatchLineInfo(lo)
-	assert.Nil(t, err)
+	assert.Equal(t, unix.EBUSY, err)
 
 	// Watched
 	wc := 0
@@ -394,7 +399,8 @@ func TestLineClose(t *testing.T) {
 func TestLineInfo(t *testing.T) {
 	c := getChip(t)
 	defer c.Close()
-	l, err := c.RequestLine(platform.IntrLine())
+	l, err := c.RequestLine(platform.IntrLine(),
+		gpiod.WithBothEdges(func(gpiod.LineEvent) {}))
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	cli, err := c.LineInfo(platform.IntrLine())
@@ -453,7 +459,7 @@ func TestLineReconfigure(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	err = l.Reconfigure(gpiod.AsActiveLow)
-	assert.Equal(t, gpiod.ErrPermissionDenied, err)
+	assert.Equal(t, unix.EINVAL, err)
 	l.Close()
 }
 
@@ -639,8 +645,9 @@ func TestLinesSetValues(t *testing.T) {
 
 	// too many values
 	err = l.SetValues([]int{1, 1, 1})
-	assert.Equal(t, gpiod.ErrInvalidOffset, err)
+	assert.Nil(t, err)
 
+	// closed
 	l.Close()
 	err = l.SetValues([]int{0, 1})
 	assert.Equal(t, gpiod.ErrClosed, err)
@@ -652,7 +659,7 @@ func TestIsChip(t *testing.T) {
 	assert.NotNil(t, err)
 
 	// wrong mode
-	err = gpiod.IsChip("/dev/loop0")
+	err = gpiod.IsChip("/dev/zero")
 	assert.Equal(t, gpiod.ErrNotCharacterDevice, err)
 
 	// no sysfs
