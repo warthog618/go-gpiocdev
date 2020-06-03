@@ -138,7 +138,7 @@ func makeMonOpts(eh gpiod.EventHandler) []gpiod.LineOption {
 	case "pull-down":
 		opts = append(opts, gpiod.WithPullDown)
 	case "disable":
-		opts = append(opts, gpiod.WithBiasDisable)
+		opts = append(opts, gpiod.WithBiasDisabled)
 	case "as-is":
 		fallthrough
 	default:

@@ -496,9 +496,9 @@ func testLineBiasReconfigure(t *testing.T, createOption gpiod.LineOption,
 func TestWithBiasDisable(t *testing.T) {
 	info := gpiod.LineInfo{BiasDisable: true}
 	// can't test value - is indeterminate without external bias.
-	testChipBiasOption(t, gpiod.WithBiasDisable, info, -1)
-	testLineBiasOption(t, gpiod.WithBiasDisable, info, -1)
-	testLineBiasReconfigure(t, gpiod.WithPullDown, gpiod.WithBiasDisable, info, -1)
+	testChipBiasOption(t, gpiod.WithBiasDisabled, info, -1)
+	testLineBiasOption(t, gpiod.WithBiasDisabled, info, -1)
+	testLineBiasReconfigure(t, gpiod.WithPullDown, gpiod.WithBiasDisabled, info, -1)
 }
 
 func TestWithPullDown(t *testing.T) {

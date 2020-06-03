@@ -226,12 +226,12 @@ func (o BiasOption) applyLineConfig(l *LineOptions) {
 	o.applyLineOption(l)
 }
 
-// WithBiasDisable indicates that a line have its internal bias disabled.
+// WithBiasDisabled indicates that a line have its internal bias disabled.
 //
 // This option overrides and clears any previous bias options.
 //
 // Requires Linux v5.5 or later.
-var WithBiasDisable = BiasOption{uapi.HandleRequestBiasDisable}
+var WithBiasDisabled = BiasOption{uapi.HandleRequestBiasDisable}
 
 // WithPullDown indicates that a line have its internal pull-down enabled.
 //
