@@ -15,6 +15,7 @@ import (
 	"github.com/warthog618/config"
 	"github.com/warthog618/config/pflag"
 	"github.com/warthog618/gpiod"
+	"github.com/warthog618/gpiod/uapi"
 )
 
 var version = "undefined"
@@ -22,10 +23,7 @@ var version = "undefined"
 func main() {
 	flags := loadConfig()
 	rc := 0
-	cc := []string(nil)
-	for _, d := range flags.Args() {
-		cc = append(cc, d)
-	}
+	cc := append([]string(nil), flags.Args()...)
 	if len(cc) == 0 {
 		cc = gpiod.Chips()
 	}
@@ -77,7 +75,7 @@ func printLineInfo(li gpiod.LineInfo) {
 	if len(li.Name) == 0 {
 		li.Name = "unnamed"
 	}
-	if li.Requested {
+	if li.Config.Flags.IsBusy() {
 		if len(li.Consumer) == 0 {
 			li.Consumer = "kernel"
 		}
@@ -88,22 +86,32 @@ func printLineInfo(li gpiod.LineInfo) {
 		li.Consumer = "unused"
 	}
 	dirn := "input"
-	if li.IsOut {
+	if li.Config.Direction == uapi.LineDirectionOutput {
 		dirn = "output"
 	}
 	active := "active-high"
-	if li.ActiveLow {
+	if li.Config.Flags.IsActiveLow() {
 		active = "active-low"
 	}
 	flags := []string(nil)
-	if li.Requested {
+	if li.Config.Flags.IsBusy() {
 		flags = append(flags, "used")
 	}
-	if li.OpenDrain {
+	if li.Config.Drive == uapi.LineDriveOpenDrain {
 		flags = append(flags, "open-drain")
 	}
-	if li.OpenSource {
+	if li.Config.Drive == uapi.LineDriveOpenSource {
 		flags = append(flags, "open-source")
+	}
+	if li.Config.Bias == uapi.LineBiasPullUp {
+		flags = append(flags, "pull-up")
+	}
+	if li.Config.Bias == uapi.LineBiasPullDown {
+		flags = append(flags, "pull-down")
+	}
+	if li.Config.Flags.HasBias() &&
+		li.Config.Bias == uapi.LineBiasDisabled {
+		flags = append(flags, "bias-disabled")
 	}
 	flstr := ""
 	if len(flags) > 0 {
