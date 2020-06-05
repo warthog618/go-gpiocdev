@@ -159,26 +159,11 @@ type LineInfoV2 struct {
 	// owner of the request.
 	Consumer [nameSize]byte
 
+	// The configuration of the line.
+	Config LineConfig
+
 	// The offset of the line within the chip.
 	Offset uint32
-
-	// The line flags applied to this line.
-	Flags LineFlagV2
-
-	// The line direction, if LineFlagV2Direction is set.
-	Direction LineDirection
-
-	// The line drive, if LineFlagV2Drive is set.
-	Drive LineDrive
-
-	// The line bias, if LineFlagV2Bias is set.
-	Bias LineBias
-
-	// The line edge detection, if LineFlagV2EdgeDetection is set.
-	EdgeDetection LineEdge
-
-	// The line debounce value, in microseconds, if LineFlagV2Debounce is set.
-	Debounce uint32
 
 	// reserved for future use.
 	Padding [lineInfoV2PadSize]uint32
@@ -333,19 +318,23 @@ const (
 	// request.
 	LinesMax int = 64
 
+	// LinesBitmapSize is number of uint64 in a bitmap large enough for
+	// LinesMax.
+	LinesBitmapSize int = (LinesMax + 63) / 64
+
 	// the pad sizes of each struct
 	lineConfigPadSize        int = 7
 	lineRequestPadSize       int = 4
 	lineEventPadSize         int = 2
-	lineInfoV2PadSize        int = 12
+	lineInfoV2PadSize        int = 5
 	lineInfoChangedV2PadSize int = 5
 )
 
 // LineConfig contains the configuration of a line.
 type LineConfig struct {
-	// The default values to be applied to output lines (when
-	// HandleRequestOutput is set in the Flags).
-	Values [LinesMax]uint8
+	// The values to be applied to output lines (when
+	// Direction is set to LineDirectionOutput).
+	Values LineValues
 
 	// The flags to be applied to the lines.
 	Flags LineFlagV2
@@ -392,9 +381,40 @@ type LineRequest struct {
 	Fd int32
 }
 
-// LineValues contains the logical value for each line.
-// Zero is a logical low and any other value is a logical high.
-type LineValues [LinesMax]uint8
+// LineValues is a bitmap containing the logical value for each line.
+//
+// Zero is a logical low (inactive) and 1 is a logical high (active).
+type LineValues [LinesBitmapSize]uint64
+
+// NewLineValues creates a new LineValues from an array of values.
+func NewLineValues(vv ...int) LineValues {
+	var lv LineValues
+	for i, v := range vv {
+		lv.Set(i, v)
+	}
+	return lv
+}
+
+// Get returns the value of the nth bit.
+func (lv *LineValues) Get(n int) int {
+	idx := n >> 6
+	mask := uint64(1) << uint(n%64)
+	if lv[idx]&mask != 0 {
+		return 1
+	}
+	return 0
+}
+
+// Set sets the value of the nth bit.
+func (lv *LineValues) Set(n, v int) {
+	idx := n >> 6
+	mask := uint64(1) << uint(n%64)
+	if v == 0 {
+		lv[idx] &^= mask
+	} else {
+		lv[idx] |= mask
+	}
+}
 
 // LineEventID indicates the type of event detected.
 type LineEventID uint32

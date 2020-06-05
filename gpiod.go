@@ -307,12 +307,12 @@ func newLineInfoV2(li uapi.LineInfoV2) LineInfo {
 		Name:     uapi.BytesToString(li.Name[:]),
 		Consumer: uapi.BytesToString(li.Consumer[:]),
 		Config: LineConfig{
-			Flags:         li.Flags,
-			Direction:     li.Direction,
-			Drive:         li.Drive,
-			Bias:          li.Bias,
-			EdgeDetection: li.EdgeDetection,
-			Debounce:      li.Debounce,
+			Flags:         li.Config.Flags,
+			Direction:     li.Config.Direction,
+			Drive:         li.Config.Drive,
+			Bias:          li.Config.Bias,
+			EdgeDetection: li.Config.EdgeDetection,
+			Debounce:      li.Config.Debounce,
 		},
 	}
 }
@@ -480,7 +480,7 @@ func (c *Chip) getLine(offsets []int, lo LineOptions) (uintptr, io.Closer, error
 		lo.values = lo.values[:len(offsets)]
 	}
 	for i, v := range lo.values {
-		lr.Config.Values[i] = uint8(v)
+		lr.Config.Values.Set(i, v)
 	}
 	err := uapi.GetLine(c.f.Fd(), &lr)
 	if err != nil {
@@ -690,7 +690,7 @@ func (l *baseLine) Reconfigure(options ...LineReconfig) error {
 	}
 	if lo.Config.Direction == uapi.LineDirectionOutput {
 		for i, v := range lo.values {
-			config.Values[i] = uint8(v)
+			config.Values.Set(i, v)
 		}
 	}
 	err := uapi.SetLineConfigV2(l.vfd, &config)
@@ -744,9 +744,14 @@ func (l *Line) Value() (int, error) {
 	if l.closed {
 		return 0, ErrClosed
 	}
-	var values uapi.LineValues
-	err := uapi.GetLineValues(l.vfd, &values)
-	return int(values[0]), err
+	if l.abi == 1 {
+		hd := uapi.HandleData{}
+		err := uapi.GetLineValues(l.vfd, &hd)
+		return int(hd[0]), err
+	}
+	lv := uapi.LineValues{}
+	err := uapi.GetLineValuesV2(l.vfd, &lv)
+	return lv.Get(0), err
 }
 
 // SetValue sets the current active state of the line.
@@ -761,9 +766,16 @@ func (l *Line) SetValue(value int) error {
 	if l.closed {
 		return ErrClosed
 	}
-	var values uapi.LineValues
-	values[0] = uint8(value)
-	err := uapi.SetLineValues(l.vfd, values)
+	if l.abi == 1 {
+		hd := uapi.HandleData{}
+		err := uapi.SetLineValues(l.vfd, hd)
+		if err == nil {
+			l.values = []int{value}
+		}
+		return err
+	}
+	lv := uapi.NewLineValues(value)
+	err := uapi.SetLineValuesV2(l.vfd, lv)
 	if err == nil {
 		l.values = []int{value}
 	}
@@ -817,17 +829,28 @@ func (l *Lines) Values(values []int) error {
 	if l.closed {
 		return ErrClosed
 	}
-	var uvv uapi.LineValues
-	err := uapi.GetLineValues(l.vfd, &uvv)
+	lines := len(values)
+	if lines > len(l.offsets) {
+		lines = len(l.offsets)
+	}
+	if l.abi == 1 {
+		hd := uapi.HandleData{}
+		err := uapi.GetLineValues(l.vfd, &hd)
+		if err != nil {
+			return err
+		}
+		for i := 0; i < lines; i++ {
+			values[i] = int(hd[i])
+		}
+		return nil
+	}
+	lv := uapi.LineValues{}
+	err := uapi.GetLineValuesV2(l.vfd, &lv)
 	if err != nil {
 		return err
 	}
-	lines := len(l.offsets)
-	if len(values) < lines {
-		lines = len(values)
-	}
 	for i := 0; i < lines; i++ {
-		values[i] = int(uvv[i])
+		values[i] = lv.Get(i)
 	}
 	return nil
 }
@@ -853,9 +876,9 @@ func (l *Lines) SetValues(values []int) error {
 	}
 	var vv uapi.LineValues
 	for i, v := range values {
-		vv[i] = uint8(v)
+		vv.Set(i, v)
 	}
-	err := uapi.SetLineValues(l.vfd, vv)
+	err := uapi.SetLineValuesV2(l.vfd, vv)
 	if err == nil {
 		l.values = values
 	}

@@ -35,9 +35,11 @@ func TestGetLineInfoV2(t *testing.T) {
 				require.Nil(t, err)
 				defer f.Close()
 				xli := uapi.LineInfoV2{
-					Offset:    uint32(l),
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Offset: uint32(l),
+					Config: uapi.LineConfig{
+						Flags:     uapi.LineFlagV2Direction,
+						Direction: uapi.LineDirectionInput,
+					},
 				}
 				copy(xli.Name[:], fmt.Sprintf("%s-%d", c.Label, l))
 				copy(xli.Consumer[:], "")
@@ -308,29 +310,31 @@ func TestGetLine(t *testing.T) {
 			li, err := uapi.GetLineInfoV2(f.Fd(), int(p.lr.Offsets[0]))
 			assert.Nil(t, err)
 			if p.err != nil {
-				assert.True(t, li.Flags.IsAvailable())
+				assert.True(t, li.Config.Flags.IsAvailable())
 				unix.Close(int(p.lr.Fd))
 				return
 			}
 			xli := uapi.LineInfoV2{
-				Offset:        p.lr.Offsets[0],
-				Flags:         uapi.LineFlagV2Busy | uapi.LineFlagV2Direction | p.lr.Config.Flags,
-				Direction:     p.lr.Config.Direction,
-				Drive:         p.lr.Config.Drive,
-				Bias:          p.lr.Config.Bias,
-				EdgeDetection: p.lr.Config.EdgeDetection,
-				Debounce:      p.lr.Config.Debounce,
+				Offset: p.lr.Offsets[0],
+				Config: uapi.LineConfig{
+					Flags:         uapi.LineFlagV2Busy | uapi.LineFlagV2Direction | p.lr.Config.Flags,
+					Direction:     p.lr.Config.Direction,
+					Drive:         p.lr.Config.Drive,
+					Bias:          p.lr.Config.Bias,
+					EdgeDetection: p.lr.Config.EdgeDetection,
+					Debounce:      p.lr.Config.Debounce,
+				},
 			}
 			copy(xli.Name[:], li.Name[:]) // don't care about name
 			copy(xli.Consumer[:31], p.name)
 			if !p.lr.Config.Flags.HasDirection() {
-				xli.Direction = li.Direction
+				xli.Config.Direction = li.Config.Direction
 			}
-			if xli.Direction == uapi.LineDirectionOutput {
-				xli.Flags |= uapi.LineFlagV2Drive
+			if xli.Config.Direction == uapi.LineDirectionOutput {
+				xli.Config.Flags |= uapi.LineFlagV2Drive
 			}
-			if xli.EdgeDetection == uapi.LineEdgeNone {
-				xli.Flags &^= uapi.LineFlagV2EdgeDetection
+			if xli.Config.EdgeDetection == uapi.LineEdgeNone {
+				xli.Config.Flags &^= uapi.LineFlagV2EdgeDetection
 			}
 			assert.Equal(t, xli, li)
 			unix.Close(int(p.lr.Fd))
@@ -572,7 +576,7 @@ func TestGetLineValuesV2(t *testing.T) {
 		name string
 		cnum int
 		lr   uapi.LineRequest
-		val  []uint8
+		val  []int
 	}{
 		{
 			"as-is atv-lo lo",
@@ -584,7 +588,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]uint8{0},
+			[]int{0},
 		},
 		{
 			"as-is atv-lo hi",
@@ -596,7 +600,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]uint8{1},
+			[]int{1},
 		},
 		{
 			"as-is lo",
@@ -605,7 +609,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]uint8{0},
+			[]int{0},
 		},
 		{
 			"as-is hi",
@@ -614,7 +618,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
-			[]uint8{1},
+			[]int{1},
 		},
 		{
 			"input lo",
@@ -627,7 +631,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]uint8{0}},
+			[]int{0}},
 		{
 			"input hi",
 			0,
@@ -639,7 +643,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
-			[]uint8{1},
+			[]int{1},
 		},
 		{
 			"output lo",
@@ -652,7 +656,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]uint8{0},
+			[]int{0},
 		},
 		{
 			"output hi",
@@ -665,7 +669,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
-			[]uint8{1},
+			[]int{1},
 		},
 		{
 			"both lo",
@@ -679,7 +683,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]uint8{0},
+			[]int{0},
 		},
 		{
 			"both hi",
@@ -693,7 +697,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
-			[]uint8{1},
+			[]int{1},
 		},
 		{
 			"falling lo",
@@ -707,7 +711,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]uint8{0},
+			[]int{0},
 		},
 		{
 			"falling hi",
@@ -721,7 +725,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
-			[]uint8{1},
+			[]int{1},
 		},
 		{
 			"rising lo",
@@ -735,7 +739,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]uint8{0},
+			[]int{0},
 		},
 		{
 			"rising hi",
@@ -749,7 +753,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
-			[]uint8{1},
+			[]int{1},
 		},
 		{
 			"input 2a",
@@ -762,7 +766,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   2,
 				Offsets: [uapi.LinesMax]uint32{0, 1},
 			},
-			[]uint8{1, 0},
+			[]int{1, 0},
 		},
 		{
 			"input 2b",
@@ -775,7 +779,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   2,
 				Offsets: [uapi.LinesMax]uint32{2, 1},
 			},
-			[]uint8{0, 1},
+			[]int{0, 1},
 		},
 		{
 			"input 3a",
@@ -788,7 +792,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2},
 			},
-			[]uint8{0, 1, 1},
+			[]int{0, 1, 1},
 		},
 		{
 			"input 3b",
@@ -801,7 +805,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{0, 2, 1},
 			},
-			[]uint8{0, 1, 0},
+			[]int{0, 1, 0},
 		},
 		{
 			"input 4a",
@@ -814,7 +818,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   4,
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2, 3},
 			},
-			[]uint8{0, 1, 1, 1},
+			[]int{0, 1, 1, 1},
 		},
 		{
 			"input 4b",
@@ -827,7 +831,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   4,
 				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0},
 			},
-			[]uint8{1, 1, 0, 1},
+			[]int{1, 1, 0, 1},
 		},
 		{
 			"input 8a",
@@ -840,7 +844,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   8,
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2, 3, 4, 5, 6, 7},
 			},
-			[]uint8{0, 1, 1, 1, 1, 1, 0, 0},
+			[]int{0, 1, 1, 1, 1, 1, 0, 0},
 		},
 		{
 			"input 8b",
@@ -853,7 +857,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   8,
 				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0, 4, 5, 6, 7},
 			},
-			[]uint8{1, 1, 0, 1, 1, 1, 0, 1},
+			[]int{1, 1, 0, 1, 1, 1, 0, 1},
 		},
 		{
 			"atv-lo 8b",
@@ -865,7 +869,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   8,
 				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0, 4, 5, 6, 7},
 			},
-			[]uint8{1, 1, 0, 1, 1, 1, 0, 0},
+			[]int{1, 1, 0, 1, 1, 1, 0, 0},
 		},
 		{
 			"edge detection lo",
@@ -879,7 +883,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]uint8{0}},
+			[]int{0}},
 		{
 			"edge detection hi",
 			0,
@@ -892,7 +896,7 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
-			[]uint8{1},
+			[]int{1},
 		},
 	}
 	for _, p := range patterns {
@@ -918,13 +922,12 @@ func TestGetLineValuesV2(t *testing.T) {
 			err = uapi.GetLine(f.Fd(), &p.lr)
 			require.Nil(t, err)
 			fd = p.lr.Fd
-			if p.lr.Config.Flags.HasDirection() && p.lr.Config.Direction == uapi.LineDirectionOutput {
+			if p.lr.Config.Direction == uapi.LineDirectionOutput {
 				// mock is ignored for outputs
-				xval = make([]uint8, len(p.val))
+				xval = make([]int, len(p.val))
 			}
-			var lvx uapi.LineValues
-			copy(lvx[:], xval)
-			var lv uapi.LineValues
+			lvx := uapi.NewLineValues(xval...)
+			lv := uapi.LineValues{}
 			err = uapi.GetLineValuesV2(uintptr(fd), &lv)
 			assert.Nil(t, err)
 			assert.Equal(t, lvx, lv)
@@ -933,11 +936,11 @@ func TestGetLineValuesV2(t *testing.T) {
 		t.Run(p.name, tf)
 	}
 	// badfd
-	var hdx uapi.LineValues
-	var hd uapi.LineValues
-	err := uapi.GetLineValuesV2(0, &hd)
+	lvx := uapi.NewLineValues(0, 0, 0)
+	lv := uapi.NewLineValues(0, 0, 0)
+	err := uapi.GetLineValuesV2(0, &lv)
 	assert.NotNil(t, err)
-	assert.Equal(t, hdx, hd)
+	assert.Equal(t, lvx, lv)
 }
 
 func TestSetLineValuesV2(t *testing.T) {
@@ -947,7 +950,7 @@ func TestSetLineValuesV2(t *testing.T) {
 		name string
 		cnum int
 		lr   uapi.LineRequest
-		val  []uint8
+		val  []int
 		err  error
 	}{
 		{
@@ -961,7 +964,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]uint8{0},
+			[]int{0},
 			nil,
 		},
 		{
@@ -975,7 +978,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]uint8{1},
+			[]int{1},
 			nil,
 		},
 		{
@@ -988,7 +991,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]uint8{0},
+			[]int{0},
 			nil,
 		},
 		{
@@ -1001,7 +1004,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]uint8{1},
+			[]int{1},
 			nil,
 		},
 		{
@@ -1015,7 +1018,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]uint8{0},
+			[]int{0},
 			nil,
 		},
 		{
@@ -1029,7 +1032,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
-			[]uint8{1},
+			[]int{1},
 			nil,
 		},
 		{
@@ -1043,7 +1046,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   2,
 				Offsets: [uapi.LinesMax]uint32{0, 1},
 			},
-			[]uint8{1, 0},
+			[]int{1, 0},
 			nil,
 		},
 		{
@@ -1057,7 +1060,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   2,
 				Offsets: [uapi.LinesMax]uint32{2, 1},
 			},
-			[]uint8{0, 1},
+			[]int{0, 1},
 			nil,
 		},
 		{
@@ -1071,7 +1074,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2},
 			},
-			[]uint8{0, 1, 1},
+			[]int{0, 1, 1},
 			nil,
 		},
 		{
@@ -1085,7 +1088,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{0, 2, 1},
 			},
-			[]uint8{0, 1, 0},
+			[]int{0, 1, 0},
 			nil,
 		},
 		{
@@ -1099,7 +1102,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   4,
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2, 3},
 			},
-			[]uint8{0, 1, 1, 1},
+			[]int{0, 1, 1, 1},
 			nil,
 		},
 		{
@@ -1113,7 +1116,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   4,
 				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0},
 			},
-			[]uint8{1, 1, 0, 1},
+			[]int{1, 1, 0, 1},
 			nil,
 		},
 		{
@@ -1127,7 +1130,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   8,
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2, 3, 4, 5, 6, 7},
 			},
-			[]uint8{0, 1, 1, 1, 1, 1, 0, 0},
+			[]int{0, 1, 1, 1, 1, 1, 0, 0},
 			nil,
 		},
 		{
@@ -1141,7 +1144,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   8,
 				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0, 4, 5, 6, 7},
 			},
-			[]uint8{1, 1, 0, 1, 1, 1, 0, 1},
+			[]int{1, 1, 0, 1, 1, 1, 0, 1},
 			nil,
 		},
 		{
@@ -1154,7 +1157,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   8,
 				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0, 4, 5, 6, 7},
 			},
-			[]uint8{1, 1, 0, 1, 1, 0, 0, 0},
+			[]int{1, 1, 0, 1, 1, 0, 0, 0},
 			nil,
 		},
 		// expected failures....
@@ -1169,7 +1172,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]uint8{0},
+			[]int{0},
 			unix.EPERM,
 		},
 		{
@@ -1183,7 +1186,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
-			[]uint8{1},
+			[]int{1},
 			unix.EPERM,
 		},
 		{
@@ -1198,7 +1201,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]uint8{0},
+			[]int{0},
 			unix.EPERM,
 		},
 	}
@@ -1212,8 +1215,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			defer f.Close()
 			err = uapi.GetLine(f.Fd(), &p.lr)
 			require.Nil(t, err)
-			var lv uapi.LineValues
-			copy(lv[:], p.val)
+			lv := uapi.NewLineValues(p.val...)
 			err = uapi.SetLineValuesV2(uintptr(p.lr.Fd), lv)
 			assert.Equal(t, p.err, err)
 			if p.err == nil {
@@ -1234,10 +1236,10 @@ func TestSetLineValuesV2(t *testing.T) {
 		t.Run(p.name, tf)
 	}
 	// badfd
-	var lv uapi.LineValues
-	err := uapi.SetLineValuesV2(0, lv)
+	err := uapi.SetLineValuesV2(0, uapi.NewLineValues(1))
 	assert.NotNil(t, err)
 }
+
 func TestSetLineConfigV2(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
 	requireMockup(t)
@@ -1262,7 +1264,7 @@ func TestSetLineConfigV2(t *testing.T) {
 			uapi.LineConfig{
 				Flags:     uapi.LineFlagV2Direction,
 				Direction: uapi.LineDirectionOutput,
-				Values:    [uapi.LinesMax]uint8{1, 0, 1},
+				Values:    uapi.NewLineValues(1, 0, 1),
 			},
 			nil,
 		},
@@ -1273,7 +1275,7 @@ func TestSetLineConfigV2(t *testing.T) {
 				Config: uapi.LineConfig{
 					Flags:     uapi.LineFlagV2Direction,
 					Direction: uapi.LineDirectionOutput,
-					Values:    [uapi.LinesMax]uint8{1, 0, 1},
+					Values:    uapi.NewLineValues(1, 0, 1),
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
@@ -1350,7 +1352,7 @@ func TestSetLineConfigV2(t *testing.T) {
 				Config: uapi.LineConfig{
 					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2ActiveLow,
 					Direction: uapi.LineDirectionOutput,
-					Values:    [uapi.LinesMax]uint8{0, 0, 1},
+					Values:    uapi.NewLineValues(0, 0, 1),
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
@@ -1358,7 +1360,7 @@ func TestSetLineConfigV2(t *testing.T) {
 			uapi.LineConfig{
 				Flags:     uapi.LineFlagV2Direction,
 				Direction: uapi.LineDirectionOutput,
-				Values:    [uapi.LinesMax]uint8{1, 0, 1},
+				Values:    uapi.NewLineValues(1, 0, 1),
 			},
 			nil,
 		},
@@ -1369,7 +1371,7 @@ func TestSetLineConfigV2(t *testing.T) {
 				Config: uapi.LineConfig{
 					Flags:     uapi.LineFlagV2Direction,
 					Direction: uapi.LineDirectionOutput,
-					Values:    [uapi.LinesMax]uint8{0, 0, 1},
+					Values:    uapi.NewLineValues(0, 0, 1),
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
@@ -1377,7 +1379,7 @@ func TestSetLineConfigV2(t *testing.T) {
 			uapi.LineConfig{
 				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2ActiveLow,
 				Direction: uapi.LineDirectionOutput,
-				Values:    [uapi.LinesMax]uint8{1, 0, 1},
+				Values:    uapi.NewLineValues(1, 0, 1),
 			},
 			nil,
 		},
@@ -1456,7 +1458,7 @@ func TestSetLineConfigV2(t *testing.T) {
 				Config: uapi.LineConfig{
 					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2ActiveLow,
 					Direction: uapi.LineDirectionOutput,
-					Values:    [uapi.LinesMax]uint8{1, 0, 1},
+					Values:    uapi.NewLineValues(1, 0, 1),
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
@@ -1471,7 +1473,7 @@ func TestSetLineConfigV2(t *testing.T) {
 				Config: uapi.LineConfig{
 					Flags:     uapi.LineFlagV2Direction,
 					Direction: uapi.LineDirectionOutput,
-					Values:    [uapi.LinesMax]uint8{1, 0, 1},
+					Values:    uapi.NewLineValues(1, 0, 1),
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
@@ -1643,7 +1645,7 @@ func TestSetLineConfigV2(t *testing.T) {
 			uapi.LineConfig{
 				Flags:     uapi.LineFlagV2Direction,
 				Direction: uapi.LineDirectionOutput,
-				Values:    [uapi.LinesMax]uint8{1, 0, 1},
+				Values:    uapi.NewLineValues(1, 0, 1),
 			},
 			unix.EINVAL,
 		},
@@ -1693,7 +1695,7 @@ func TestSetLineConfigV2(t *testing.T) {
 			// setup mockup for inputs
 			if p.config.Flags.HasDirection() && p.config.Direction == uapi.LineDirectionOutput {
 				for i, o := range p.lr.Offsets {
-					v := int(p.lr.Config.Values[i])
+					v := p.lr.Config.Values.Get(i)
 					// read is after config, so use config active state
 					if p.config.Flags.IsActiveLow() {
 						v ^= 0x01 // assumes using 1 for high
@@ -1717,29 +1719,31 @@ func TestSetLineConfigV2(t *testing.T) {
 				li, err := uapi.GetLineInfoV2(f.Fd(), int(p.lr.Offsets[0]))
 				assert.Nil(t, err)
 				if p.err != nil {
-					assert.True(t, li.Flags.IsAvailable())
+					assert.True(t, li.Config.Flags.IsAvailable())
 					return
 				}
 				xli := uapi.LineInfoV2{
 					Offset: p.lr.Offsets[0],
-					Flags: uapi.LineFlagV2Busy |
-						uapi.LineFlagV2Direction |
-						p.lr.Config.Flags |
-						p.config.Flags,
-					Direction:     p.config.Direction,
-					Drive:         p.config.Drive,
-					Bias:          p.config.Bias,
-					EdgeDetection: p.config.EdgeDetection,
-					Debounce:      p.config.Debounce,
+					Config: uapi.LineConfig{
+						Flags: uapi.LineFlagV2Busy |
+							uapi.LineFlagV2Direction |
+							p.lr.Config.Flags |
+							p.config.Flags,
+						Direction:     p.config.Direction,
+						Drive:         p.config.Drive,
+						Bias:          p.config.Bias,
+						EdgeDetection: p.config.EdgeDetection,
+						Debounce:      p.config.Debounce,
+					},
 				}
 				if !p.config.Flags.IsActiveLow() {
-					xli.Flags &^= uapi.LineFlagV2ActiveLow
+					xli.Config.Flags &^= uapi.LineFlagV2ActiveLow
 				}
 				if !p.config.Flags.HasDirection() {
-					xli.Direction = li.Direction
+					xli.Config.Direction = li.Config.Direction
 				}
-				if xli.Direction == uapi.LineDirectionOutput {
-					xli.Flags |= uapi.LineFlagV2Drive
+				if xli.Config.Direction == uapi.LineDirectionOutput {
+					xli.Config.Flags |= uapi.LineFlagV2Drive
 				}
 				copy(xli.Name[:], li.Name[:]) // don't care about name
 				copy(xli.Consumer[:31], p.name)
@@ -1749,7 +1753,7 @@ func TestSetLineConfigV2(t *testing.T) {
 					for i, o := range p.lr.Offsets {
 						v, err := c.Value(int(o))
 						assert.Nil(t, err)
-						xv := int(p.config.Values[i])
+						xv := p.config.Values.Get(i)
 						if p.config.Flags.IsActiveLow() {
 							xv ^= 0x01 // assumes using 1 for high
 						}
@@ -1955,7 +1959,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 	// non-zero pad
 	li = uapi.LineInfoV2{
 		Offset:  3,
-		Padding: [12]uint32{1},
+		Padding: [5]uint32{1},
 	}
 	err = uapi.WatchLineInfoV2(f.Fd(), &li)
 	require.Equal(t, syscall.Errno(0x16), err)
@@ -1966,9 +1970,11 @@ func TestWatchLineInfoV2(t *testing.T) {
 	err = uapi.WatchLineInfoV2(f.Fd(), &li)
 	require.Nil(t, err)
 	xli := uapi.LineInfoV2{
-		Offset:    3,
-		Flags:     uapi.LineFlagV2Direction,
-		Direction: uapi.LineDirectionInput,
+		Offset: 3,
+		Config: uapi.LineConfig{
+			Flags:     uapi.LineFlagV2Direction,
+			Direction: uapi.LineDirectionInput,
+		},
 	}
 	copy(xli.Name[:], lname)
 	assert.Equal(t, xli, li)
@@ -1997,7 +2003,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedRequested, chg.Type)
-	xli.Flags |= uapi.LineFlagV2Busy
+	xli.Config.Flags |= uapi.LineFlagV2Busy
 	copy(xli.Consumer[:], "testwatch")
 	assert.Equal(t, xli, chg.Info)
 
@@ -2013,7 +2019,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedConfig, chg.Type)
-	xli.Flags |= uapi.LineFlagV2ActiveLow
+	xli.Config.Flags |= uapi.LineFlagV2ActiveLow
 	assert.Equal(t, xli, chg.Info)
 
 	chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
@@ -2027,9 +2033,11 @@ func TestWatchLineInfoV2(t *testing.T) {
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedReleased, chg.Type)
 	xli = uapi.LineInfoV2{
-		Offset:    3,
-		Flags:     uapi.LineFlagV2Direction,
-		Direction: uapi.LineDirectionInput,
+		Offset: 3,
+		Config: uapi.LineConfig{
+			Flags:     uapi.LineFlagV2Direction,
+			Direction: uapi.LineDirectionInput,
+		},
 	}
 	copy(xli.Name[:], lname)
 	assert.Equal(t, xli, chg.Info)
