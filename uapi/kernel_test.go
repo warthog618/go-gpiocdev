@@ -31,12 +31,12 @@ func TestRepeatedGetLineHandle(t *testing.T) {
 	hr := uapi.HandleRequest{
 		Flags:   uapi.HandleRequestInput,
 		Lines:   2,
-		Offsets: [uapi.HandlesMax]uint32{1, 1},
+		Offsets: [uapi.HandlesMax]uint32{1, 3},
 	}
 
 	// input
 	err = uapi.GetLineHandle(f.Fd(), &hr)
-	assert.NotNil(t, err)
+	require.Nil(t, err)
 
 	// busy
 	err = uapi.GetLineHandle(f.Fd(), &hr)
@@ -93,12 +93,12 @@ func TestRepeatedGetLine(t *testing.T) {
 			Direction: uapi.LineDirectionInput,
 		},
 		Lines:   2,
-		Offsets: [uapi.LinesMax]uint32{1, 1},
+		Offsets: [uapi.LinesMax]uint32{1, 3},
 	}
 
 	// input
 	err = uapi.GetLine(f.Fd(), &lr)
-	assert.NotNil(t, err)
+	require.Nil(t, err)
 
 	// busy
 	err = uapi.GetLine(f.Fd(), &lr)
