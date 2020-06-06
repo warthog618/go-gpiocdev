@@ -440,6 +440,12 @@ type LineEvent struct {
 	// The line that triggered the event.
 	Offset uint32
 
+	// The seqno for this event in all events on all lines in this line request.
+	Seqno uint32
+
+	// The seqno for this event in all events in this line.
+	LineSeqno uint32
+
 	// reserved for future use
 	Padding [lineEventPadSize]uint32
 }
