@@ -2075,33 +2075,49 @@ func TestReadLineEvent(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
+	xevt := uapi.LineEvent{
+		Seqno:     1,
+		LineSeqno: 1,
+	}
+
 	c.SetValue(1, 1)
 	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 	require.Nil(t, err)
 	require.NotNil(t, evt)
-	assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
-	assert.Equal(t, uint32(1), evt.Offset)
+	evt.Timestamp = 0
+	xevt.ID = uapi.LineEventFallingEdge
+	xevt.Offset = 1
+	assert.Equal(t, xevt, *evt)
 
 	c.SetValue(2, 0)
 	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, evt)
-	assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
-	assert.Equal(t, uint32(2), evt.Offset)
+	evt.Timestamp = 0
+	xevt.ID = uapi.LineEventRisingEdge
+	xevt.Offset = 2
+	xevt.Seqno++
+	assert.Equal(t, xevt, *evt)
 
 	c.SetValue(2, 1)
 	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 	require.Nil(t, err)
 	require.NotNil(t, evt)
-	assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
-	assert.Equal(t, uint32(2), evt.Offset)
+	evt.Timestamp = 0
+	xevt.ID = uapi.LineEventFallingEdge
+	xevt.Seqno++
+	xevt.LineSeqno++
+	assert.Equal(t, xevt, *evt)
 
 	c.SetValue(1, 0)
 	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, evt)
-	assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
-	assert.Equal(t, uint32(1), evt.Offset)
+	evt.Timestamp = 0
+	xevt.ID = uapi.LineEventRisingEdge
+	xevt.Seqno++
+	xevt.Offset = 1
+	assert.Equal(t, xevt, *evt)
 
 	unix.Close(int(lr.Fd))
 
@@ -2113,8 +2129,12 @@ func TestReadLineEvent(t *testing.T) {
 	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 	require.Nil(t, err)
 	require.NotNil(t, evt)
-	assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
-	assert.Equal(t, uint32(1), evt.Offset)
+	evt.Timestamp = 0
+	xevt.ID = uapi.LineEventFallingEdge
+	xevt.Seqno = 1
+	xevt.LineSeqno = 1
+	xevt.Offset = 1
+	assert.Equal(t, xevt, *evt)
 
 	c.SetValue(1, 0)
 	evt, err = readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
@@ -2123,6 +2143,7 @@ func TestReadLineEvent(t *testing.T) {
 
 	unix.Close(int(lr.Fd))
 
+	lr.Lines = 1
 	lr.Config.Flags &^= uapi.LineFlagV2ActiveLow
 	lr.Config.EdgeDetection = uapi.LineEdgeRising
 	err = uapi.GetLine(f.Fd(), &lr)
@@ -2132,13 +2153,25 @@ func TestReadLineEvent(t *testing.T) {
 	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 	require.Nil(t, err)
 	require.NotNil(t, evt)
-	assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
-	assert.Equal(t, uint32(1), evt.Offset)
+	evt.Timestamp = 0
+	xevt.ID = uapi.LineEventRisingEdge
+	assert.Equal(t, xevt, *evt)
 
 	c.SetValue(1, 0)
 	evt, err = readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
+
+	// test single line seqno paths
+	c.SetValue(1, 1)
+	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
+	require.Nil(t, err)
+	require.NotNil(t, evt)
+	evt.Timestamp = 0
+	xevt.ID = uapi.LineEventRisingEdge
+	xevt.Seqno++
+	xevt.LineSeqno++
+	assert.Equal(t, xevt, *evt)
 
 	unix.Close(int(lr.Fd))
 }
