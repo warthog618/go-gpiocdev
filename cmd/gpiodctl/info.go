@@ -62,7 +62,7 @@ func printLineInfo(li gpiod.LineInfo) {
 	if len(li.Name) == 0 {
 		li.Name = "unnamed"
 	}
-	if li.Config.Flags.IsBusy() {
+	if li.Config.Flags.IsUsed() {
 		if len(li.Consumer) == 0 {
 			li.Consumer = "kernel"
 		}
@@ -81,7 +81,7 @@ func printLineInfo(li gpiod.LineInfo) {
 		active = "active-low"
 	}
 	flags := []string(nil)
-	if li.Config.Flags.IsBusy() {
+	if li.Config.Flags.IsUsed() {
 		flags = append(flags, "used")
 	}
 	if li.Config.Drive == uapi.LineDriveOpenDrain {

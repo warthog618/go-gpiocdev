@@ -317,7 +317,7 @@ func TestGetLine(t *testing.T) {
 			xli := uapi.LineInfoV2{
 				Offset: p.lr.Offsets[0],
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Busy | uapi.LineFlagV2Direction | p.lr.Config.Flags,
+					Flags:         uapi.LineFlagV2Used | uapi.LineFlagV2Direction | p.lr.Config.Flags,
 					Direction:     p.lr.Config.Direction,
 					Drive:         p.lr.Config.Drive,
 					Bias:          p.lr.Config.Bias,
@@ -1725,7 +1725,7 @@ func TestSetLineConfigV2(t *testing.T) {
 				xli := uapi.LineInfoV2{
 					Offset: p.lr.Offsets[0],
 					Config: uapi.LineConfig{
-						Flags: uapi.LineFlagV2Busy |
+						Flags: uapi.LineFlagV2Used |
 							uapi.LineFlagV2Direction |
 							p.lr.Config.Flags |
 							p.config.Flags,
@@ -2003,7 +2003,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedRequested, chg.Type)
-	xli.Config.Flags |= uapi.LineFlagV2Busy
+	xli.Config.Flags |= uapi.LineFlagV2Used
 	copy(xli.Consumer[:], "testwatch")
 	assert.Equal(t, xli, chg.Info)
 
@@ -2262,15 +2262,15 @@ func readLineInfoChangedV2Timeout(fd uintptr,
 
 func TestLineFlagsV2(t *testing.T) {
 	assert.True(t, uapi.LineFlagV2(0).IsAvailable())
-	assert.False(t, uapi.LineFlagV2(0).IsBusy())
+	assert.False(t, uapi.LineFlagV2(0).IsUsed())
 	assert.False(t, uapi.LineFlagV2(0).IsActiveLow())
 	assert.False(t, uapi.LineFlagV2(0).HasDirection())
 	assert.False(t, uapi.LineFlagV2(0).HasDrive())
 	assert.False(t, uapi.LineFlagV2(0).HasBias())
 	assert.False(t, uapi.LineFlagV2(0).HasEdgeDetection())
 	assert.False(t, uapi.LineFlagV2(0).HasDebounce())
-	assert.False(t, uapi.LineFlagV2Busy.IsAvailable())
-	assert.True(t, uapi.LineFlagV2Busy.IsBusy())
+	assert.False(t, uapi.LineFlagV2Used.IsAvailable())
+	assert.True(t, uapi.LineFlagV2Used.IsUsed())
 	assert.True(t, uapi.LineFlagV2ActiveLow.IsActiveLow())
 	assert.True(t, uapi.LineFlagV2Direction.HasDirection())
 	assert.True(t, uapi.LineFlagV2Drive.HasDrive())
