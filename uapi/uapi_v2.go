@@ -139,15 +139,15 @@ var (
 func init() {
 	// ioctls require struct sizes which are only available at runtime.
 	var liv2 LineInfoV2
-	getLineInfoV2Ioctl = iorw(0xB4, 0x0D, unsafe.Sizeof(liv2))
-	watchLineInfoV2Ioctl = iorw(0xB4, 0x0E, unsafe.Sizeof(liv2))
+	getLineInfoV2Ioctl = iorw(0xB4, 0x05, unsafe.Sizeof(liv2))
+	watchLineInfoV2Ioctl = iorw(0xB4, 0x06, unsafe.Sizeof(liv2))
 	var lr LineRequest
-	getLineIoctl = iorw(0xB4, 0x0F, unsafe.Sizeof(lr))
+	getLineIoctl = iorw(0xB4, 0x07, unsafe.Sizeof(lr))
 	var lc LineConfig
-	setLineConfigV2Ioctl = iorw(0xB4, 0x10, unsafe.Sizeof(lc))
+	setLineConfigV2Ioctl = iorw(0xB4, 0x0D, unsafe.Sizeof(lc))
 	var lv LineValues
-	getLineValuesV2Ioctl = iorw(0xB4, 0x11, unsafe.Sizeof(lv))
-	setLineValuesV2Ioctl = iorw(0xB4, 0x12, unsafe.Sizeof(lv))
+	getLineValuesV2Ioctl = iorw(0xB4, 0x0E, unsafe.Sizeof(lv))
+	setLineValuesV2Ioctl = iorw(0xB4, 0x0F, unsafe.Sizeof(lv))
 }
 
 // LineInfoV2 contains the details of a single line of a GPIO chip.
