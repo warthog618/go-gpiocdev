@@ -180,13 +180,14 @@ func TestGetLine(t *testing.T) {
 					Direction:     uapi.LineDirectionInput,
 					EdgeDetection: uapi.LineEdgeBoth,
 				},
-				Lines:   1,
-				Offsets: [uapi.LinesMax]uint32{3},
+				Lines:           1,
+				Offsets:         [uapi.LinesMax]uint32{3},
+				EventBufferSize: 42,
 			},
 			nil,
 		},
 		{
-			"input edge nonr",
+			"input edge none",
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
@@ -552,6 +553,14 @@ func TestGetLineValidation(t *testing.T) {
 				Config:  uapi.LineConfig{Padding: [7]uint32{1}},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
+			},
+		},
+		{
+			"non-zero event buffer size",
+			uapi.LineRequest{
+				Lines:           1,
+				Offsets:         [uapi.LinesMax]uint32{1},
+				EventBufferSize: 42,
 			},
 		},
 	}

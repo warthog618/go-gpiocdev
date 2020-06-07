@@ -324,7 +324,7 @@ const (
 
 	// the pad sizes of each struct
 	lineConfigPadSize        int = 7
-	lineRequestPadSize       int = 4
+	lineRequestPadSize       int = 5
 	lineEventPadSize         int = 2
 	lineInfoV2PadSize        int = 5
 	lineInfoChangedV2PadSize int = 5
@@ -372,6 +372,9 @@ type LineRequest struct {
 
 	// The number of lines being requested.
 	Lines uint32
+
+	// Minimum size of the event buffer.
+	EventBufferSize uint32
 
 	// reserved for future use.
 	Padding [lineRequestPadSize]uint32
