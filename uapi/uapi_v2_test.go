@@ -1512,6 +1512,100 @@ func TestSetLineConfigV2(t *testing.T) {
 			},
 			nil,
 		},
+		{
+			"in to debounced",
+			1,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags:     uapi.LineFlagV2Direction,
+					Direction: uapi.LineDirectionInput,
+				},
+				Lines:   3,
+				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
+			},
+			uapi.LineConfig{
+				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Debounce,
+				Direction: uapi.LineDirectionInput,
+				Debounce:  20,
+			},
+			nil,
+		},
+		{
+			"debounced to undebounced",
+			1,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Debounce,
+					Direction: uapi.LineDirectionInput,
+					Debounce:  20,
+				},
+				Lines:   3,
+				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
+			},
+			uapi.LineConfig{
+				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Debounce,
+				Direction: uapi.LineDirectionInput,
+				Debounce:  0,
+			},
+			nil,
+		},
+		{
+			"debounce changed",
+			1,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Debounce,
+					Direction: uapi.LineDirectionInput,
+					Debounce:  20,
+				},
+				Lines:   3,
+				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
+			},
+			uapi.LineConfig{
+				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Debounce,
+				Direction: uapi.LineDirectionInput,
+				Debounce:  30,
+			},
+			nil,
+		},
+		{
+			"out to debounced in",
+			1,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags:     uapi.LineFlagV2Direction,
+					Direction: uapi.LineDirectionOutput,
+					Values:    uapi.NewLineValues(0, 0, 1),
+				},
+				Lines:   3,
+				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
+			},
+			uapi.LineConfig{
+				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Debounce,
+				Direction: uapi.LineDirectionInput,
+				Debounce:  20,
+			},
+			nil,
+		},
+		{
+			"debounced in to out",
+			1,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Debounce,
+					Direction: uapi.LineDirectionInput,
+					Debounce:  20,
+				},
+				Lines:   3,
+				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
+			},
+			uapi.LineConfig{
+				Flags:     uapi.LineFlagV2Direction,
+				Direction: uapi.LineDirectionOutput,
+				Values:    uapi.NewLineValues(0, 0, 1),
+			},
+			nil,
+		},
 		// expected errors
 		{
 			"input drain",
@@ -1719,16 +1813,17 @@ func TestSetLineConfigV2(t *testing.T) {
 			copy(p.lr.Consumer[:31], p.name)
 			err = uapi.GetLine(f.Fd(), &p.lr)
 			require.Nil(t, err)
+			defer unix.Close(int(p.lr.Fd))
 			// apply config change
 			err = uapi.SetLineConfigV2(uintptr(p.lr.Fd), &p.config)
-			assert.Equal(t, p.err, err)
+			require.Equal(t, p.err, err)
 
 			if p.err == nil {
 				// check line info
 				li, err := uapi.GetLineInfoV2(f.Fd(), int(p.lr.Offsets[0]))
 				assert.Nil(t, err)
 				if p.err != nil {
-					assert.True(t, li.Config.Flags.IsAvailable())
+					assert.False(t, li.Config.Flags.IsUsed())
 					return
 				}
 				xli := uapi.LineInfoV2{
@@ -1754,6 +1849,9 @@ func TestSetLineConfigV2(t *testing.T) {
 				if xli.Config.Direction == uapi.LineDirectionOutput {
 					xli.Config.Flags |= uapi.LineFlagV2Drive
 				}
+				if xli.Config.Debounce == 0 {
+					xli.Config.Flags &^= uapi.LineFlagV2Debounce
+				}
 				copy(xli.Name[:], li.Name[:]) // don't care about name
 				copy(xli.Consumer[:31], p.name)
 				assert.Equal(t, xli, li)
@@ -1770,7 +1868,6 @@ func TestSetLineConfigV2(t *testing.T) {
 					}
 				}
 			}
-			unix.Close(int(p.lr.Fd))
 		}
 		t.Run(p.name, tf)
 	}
