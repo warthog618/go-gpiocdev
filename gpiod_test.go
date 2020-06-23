@@ -775,7 +775,7 @@ func isPi(path string) error {
 		return err
 	}
 	label := uapi.BytesToString(ci.Label[:])
-	if label != "pinctrl-bcm2835" && label != "pinctrl-bcm-2711" {
+	if label != "pinctrl-bcm2835" && label != "pinctrl-bcm2711" {
 		return fmt.Errorf("unsupported gpiochip - %s", label)
 	}
 	return nil
