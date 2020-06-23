@@ -775,7 +775,7 @@ func isPi(path string) error {
 		return err
 	}
 	label := uapi.BytesToString(ci.Label[:])
-	if label != "pinctrl-bcm2835" {
+	if label != "pinctrl-bcm2835" && label != "pinctrl-bcm-2711" {
 		return fmt.Errorf("unsupported gpiochip - %s", label)
 	}
 	return nil
@@ -797,11 +797,11 @@ func newPi(path string) (*RaspberryPi, error) {
 	pi := RaspberryPi{
 		gpiochip: gpiochip{
 			name:      "gpiochip0",
-			label:     "pinctrl-bcm2835",
+			label:     ch.Label,
 			devpath:   path,
 			lines:     int(ch.Lines()),
 			intro:     rpi.J8p15,
-			introName: "",
+			introName: "GPIO22",
 			outo:      rpi.J8p16,
 			ff:        []int{rpi.J8p11, rpi.J8p12},
 		},
@@ -869,6 +869,7 @@ func (c *RaspberryPi) ReadOut() int {
 }
 
 func (c *RaspberryPi) SupportsAsIs() bool {
+	// RPi pinctrl-bcm2835 returns lines to input on release.
 	return false
 }
 
