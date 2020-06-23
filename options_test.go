@@ -42,6 +42,9 @@ func TestWithConsumer(t *testing.T) {
 }
 
 func TestAsIs(t *testing.T) {
+	if !platform.SupportsAsIs() {
+		t.Skip("platform doesn't support as-is")
+	}
 	c := getChip(t)
 	defer c.Close()
 
