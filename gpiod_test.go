@@ -801,11 +801,14 @@ func newPi(path string) (*RaspberryPi, error) {
 			devpath:   path,
 			lines:     int(ch.Lines()),
 			intro:     rpi.J8p15,
-			introName: "GPIO22",
+			introName: "",
 			outo:      rpi.J8p16,
 			ff:        []int{rpi.J8p11, rpi.J8p12},
 		},
 		chip: ch,
+	}
+	if ch.Label == "pinctrl-bcm2711" {
+		pi.introName = "GPIO22"
 	}
 	// check J8p15 and J8p16 are tied
 	w, err := ch.RequestLine(pi.outo, gpiod.AsOutput(1),
