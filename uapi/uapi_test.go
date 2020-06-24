@@ -38,8 +38,10 @@ var (
 	setConfigKernel = mockup.Semver{5, 5} // setLineConfig ioctl added
 	infoWatchKernel = mockup.Semver{5, 7} // watchLineInfo ioctl added
 
-	eventWaitTimeout         = 100 * time.Millisecond
-	spuriousEventWaitTimeout = 300 * time.Millisecond
+	// linux kernel timers typically have this granularity, so base timeouts on this...
+	clkTick                  = 10 * time.Millisecond
+	eventWaitTimeout         = 10 * clkTick
+	spuriousEventWaitTimeout = 30 * clkTick
 )
 
 func reloadMockup() {

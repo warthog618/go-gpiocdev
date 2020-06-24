@@ -238,13 +238,13 @@ func TestBulkEventRead(t *testing.T) {
 	assert.Nil(t, evt, "spurious event")
 
 	c.SetValue(1, 1)
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(clkTick)
 	c.SetValue(1, 0)
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(clkTick)
 	c.SetValue(1, 1)
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(clkTick)
 	c.SetValue(1, 0)
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(clkTick)
 
 	var ed uapi.EventData
 	b := make([]byte, unsafe.Sizeof(ed)*3)
@@ -281,13 +281,13 @@ func TestBulkEventReadV2(t *testing.T) {
 	assert.Nil(t, evt, "spurious event")
 
 	c.SetValue(1, 1)
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(clkTick)
 	c.SetValue(1, 0)
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(clkTick)
 	c.SetValue(1, 1)
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(clkTick)
 	c.SetValue(1, 0)
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(clkTick)
 
 	var ed uapi.LineEvent
 	b := make([]byte, unsafe.Sizeof(ed)*3)

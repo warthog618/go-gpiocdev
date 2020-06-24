@@ -20,7 +20,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var uapiV2Kernel = mockup.Semver{5, 7} // uapi v2 added
+var (
+	uapiV2Kernel   = mockup.Semver{5, 7} // uapi v2 added
+	debouncePeriod = 5 * clkTick
+)
 
 func TestGetLineInfoV2(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
@@ -2313,7 +2316,7 @@ func TestDebounce(t *testing.T) {
 				uapi.LineFlagV2Debounce,
 			Direction:     uapi.LineDirectionInput,
 			EdgeDetection: uapi.LineEdgeBoth,
-			Debounce:      10000, // 10msec
+			Debounce:      uint32(debouncePeriod / 1000),
 		},
 	}
 	err = uapi.GetLine(f.Fd(), &lr)
@@ -2326,10 +2329,10 @@ func TestDebounce(t *testing.T) {
 	// toggle faster than the debounce period - should be filtered
 	for i := 0; i < 10; i++ {
 		c.SetValue(1, 1)
-		time.Sleep(time.Millisecond)
+		time.Sleep(clkTick)
 		checkLineValue(t, lr.Fd, 0, 0)
 		c.SetValue(1, 0)
-		time.Sleep(time.Millisecond)
+		time.Sleep(clkTick)
 		checkLineValue(t, lr.Fd, 0, 0)
 	}
 	// but this change will persist and get through...
@@ -2351,14 +2354,14 @@ func TestDebounce(t *testing.T) {
 	// toggle slower than the debounce period - should all get through
 	for i := 0; i < 2; i++ {
 		c.SetValue(1, 0)
-		time.Sleep(30 * time.Millisecond)
+		time.Sleep(2 * debouncePeriod)
 		checkLineValue(t, lr.Fd, 0, 0)
 		c.SetValue(1, 1)
-		time.Sleep(30 * time.Millisecond)
+		time.Sleep(2 * debouncePeriod)
 		checkLineValue(t, lr.Fd, 0, 1)
 	}
 	c.SetValue(1, 0)
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(2 * debouncePeriod)
 	checkLineValue(t, lr.Fd, 0, 0)
 	for i := 0; i < 2; i++ {
 		evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
