@@ -2351,14 +2351,14 @@ func TestDebounce(t *testing.T) {
 	// toggle slower than the debounce period - should all get through
 	for i := 0; i < 2; i++ {
 		c.SetValue(1, 0)
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(30 * time.Millisecond)
 		checkLineValue(t, lr.Fd, 0, 0)
 		c.SetValue(1, 1)
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(30 * time.Millisecond)
 		checkLineValue(t, lr.Fd, 0, 1)
 	}
 	c.SetValue(1, 0)
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(30 * time.Millisecond)
 	checkLineValue(t, lr.Fd, 0, 0)
 	for i := 0; i < 2; i++ {
 		evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
