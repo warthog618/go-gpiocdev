@@ -187,7 +187,7 @@ type LineInfoChangedV2 struct {
 }
 
 // LineFlagV2 are the flags for a line.
-type LineFlagV2 uint32
+type LineFlagV2 uint64
 
 const (
 	// LineFlagV2Used indicates that the line is already in use.
@@ -257,7 +257,7 @@ func (f LineFlagV2) HasDebounce() bool {
 }
 
 // LineDirection indicates the direction of a line.
-type LineDirection uint8
+type LineDirection uint32
 
 const (
 	// LineDirectionInput indicates the line is an input.
@@ -268,7 +268,7 @@ const (
 )
 
 // LineDrive indicates the drive of an output line.
-type LineDrive uint8
+type LineDrive uint32
 
 const (
 	// LineDrivePushPull indicatges the line is driven in both directions.
@@ -282,7 +282,7 @@ const (
 )
 
 // LineBias indicates the bias of a line.
-type LineBias uint8
+type LineBias uint32
 
 const (
 	// LineBiasDisabled indicates the line bias is disabled.
@@ -296,7 +296,7 @@ const (
 )
 
 // LineEdge indicates the edges to be detected by edge detection.
-type LineEdge uint8
+type LineEdge uint32
 
 const (
 	// LineEdgeNone indicates the line edge detection is disabled.
@@ -325,7 +325,7 @@ const (
 	// the pad sizes of each struct
 	lineConfigPadSize        int = 7
 	lineRequestPadSize       int = 5
-	lineEventPadSize         int = 2
+	lineEventPadSize         int = 6
 	lineInfoV2PadSize        int = 5
 	lineInfoChangedV2PadSize int = 5
 )
