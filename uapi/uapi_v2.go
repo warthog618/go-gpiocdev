@@ -8,6 +8,7 @@ package uapi
 
 import (
 	"encoding/binary"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -159,11 +160,14 @@ type LineInfoV2 struct {
 	// owner of the request.
 	Consumer [nameSize]byte
 
-	// The configuration of the line.
-	Config LineConfig
-
 	// The offset of the line within the chip.
 	Offset uint32
+
+	NumAttrs uint32
+
+	Flags LineFlagV2
+
+	Attrs [10]LineAttribute
 
 	// reserved for future use.
 	Padding [lineInfoV2PadSize]uint32
@@ -200,20 +204,45 @@ const (
 	// LineFlagV2ActiveLow indicates that the line is active low.
 	LineFlagV2ActiveLow
 
-	// LineFlagV2Direction indicates that the line direction is set.
-	LineFlagV2Direction
+	// LineFlagV2Input indicates that the line direction is an input.
+	LineFlagV2Input
 
-	// LineFlagV2Drive indicates that the line drive is set.
-	LineFlagV2Drive
+	// LineFlagV2Output indicates that the line direction is an output.
+	LineFlagV2Output
 
-	// LineFlagV2Bias indicates that the line bias is set.
-	LineFlagV2Bias
+	// LineFlagV2EdgeRising indicates that edge detection is enabled for rising
+	// edges.
+	LineFlagV2EdgeRising
 
-	// LineFlagV2EdgeDetection indicates that the line edge detection is set.
-	LineFlagV2EdgeDetection
+	// LineFlagV2EdgeFalling indicates that edge detection is enabled for
+	// falling edges.
+	LineFlagV2EdgeFalling
 
-	// LineFlagV2Debounce indicates that the line debounce is set.
-	LineFlagV2Debounce
+	// LineFlagV2OpenDrain indicates that the line drive is open drain.
+	LineFlagV2OpenDrain
+
+	// LineFlagV2OpenSource indicates that the line drive is open source.
+	LineFlagV2OpenSource
+
+	// LineFlagV2BiasPullUp indicates that the line bias is pull-up.
+	LineFlagV2BiasPullUp
+
+	// LineFlagV2BiasPullDown indicates that the line bias is set pull-down.
+	LineFlagV2BiasPullDown
+
+	// LineFlagV2BiasDisabled indicates that the line bias is disabled.
+	LineFlagV2BiasDisabled
+
+	LineFlagV2DirectionMask = LineFlagV2Input | LineFlagV2Output
+
+	// LineFlagV2EdgeMask is a helper value for selecting edge detection on
+	// both edges.
+	LineFlagV2EdgeMask = LineFlagV2EdgeRising | LineFlagV2EdgeFalling
+	LineFlagV2EdgeBoth = LineFlagV2EdgeMask
+
+	LineFlagV2DriveMask = LineFlagV2OpenDrain | LineFlagV2OpenSource
+
+	LineFlagV2BiasMask = LineFlagV2BiasDisabled | LineFlagV2BiasPullUp | LineFlagV2BiasPullDown
 )
 
 // IsAvailable returns true if the line is available to be requested.
@@ -231,87 +260,47 @@ func (f LineFlagV2) IsActiveLow() bool {
 	return f&LineFlagV2ActiveLow != 0
 }
 
-// HasDirection returns true if the line has direction set.
-func (f LineFlagV2) HasDirection() bool {
-	return f&LineFlagV2Direction != 0
+// IsInput returns true if the line is an input.
+func (f LineFlagV2) IsInput() bool {
+	return f&LineFlagV2Input != 0
 }
 
-// HasDrive returns true if the line has drive set.
-func (f LineFlagV2) HasDrive() bool {
-	return f&LineFlagV2Drive != 0
+// IsOutput returns true if the line is an output.
+func (f LineFlagV2) IsOutput() bool {
+	return f&LineFlagV2Output != 0
 }
 
-// HasBias returns true if the line has bias set.
-func (f LineFlagV2) HasBias() bool {
-	return f&LineFlagV2Bias != 0
+func (f LineFlagV2) IsOpenDrain() bool {
+	return f&LineFlagV2OpenDrain != 0
 }
 
-// HasEdgeDetection returns true if the line has edge detection set.
-func (f LineFlagV2) HasEdgeDetection() bool {
-	return f&LineFlagV2EdgeDetection != 0
+func (f LineFlagV2) IsOpenSource() bool {
+	return f&LineFlagV2OpenSource != 0
 }
 
-// HasDebounce returns true if the line has debounce set.
-func (f LineFlagV2) HasDebounce() bool {
-	return f&LineFlagV2Debounce != 0
+func (f LineFlagV2) IsRisingEdge() bool {
+	return f&LineFlagV2EdgeRising != 0
 }
 
-// LineDirection indicates the direction of a line.
-type LineDirection uint32
+func (f LineFlagV2) IsFallingEdge() bool {
+	return f&LineFlagV2EdgeFalling != 0
+}
 
-const (
-	// LineDirectionInput indicates the line is an input.
-	LineDirectionInput LineDirection = iota
+func (f LineFlagV2) IsBothEdges() bool {
+	return f&LineFlagV2EdgeBoth == LineFlagV2EdgeBoth
+}
 
-	// LineDirectionOutput indicates the line is an output.
-	LineDirectionOutput
-)
+func (f LineFlagV2) IsBiasDisabled() bool {
+	return f&LineFlagV2BiasDisabled != 0
+}
 
-// LineDrive indicates the drive of an output line.
-type LineDrive uint32
+func (f LineFlagV2) IsBiasPullUp() bool {
+	return f&LineFlagV2BiasPullUp != 0
+}
 
-const (
-	// LineDrivePushPull indicatges the line is driven in both directions.
-	LineDrivePushPull LineDrive = iota
-
-	// LineDriveOpenDrain indicates the line is an open drain output.
-	LineDriveOpenDrain
-
-	// LineDriveOpenSource indicates the line is an open souce output.
-	LineDriveOpenSource
-)
-
-// LineBias indicates the bias of a line.
-type LineBias uint32
-
-const (
-	// LineBiasDisabled indicates the line bias is disabled.
-	LineBiasDisabled LineBias = iota
-
-	// LineBiasPullUp indicates the line has pull up enabled.
-	LineBiasPullUp
-
-	// LineBiasPullDown indicates the line has pull down enabled.
-	LineBiasPullDown
-)
-
-// LineEdge indicates the edges to be detected by edge detection.
-type LineEdge uint32
-
-const (
-	// LineEdgeNone indicates the line edge detection is disabled.
-	LineEdgeNone LineEdge = iota
-
-	// LineEdgeRising indicates the line has rising edge detection enabled.
-	LineEdgeRising
-
-	// LineEdgeFalling indicates the line has falling edge detection enabled.
-	LineEdgeFalling
-
-	// LineEdgeBoth indicates the line has both rising and falling edge
-	// detection enabled.
-	LineEdgeBoth
-)
+func (f LineFlagV2) IsBiasPullDown() bool {
+	return f&LineFlagV2BiasPullDown != 0
+}
 
 const (
 	// LinesMax is the maximum number of lines that can be requested in a single
@@ -323,39 +312,76 @@ const (
 	LinesBitmapSize int = (LinesMax + 63) / 64
 
 	// the pad sizes of each struct
-	lineConfigPadSize        int = 7
+	lineConfigPadSize        int = 5
 	lineRequestPadSize       int = 5
 	lineEventPadSize         int = 6
-	lineInfoV2PadSize        int = 5
+	lineInfoV2PadSize        int = 4
 	lineInfoChangedV2PadSize int = 5
 )
 
+type LineAttribute struct {
+	ID LineAttributeID
+
+	Padding [1]uint32
+
+	Value [8]byte
+}
+
+func (la LineAttribute) Value32() uint32 {
+	return nativeEndian.Uint32(la.Value[:])
+}
+
+func (la LineAttribute) Value64() uint64 {
+	return nativeEndian.Uint64(la.Value[:])
+}
+
+type LineAttributeID uint32
+
+const (
+	LineAttributeIDFlags LineAttributeID = iota + 1
+
+	LineAttributeIDOutputValues
+
+	LineAttributeIDDebounce
+)
+
+type DebouncePeriod time.Duration
+
+func (d DebouncePeriod) Encode(attr *LineAttribute) {
+	attr.ID = LineAttributeIDDebounce
+	nativeEndian.PutUint32(attr.Value[:], uint32(d/1000))
+}
+
+func (d DebouncePeriod) Decode(attr LineAttribute) {
+	d = DebouncePeriod(attr.Value32() * 1000)
+}
+
+func (v LineValues) Encode(attr *LineAttribute) {
+	attr.ID = LineAttributeIDOutputValues
+	nativeEndian.PutUint64(attr.Value[:], uint64(v[0]))
+}
+
+func (v LineValues) Decode(attr LineAttribute) {
+	v[0] = attr.Value64()
+}
+
+type LineConfigAttribute struct {
+	Mask [LinesBitmapSize]uint64
+
+	Attr LineAttribute
+}
+
 // LineConfig contains the configuration of a line.
 type LineConfig struct {
-	// The values to be applied to output lines (when
-	// Direction is set to LineDirectionOutput).
-	Values LineValues
-
 	// The flags to be applied to the lines.
 	Flags LineFlagV2
 
-	// The line direction, if LineFlagV2Direction is set.
-	Direction LineDirection
-
-	// The line drive, if LineFlagV2Drive is set.
-	Drive LineDrive
-
-	// The line bias, if LineFlagV2Bias is set.
-	Bias LineBias
-
-	// The line edge detection, if LineFlagV2EdgeDetection is set.
-	EdgeDetection LineEdge
-
-	// The line debounce value, if LineFlagV2Debounce is set.
-	Debounce uint32
+	NumAttrs uint32
 
 	// reserved for future use.
 	Padding [lineConfigPadSize]uint32
+
+	Attrs [10]LineConfigAttribute
 }
 
 // LineRequest is a request for control of a set of lines.

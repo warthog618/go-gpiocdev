@@ -25,6 +25,11 @@ var (
 	debouncePeriod = 5 * clkTick
 )
 
+type LineAttributeIf interface {
+	Encode(*uapi.LineAttribute)
+	Decode(uapi.LineAttribute)
+}
+
 func TestGetLineInfoV2(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
 	reloadMockup() // test assumes clean mockups
@@ -39,10 +44,7 @@ func TestGetLineInfoV2(t *testing.T) {
 				defer f.Close()
 				xli := uapi.LineInfoV2{
 					Offset: uint32(l),
-					Config: uapi.LineConfig{
-						Flags:     uapi.LineFlagV2Direction,
-						Direction: uapi.LineDirectionInput,
-					},
+					Flags:  uapi.LineFlagV2Input,
 				}
 				copy(xli.Name[:], fmt.Sprintf("%s-%d", c.Label, l))
 				copy(xli.Consumer[:], "")
@@ -96,8 +98,7 @@ func TestGetLine(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -109,9 +110,7 @@ func TestGetLine(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Bias,
-					Direction: uapi.LineDirectionInput,
-					Bias:      uapi.LineBiasPullUp,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2BiasPullUp,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -123,9 +122,7 @@ func TestGetLine(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Bias,
-					Direction: uapi.LineDirectionInput,
-					Bias:      uapi.LineBiasPullDown,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2BiasPullDown,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{3},
@@ -137,9 +134,7 @@ func TestGetLine(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Bias,
-					Direction: uapi.LineDirectionInput,
-					Bias:      uapi.LineBiasDisabled,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2BiasDisabled,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{3},
@@ -151,9 +146,7 @@ func TestGetLine(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeRising,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{3},
@@ -165,9 +158,7 @@ func TestGetLine(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeRising,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
 				},
 				Lines:   2,
 				Offsets: [uapi.LinesMax]uint32{1, 3},
@@ -179,9 +170,7 @@ func TestGetLine(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeBoth,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
 				},
 				Lines:           1,
 				Offsets:         [uapi.LinesMax]uint32{3},
@@ -190,26 +179,11 @@ func TestGetLine(t *testing.T) {
 			nil,
 		},
 		{
-			"input edge none",
-			0,
-			uapi.LineRequest{
-				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeNone,
-				},
-				Lines:   1,
-				Offsets: [uapi.LinesMax]uint32{3},
-			},
-			nil,
-		},
-		{
 			"output",
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
+					Flags: uapi.LineFlagV2Output,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -221,9 +195,7 @@ func TestGetLine(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Drive,
-					Direction: uapi.LineDirectionOutput,
-					Drive:     uapi.LineDriveOpenDrain,
+					Flags: uapi.LineFlagV2Output | uapi.LineFlagV2OpenDrain,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -235,9 +207,7 @@ func TestGetLine(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Drive,
-					Direction: uapi.LineDirectionOutput,
-					Drive:     uapi.LineDriveOpenSource,
+					Flags: uapi.LineFlagV2Output | uapi.LineFlagV2OpenSource,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -249,9 +219,7 @@ func TestGetLine(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Bias,
-					Direction: uapi.LineDirectionOutput,
-					Bias:      uapi.LineBiasPullUp,
+					Flags: uapi.LineFlagV2Output | uapi.LineFlagV2BiasPullUp,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
@@ -263,9 +231,7 @@ func TestGetLine(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Bias,
-					Direction: uapi.LineDirectionOutput,
-					Bias:      uapi.LineBiasPullDown,
+					Flags: uapi.LineFlagV2Output | uapi.LineFlagV2BiasPullDown,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -277,9 +243,7 @@ func TestGetLine(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Bias,
-					Direction: uapi.LineDirectionOutput,
-					Bias:      uapi.LineBiasDisabled,
+					Flags: uapi.LineFlagV2Output | uapi.LineFlagV2BiasDisabled,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
@@ -314,31 +278,18 @@ func TestGetLine(t *testing.T) {
 			li, err := uapi.GetLineInfoV2(f.Fd(), int(p.lr.Offsets[0]))
 			assert.Nil(t, err)
 			if p.err != nil {
-				assert.True(t, li.Config.Flags.IsAvailable())
+				assert.True(t, li.Flags.IsAvailable())
 				unix.Close(int(p.lr.Fd))
 				return
 			}
 			xli := uapi.LineInfoV2{
 				Offset: p.lr.Offsets[0],
-				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Used | uapi.LineFlagV2Direction | p.lr.Config.Flags,
-					Direction:     p.lr.Config.Direction,
-					Drive:         p.lr.Config.Drive,
-					Bias:          p.lr.Config.Bias,
-					EdgeDetection: p.lr.Config.EdgeDetection,
-					Debounce:      p.lr.Config.Debounce,
-				},
+				Flags:  uapi.LineFlagV2Used | p.lr.Config.Flags,
 			}
 			copy(xli.Name[:], li.Name[:]) // don't care about name
 			copy(xli.Consumer[:31], p.name)
-			if !p.lr.Config.Flags.HasDirection() {
-				xli.Config.Direction = li.Config.Direction
-			}
-			if xli.Config.Direction == uapi.LineDirectionOutput {
-				xli.Config.Flags |= uapi.LineFlagV2Drive
-			}
-			if xli.Config.EdgeDetection == uapi.LineEdgeNone {
-				xli.Config.Flags &^= uapi.LineFlagV2EdgeDetection
+			if xli.Flags&uapi.LineFlagV2DirectionMask == 0 {
+				xli.Flags |= uapi.LineFlagV2Input
 			}
 			assert.Equal(t, xli, li)
 			unix.Close(int(p.lr.Fd))
@@ -362,59 +313,10 @@ func TestGetLineValidation(t *testing.T) {
 			},
 		},
 		{
-			"oorange direction",
-			uapi.LineRequest{
-				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput + 1,
-				},
-				Lines:   1,
-				Offsets: [uapi.LinesMax]uint32{2},
-			},
-		},
-		{
-			"oorange drive",
-			uapi.LineRequest{
-				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Drive,
-					Direction: uapi.LineDirectionOutput,
-					Drive:     uapi.LineDriveOpenSource + 1,
-				},
-				Lines:   1,
-				Offsets: [uapi.LinesMax]uint32{2},
-			},
-		},
-		{
-			"oorange bias",
-			uapi.LineRequest{
-				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Bias,
-					Direction: uapi.LineDirectionInput,
-					Bias:      uapi.LineBiasPullDown + 1,
-				},
-				Lines:   1,
-				Offsets: [uapi.LinesMax]uint32{2},
-			},
-		},
-		{
-			"oorange edge",
-			uapi.LineRequest{
-				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeBoth + 1,
-				},
-				Lines:   1,
-				Offsets: [uapi.LinesMax]uint32{2},
-			},
-		},
-		{
 			"input drain",
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Drive,
-					Direction: uapi.LineDirectionInput,
-					Drive:     uapi.LineDriveOpenDrain,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2OpenDrain,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
@@ -424,9 +326,7 @@ func TestGetLineValidation(t *testing.T) {
 			"input source",
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Drive,
-					Direction: uapi.LineDirectionInput,
-					Drive:     uapi.LineDriveOpenSource,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2OpenSource,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -436,8 +336,7 @@ func TestGetLineValidation(t *testing.T) {
 			"as-is drain",
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags: uapi.LineFlagV2Drive,
-					Drive: uapi.LineDriveOpenDrain,
+					Flags: uapi.LineFlagV2OpenDrain,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -447,8 +346,7 @@ func TestGetLineValidation(t *testing.T) {
 			"as-is source",
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags: uapi.LineFlagV2Drive,
-					Drive: uapi.LineDriveOpenSource,
+					Flags: uapi.LineFlagV2OpenSource,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
@@ -458,8 +356,7 @@ func TestGetLineValidation(t *testing.T) {
 			"as-is pull-up",
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags: uapi.LineFlagV2Bias,
-					Bias:  uapi.LineBiasPullUp,
+					Flags: uapi.LineFlagV2BiasPullUp,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
@@ -469,8 +366,7 @@ func TestGetLineValidation(t *testing.T) {
 			"as-is pull-down",
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags: uapi.LineFlagV2Bias,
-					Bias:  uapi.LineBiasPullDown,
+					Flags: uapi.LineFlagV2BiasPullDown,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -480,80 +376,76 @@ func TestGetLineValidation(t *testing.T) {
 			"as-is bias disabled",
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags: uapi.LineFlagV2Bias,
-					Bias:  uapi.LineBiasDisabled,
+					Flags: uapi.LineFlagV2BiasDisabled,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
 		},
 		{
-			"output edge",
+			"output edge rising",
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionOutput,
-					EdgeDetection: uapi.LineEdgeBoth,
+					Flags: uapi.LineFlagV2Output | uapi.LineFlagV2EdgeRising,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
 		},
 		{
-			"as-is edge",
+			"output edge falling",
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2EdgeDetection,
-					EdgeDetection: uapi.LineEdgeBoth,
+					Flags: uapi.LineFlagV2Output | uapi.LineFlagV2EdgeFalling,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
 		},
 		{
-			"non-zero direction",
+			"output edge both",
 			uapi.LineRequest{
-				Config:  uapi.LineConfig{Direction: 1},
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2Output | uapi.LineFlagV2EdgeBoth,
+				},
 				Lines:   1,
-				Offsets: [uapi.LinesMax]uint32{1},
+				Offsets: [uapi.LinesMax]uint32{2},
 			},
 		},
 		{
-			"non-zero drive",
+			"as-is edge rising",
 			uapi.LineRequest{
-				Config:  uapi.LineConfig{Drive: 1},
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2EdgeRising,
+				},
 				Lines:   1,
-				Offsets: [uapi.LinesMax]uint32{1},
+				Offsets: [uapi.LinesMax]uint32{2},
 			},
 		},
 		{
-			"non-zero bias",
+			"as-is edge falling",
 			uapi.LineRequest{
-				Config:  uapi.LineConfig{Bias: 1},
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2EdgeFalling,
+				},
 				Lines:   1,
-				Offsets: [uapi.LinesMax]uint32{1},
+				Offsets: [uapi.LinesMax]uint32{2},
 			},
 		},
 		{
-			"non-zero edge_detection",
+			"as-is edge both",
 			uapi.LineRequest{
-				Config:  uapi.LineConfig{EdgeDetection: 1},
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2EdgeBoth,
+				},
 				Lines:   1,
-				Offsets: [uapi.LinesMax]uint32{1},
-			},
-		},
-		{
-			"non-zero debounce",
-			uapi.LineRequest{
-				Config:  uapi.LineConfig{Debounce: 1},
-				Lines:   1,
-				Offsets: [uapi.LinesMax]uint32{1},
+				Offsets: [uapi.LinesMax]uint32{2},
 			},
 		},
 		{
 			"non-zero padding",
 			uapi.LineRequest{
-				Config:  uapi.LineConfig{Padding: [7]uint32{1}},
+				Config:  uapi.LineConfig{Padding: [5]uint32{1}},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
@@ -637,8 +529,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -649,8 +540,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
@@ -662,8 +552,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
+					Flags: uapi.LineFlagV2Output,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -675,8 +564,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
+					Flags: uapi.LineFlagV2Output,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
@@ -688,9 +576,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			1,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeBoth,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -702,9 +588,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			1,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeBoth,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
@@ -716,9 +600,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeFalling,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -730,9 +612,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeFalling,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
@@ -744,9 +624,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeRising,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -758,9 +636,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeRising,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
@@ -772,8 +648,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   2,
 				Offsets: [uapi.LinesMax]uint32{0, 1},
@@ -785,8 +660,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   2,
 				Offsets: [uapi.LinesMax]uint32{2, 1},
@@ -798,8 +672,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2},
@@ -811,8 +684,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{0, 2, 1},
@@ -824,8 +696,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   4,
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2, 3},
@@ -837,8 +708,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   4,
 				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0},
@@ -850,8 +720,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			1,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   8,
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2, 3, 4, 5, 6, 7},
@@ -863,8 +732,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			1,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   8,
 				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0, 4, 5, 6, 7},
@@ -888,9 +756,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeFalling,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -901,9 +767,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeBoth,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
@@ -934,7 +798,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			err = uapi.GetLine(f.Fd(), &p.lr)
 			require.Nil(t, err)
 			fd = p.lr.Fd
-			if p.lr.Config.Direction == uapi.LineDirectionOutput {
+			if p.lr.Config.Flags.IsOutput() {
 				// mock is ignored for outputs
 				xval = make([]int, len(p.val))
 			}
@@ -970,8 +834,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2ActiveLow | uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
+					Flags: uapi.LineFlagV2ActiveLow | uapi.LineFlagV2Output,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -984,8 +847,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2ActiveLow | uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
+					Flags: uapi.LineFlagV2ActiveLow | uapi.LineFlagV2Output,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -1024,8 +886,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
+					Flags: uapi.LineFlagV2Output,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -1038,8 +899,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
+					Flags: uapi.LineFlagV2Output,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
@@ -1052,8 +912,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
+					Flags: uapi.LineFlagV2Output,
 				},
 				Lines:   2,
 				Offsets: [uapi.LinesMax]uint32{0, 1},
@@ -1066,8 +925,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
+					Flags: uapi.LineFlagV2Output,
 				},
 				Lines:   2,
 				Offsets: [uapi.LinesMax]uint32{2, 1},
@@ -1080,8 +938,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
+					Flags: uapi.LineFlagV2Output,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2},
@@ -1094,8 +951,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
+					Flags: uapi.LineFlagV2Output,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{0, 2, 1},
@@ -1108,8 +964,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
+					Flags: uapi.LineFlagV2Output,
 				},
 				Lines:   4,
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2, 3},
@@ -1122,8 +977,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
+					Flags: uapi.LineFlagV2Output,
 				},
 				Lines:   4,
 				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0},
@@ -1136,8 +990,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			1,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
+					Flags: uapi.LineFlagV2Output,
 				},
 				Lines:   8,
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2, 3, 4, 5, 6, 7},
@@ -1150,8 +1003,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			1,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
+					Flags: uapi.LineFlagV2Output,
 				},
 				Lines:   8,
 				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0, 4, 5, 6, 7},
@@ -1178,8 +1030,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -1192,8 +1043,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
@@ -1206,9 +1056,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeRising,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
@@ -1259,7 +1107,9 @@ func TestSetLineConfigV2(t *testing.T) {
 		name   string
 		cnum   int
 		lr     uapi.LineRequest
+		ra     []LineAttributeIf
 		config uapi.LineConfig
+		ca     []LineAttributeIf
 		err    error
 	}{
 		{
@@ -1267,17 +1117,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			1,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			nil,
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction,
-				Direction: uapi.LineDirectionOutput,
-				Values:    uapi.NewLineValues(1, 0, 1),
+				Flags: uapi.LineFlagV2Output,
 			},
+			[]LineAttributeIf{uapi.NewLineValues(1, 0, 1)},
 			nil,
 		},
 		{
@@ -1285,17 +1134,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
-					Values:    uapi.NewLineValues(1, 0, 1),
+					Flags: uapi.LineFlagV2Output,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			[]LineAttributeIf{uapi.NewLineValues(1, 0, 1)},
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction,
-				Direction: uapi.LineDirectionInput,
+				Flags: uapi.LineFlagV2Input,
 			},
+			nil,
 			nil,
 		},
 		{
@@ -1305,9 +1153,11 @@ func TestSetLineConfigV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			nil,
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2ActiveLow,
 			},
+			nil,
 			nil,
 		},
 		{
@@ -1320,7 +1170,9 @@ func TestSetLineConfigV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			nil,
 			uapi.LineConfig{},
+			nil,
 			nil,
 		},
 		{
@@ -1328,16 +1180,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2ActiveLow,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2ActiveLow,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			nil,
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction,
-				Direction: uapi.LineDirectionInput,
+				Flags: uapi.LineFlagV2Input,
 			},
+			nil,
 			nil,
 		},
 		{
@@ -1345,16 +1197,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			nil,
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2ActiveLow,
-				Direction: uapi.LineDirectionInput,
+				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2ActiveLow,
 			},
+			nil,
 			nil,
 		},
 		{
@@ -1362,18 +1214,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2ActiveLow,
-					Direction: uapi.LineDirectionOutput,
-					Values:    uapi.NewLineValues(0, 0, 1),
+					Flags: uapi.LineFlagV2Output | uapi.LineFlagV2ActiveLow,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			[]LineAttributeIf{uapi.NewLineValues(0, 0, 1)},
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction,
-				Direction: uapi.LineDirectionOutput,
-				Values:    uapi.NewLineValues(1, 0, 1),
+				Flags: uapi.LineFlagV2Output,
 			},
+			[]LineAttributeIf{uapi.NewLineValues(1, 0, 1)},
 			nil,
 		},
 		{
@@ -1381,18 +1231,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
-					Values:    uapi.NewLineValues(0, 0, 1),
+					Flags: uapi.LineFlagV2Output,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			[]LineAttributeIf{uapi.NewLineValues(0, 0, 1)},
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2ActiveLow,
-				Direction: uapi.LineDirectionOutput,
-				Values:    uapi.NewLineValues(1, 0, 1),
+				Flags: uapi.LineFlagV2Output | uapi.LineFlagV2ActiveLow,
 			},
+			[]LineAttributeIf{uapi.NewLineValues(1, 0, 1)},
 			nil,
 		},
 		{
@@ -1400,13 +1248,14 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2ActiveLow,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2ActiveLow,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			nil,
 			uapi.LineConfig{},
+			nil,
 			nil,
 		},
 		{
@@ -1414,15 +1263,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			nil,
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2ActiveLow,
 			},
+			nil,
 			nil,
 		},
 		{
@@ -1430,18 +1280,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Bias,
-					Direction: uapi.LineDirectionInput,
-					Bias:      uapi.LineBiasPullUp,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2BiasPullUp,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			nil,
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Bias,
-				Direction: uapi.LineDirectionInput,
-				Bias:      uapi.LineBiasPullDown,
+				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2BiasPullDown,
 			},
+			nil,
 			nil,
 		},
 		{
@@ -1449,18 +1297,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Bias,
-					Direction: uapi.LineDirectionInput,
-					Bias:      uapi.LineBiasPullDown,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2BiasPullDown,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			nil,
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Bias,
-				Direction: uapi.LineDirectionInput,
-				Bias:      uapi.LineBiasPullUp,
+				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2BiasPullUp,
 			},
+			nil,
 			nil,
 		},
 		{
@@ -1468,14 +1314,14 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2ActiveLow,
-					Direction: uapi.LineDirectionOutput,
-					Values:    uapi.NewLineValues(1, 0, 1),
+					Flags: uapi.LineFlagV2Output | uapi.LineFlagV2ActiveLow,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			[]LineAttributeIf{uapi.NewLineValues(1, 0, 1)},
 			uapi.LineConfig{},
+			nil,
 			nil,
 		},
 		{
@@ -1483,16 +1329,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
-					Values:    uapi.NewLineValues(1, 0, 1),
+					Flags: uapi.LineFlagV2Output,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			[]LineAttributeIf{uapi.NewLineValues(1, 0, 1)},
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2ActiveLow,
 			},
+			nil,
 			nil,
 		},
 		{
@@ -1500,19 +1346,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeFalling,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			nil,
 			uapi.LineConfig{
-				Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection | uapi.LineFlagV2Bias,
-				Direction:     uapi.LineDirectionInput,
-				EdgeDetection: uapi.LineEdgeFalling,
-				Bias:          uapi.LineBiasPullUp,
+				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling | uapi.LineFlagV2BiasPullUp,
 			},
+			nil,
 			nil,
 		},
 		{
@@ -1520,17 +1363,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			1,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			nil,
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Debounce,
-				Direction: uapi.LineDirectionInput,
-				Debounce:  20,
+				Flags: uapi.LineFlagV2Input,
 			},
+			[]LineAttributeIf{uapi.DebouncePeriod(20)},
 			nil,
 		},
 		{
@@ -1538,18 +1380,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			1,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Debounce,
-					Direction: uapi.LineDirectionInput,
-					Debounce:  20,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			[]LineAttributeIf{uapi.DebouncePeriod(20)},
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Debounce,
-				Direction: uapi.LineDirectionInput,
-				Debounce:  0,
+				Flags: uapi.LineFlagV2Input,
 			},
+			[]LineAttributeIf{uapi.DebouncePeriod(0)},
 			nil,
 		},
 		{
@@ -1557,18 +1397,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			1,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Debounce,
-					Direction: uapi.LineDirectionInput,
-					Debounce:  20,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			[]LineAttributeIf{uapi.DebouncePeriod(20)},
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Debounce,
-				Direction: uapi.LineDirectionInput,
-				Debounce:  30,
+				Flags: uapi.LineFlagV2Input,
 			},
+			[]LineAttributeIf{uapi.DebouncePeriod(30)},
 			nil,
 		},
 		{
@@ -1576,18 +1414,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			1,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionOutput,
-					Values:    uapi.NewLineValues(0, 0, 1),
+					Flags: uapi.LineFlagV2Output,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			[]LineAttributeIf{uapi.NewLineValues(1, 0, 1)},
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Debounce,
-				Direction: uapi.LineDirectionInput,
-				Debounce:  20,
+				Flags: uapi.LineFlagV2Input,
 			},
+			[]LineAttributeIf{uapi.DebouncePeriod(20)},
 			nil,
 		},
 		{
@@ -1595,18 +1431,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			1,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Debounce,
-					Direction: uapi.LineDirectionInput,
-					Debounce:  20,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			[]LineAttributeIf{uapi.DebouncePeriod(20)},
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction,
-				Direction: uapi.LineDirectionOutput,
-				Values:    uapi.NewLineValues(0, 0, 1),
+				Flags: uapi.LineFlagV2Output,
 			},
+			[]LineAttributeIf{uapi.NewLineValues(0, 0, 1)},
 			nil,
 		},
 		// expected errors
@@ -1615,17 +1449,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
+			nil,
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Drive,
-				Direction: uapi.LineDirectionInput,
-				Drive:     uapi.LineDriveOpenDrain,
+				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2OpenDrain,
 			},
+			nil,
 			unix.EINVAL,
 		},
 		{
@@ -1633,17 +1466,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
+			nil,
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Drive,
-				Direction: uapi.LineDirectionInput,
-				Drive:     uapi.LineDriveOpenSource,
+				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2OpenSource,
 			},
+			nil,
 			unix.EINVAL,
 		},
 		{
@@ -1651,16 +1483,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
+			nil,
 			uapi.LineConfig{
-				Flags: uapi.LineFlagV2Drive,
-				Drive: uapi.LineDriveOpenDrain,
+				Flags: uapi.LineFlagV2OpenDrain,
 			},
+			nil,
 			unix.EINVAL,
 		},
 		{
@@ -1668,16 +1500,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:     uapi.LineFlagV2Direction,
-					Direction: uapi.LineDirectionInput,
+					Flags: uapi.LineFlagV2Input,
 				},
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
+			nil,
 			uapi.LineConfig{
-				Flags: uapi.LineFlagV2Drive,
-				Drive: uapi.LineDriveOpenSource,
+				Flags: uapi.LineFlagV2OpenSource,
 			},
+			nil,
 			unix.EINVAL,
 		},
 		{
@@ -1685,17 +1517,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeFalling,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			nil,
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction,
-				Direction: uapi.LineDirectionInput,
+				Flags: uapi.LineFlagV2Input,
 			},
+			nil,
 			unix.EINVAL,
 		},
 		{
@@ -1703,18 +1534,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeFalling,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			nil,
 			uapi.LineConfig{
-				Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-				Direction:     uapi.LineDirectionInput,
-				EdgeDetection: uapi.LineEdgeNone,
+				Flags: uapi.LineFlagV2Input,
 			},
+			nil,
 			unix.EINVAL,
 		},
 		{
@@ -1722,18 +1551,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeFalling,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			nil,
 			uapi.LineConfig{
-				Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-				Direction:     uapi.LineDirectionInput,
-				EdgeDetection: uapi.LineEdgeRising,
+				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising,
 			},
+			nil,
 			unix.EINVAL,
 		},
 		{
@@ -1741,18 +1568,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeFalling,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			nil,
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction,
-				Direction: uapi.LineDirectionOutput,
-				Values:    uapi.NewLineValues(1, 0, 1),
+				Flags: uapi.LineFlagV2Output,
 			},
+			[]LineAttributeIf{uapi.NewLineValues(1, 0, 1)},
 			unix.EINVAL,
 		},
 		{
@@ -1760,18 +1585,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeFalling,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			nil,
 			uapi.LineConfig{
-				Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection | uapi.LineFlagV2ActiveLow,
-				Direction:     uapi.LineDirectionInput,
-				EdgeDetection: uapi.LineEdgeFalling,
+				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling | uapi.LineFlagV2ActiveLow,
 			},
+			nil,
 			unix.EINVAL,
 		},
 		{
@@ -1779,18 +1602,16 @@ func TestSetLineConfigV2(t *testing.T) {
 			0,
 			uapi.LineRequest{
 				Config: uapi.LineConfig{
-					Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection | uapi.LineFlagV2ActiveLow,
-					Direction:     uapi.LineDirectionInput,
-					EdgeDetection: uapi.LineEdgeFalling,
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling | uapi.LineFlagV2ActiveLow,
 				},
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
+			nil,
 			uapi.LineConfig{
-				Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-				Direction:     uapi.LineDirectionInput,
-				EdgeDetection: uapi.LineEdgeFalling,
+				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
 			},
+			nil,
 			unix.EINVAL,
 		},
 	}
@@ -1799,14 +1620,14 @@ func TestSetLineConfigV2(t *testing.T) {
 			c, err := mock.Chip(p.cnum)
 			require.Nil(t, err)
 			// setup mockup for inputs
-			if p.config.Flags.HasDirection() && p.config.Direction == uapi.LineDirectionOutput {
-				for i, o := range p.lr.Offsets {
-					v := p.lr.Config.Values.Get(i)
+			if p.lr.Config.Flags.IsOutput() {
+				for i := 0; i < int(p.lr.Lines); i++ {
+					v := p.lr.Config.Attrs[0].Attr.Value64() >> i & 1
 					// read is after config, so use config active state
 					if p.config.Flags.IsActiveLow() {
 						v ^= 0x01 // assumes using 1 for high
 					}
-					err := c.SetValue(int(o), v)
+					err := c.SetValue(int(p.lr.Offsets[i]), int(v))
 					assert.Nil(t, err)
 				}
 			}
@@ -1814,10 +1635,20 @@ func TestSetLineConfigV2(t *testing.T) {
 			require.Nil(t, err)
 			defer f.Close()
 			copy(p.lr.Consumer[:31], p.name)
+			p.lr.Config.NumAttrs = uint32(len(p.ra))
+			for i, a := range p.ra {
+				p.lr.Config.Attrs[i].Mask[0] = 7 // for 3 lines
+				a.Encode(&p.lr.Config.Attrs[i].Attr)
+			}
 			err = uapi.GetLine(f.Fd(), &p.lr)
 			require.Nil(t, err)
 			defer unix.Close(int(p.lr.Fd))
 			// apply config change
+			p.config.NumAttrs = uint32(len(p.ca))
+			for i, a := range p.ca {
+				p.config.Attrs[i].Mask[0] = 7 // for 3 lines
+				a.Encode(&p.config.Attrs[i].Attr)
+			}
 			err = uapi.SetLineConfigV2(uintptr(p.lr.Fd), &p.config)
 			require.Equal(t, p.err, err)
 
@@ -1826,44 +1657,28 @@ func TestSetLineConfigV2(t *testing.T) {
 				li, err := uapi.GetLineInfoV2(f.Fd(), int(p.lr.Offsets[0]))
 				assert.Nil(t, err)
 				if p.err != nil {
-					assert.False(t, li.Config.Flags.IsUsed())
+					assert.False(t, li.Flags.IsUsed())
 					return
 				}
 				xli := uapi.LineInfoV2{
 					Offset: p.lr.Offsets[0],
-					Config: uapi.LineConfig{
-						Flags: uapi.LineFlagV2Used |
-							uapi.LineFlagV2Direction |
-							p.lr.Config.Flags |
-							p.config.Flags,
-						Direction:     p.config.Direction,
-						Drive:         p.config.Drive,
-						Bias:          p.config.Bias,
-						EdgeDetection: p.config.EdgeDetection,
-						Debounce:      p.config.Debounce,
-					},
+					Flags:  uapi.LineFlagV2Used | p.config.Flags,
 				}
-				if !p.config.Flags.IsActiveLow() {
-					xli.Config.Flags &^= uapi.LineFlagV2ActiveLow
+				if p.config.Flags&uapi.LineFlagV2DirectionMask == 0 {
+					xli.Flags |= p.lr.Config.Flags & uapi.LineFlagV2DirectionMask
 				}
-				if !p.config.Flags.HasDirection() {
-					xli.Config.Direction = li.Config.Direction
-				}
-				if xli.Config.Direction == uapi.LineDirectionOutput {
-					xli.Config.Flags |= uapi.LineFlagV2Drive
-				}
-				if xli.Config.Debounce == 0 {
-					xli.Config.Flags &^= uapi.LineFlagV2Debounce
+				if xli.Flags&uapi.LineFlagV2DirectionMask == 0 {
+					li.Flags &^= uapi.LineFlagV2DirectionMask
 				}
 				copy(xli.Name[:], li.Name[:]) // don't care about name
 				copy(xli.Consumer[:31], p.name)
 				assert.Equal(t, xli, li)
 				// check values from mock
-				if p.config.Flags.HasDirection() && p.config.Direction == uapi.LineDirectionOutput {
-					for i, o := range p.lr.Offsets {
-						v, err := c.Value(int(o))
+				if p.config.Flags.IsOutput() {
+					for i := 0; i < int(p.lr.Lines); i++ {
+						v, err := c.Value(int(p.lr.Offsets[i]))
 						assert.Nil(t, err)
-						xv := p.config.Values.Get(i)
+						xv := int(p.config.Attrs[0].Attr.Value64()>>i) & 1
 						if p.config.Flags.IsActiveLow() {
 							xv ^= 0x01 // assumes using 1 for high
 						}
@@ -1884,125 +1699,62 @@ func TestSetLineV2Validation(t *testing.T) {
 		lc   uapi.LineConfig
 	}{
 		{
-			"oorange direction",
-			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction,
-				Direction: uapi.LineDirectionOutput + 1,
-			},
-		},
-		{
-			"oorange drive",
-			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Drive,
-				Direction: uapi.LineDirectionOutput,
-				Drive:     uapi.LineDriveOpenSource + 1,
-			},
-		},
-		{
-			"oorange bias",
-			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Bias,
-				Direction: uapi.LineDirectionInput,
-				Bias:      uapi.LineBiasPullDown + 1,
-			},
-		},
-		{
-			"oorange edge",
-			uapi.LineConfig{
-				Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-				Direction:     uapi.LineDirectionInput,
-				EdgeDetection: uapi.LineEdgeBoth + 1,
-			},
-		},
-		{
 			"input drain",
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Drive,
-				Direction: uapi.LineDirectionInput,
-				Drive:     uapi.LineDriveOpenDrain,
+				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2OpenDrain,
 			},
 		},
 		{
 			"input source",
 			uapi.LineConfig{
-				Flags:     uapi.LineFlagV2Direction | uapi.LineFlagV2Drive,
-				Direction: uapi.LineDirectionInput,
-				Drive:     uapi.LineDriveOpenSource,
+				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2OpenSource,
 			},
 		},
 		{
 			"as-is drain",
 			uapi.LineConfig{
-				Flags: uapi.LineFlagV2Drive,
-				Drive: uapi.LineDriveOpenDrain,
+				Flags: uapi.LineFlagV2OpenDrain,
 			},
 		},
 		{
 			"as-is source",
 			uapi.LineConfig{
-				Flags: uapi.LineFlagV2Drive,
-				Drive: uapi.LineDriveOpenSource,
+				Flags: uapi.LineFlagV2OpenSource,
 			},
 		},
 		{
 			"as-is pull-up",
 			uapi.LineConfig{
-				Flags: uapi.LineFlagV2Bias,
-				Bias:  uapi.LineBiasPullUp,
+				Flags: uapi.LineFlagV2BiasPullUp,
 			},
 		},
 		{
 			"as-is pull-down",
 			uapi.LineConfig{
-				Flags: uapi.LineFlagV2Bias,
-				Bias:  uapi.LineBiasPullDown,
+				Flags: uapi.LineFlagV2BiasPullDown,
 			},
 		},
 		{
 			"as-is bias disabled",
 			uapi.LineConfig{
-				Flags: uapi.LineFlagV2Bias,
-				Bias:  uapi.LineBiasDisabled,
+				Flags: uapi.LineFlagV2BiasDisabled,
 			},
 		},
 		{
 			"output edge",
 			uapi.LineConfig{
-				Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-				Direction:     uapi.LineDirectionOutput,
-				EdgeDetection: uapi.LineEdgeBoth,
+				Flags: uapi.LineFlagV2Output | uapi.LineFlagV2EdgeBoth,
 			},
 		},
 		{
 			"as-is edge",
 			uapi.LineConfig{
-				Flags:         uapi.LineFlagV2EdgeDetection,
-				EdgeDetection: uapi.LineEdgeBoth,
+				Flags: uapi.LineFlagV2EdgeBoth,
 			},
 		},
 		{
-			"non-zero direction",
-			uapi.LineConfig{Direction: 1},
-		},
-		{
-			"non-zero drive",
-			uapi.LineConfig{Drive: 1},
-		},
-		{
-			"non-zero bias",
-			uapi.LineConfig{Bias: 1},
-		},
-		{
-			"non-zero edge_detection",
-			uapi.LineConfig{EdgeDetection: 1},
-		},
-		{
-			"non-zero debounce",
-			uapi.LineConfig{Debounce: 1},
-		},
-		{
 			"non-zero padding",
-			uapi.LineConfig{Padding: [7]uint32{1}},
+			uapi.LineConfig{Padding: [5]uint32{1}},
 		},
 	}
 	c, err := mock.Chip(0)
@@ -2012,8 +1764,7 @@ func TestSetLineV2Validation(t *testing.T) {
 	defer f.Close()
 	lr := uapi.LineRequest{
 		Config: uapi.LineConfig{
-			Flags:     uapi.LineFlagV2Direction,
-			Direction: uapi.LineDirectionInput,
+			Flags: uapi.LineFlagV2Input,
 		},
 		Lines:   1,
 		Offsets: [uapi.LinesMax]uint32{2},
@@ -2047,8 +1798,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 	lr := uapi.LineRequest{
 		Lines: 1,
 		Config: uapi.LineConfig{
-			Flags:     uapi.LineFlagV2Direction,
-			Direction: uapi.LineDirectionInput,
+			Flags: uapi.LineFlagV2Input,
 		},
 		Offsets: [uapi.LinesMax]uint32{3},
 	}
@@ -2068,7 +1818,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 	// non-zero pad
 	li = uapi.LineInfoV2{
 		Offset:  3,
-		Padding: [5]uint32{1},
+		Padding: [4]uint32{1},
 	}
 	err = uapi.WatchLineInfoV2(f.Fd(), &li)
 	require.Equal(t, syscall.Errno(0x16), err)
@@ -2080,10 +1830,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 	require.Nil(t, err)
 	xli := uapi.LineInfoV2{
 		Offset: 3,
-		Config: uapi.LineConfig{
-			Flags:     uapi.LineFlagV2Direction,
-			Direction: uapi.LineDirectionInput,
-		},
+		Flags:  uapi.LineFlagV2Input,
 	}
 	copy(xli.Name[:], lname)
 	assert.Equal(t, xli, li)
@@ -2100,8 +1847,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 	lr = uapi.LineRequest{
 		Lines: 1,
 		Config: uapi.LineConfig{
-			Flags:     uapi.LineFlagV2Direction,
-			Direction: uapi.LineDirectionInput,
+			Flags: uapi.LineFlagV2Input,
 		},
 		Offsets: [uapi.LinesMax]uint32{3},
 	}
@@ -2112,7 +1858,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedRequested, chg.Type)
-	xli.Config.Flags |= uapi.LineFlagV2Used
+	xli.Flags |= uapi.LineFlagV2Used
 	copy(xli.Consumer[:], "testwatch")
 	assert.Equal(t, xli, chg.Info)
 
@@ -2128,7 +1874,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedConfig, chg.Type)
-	xli.Config.Flags |= uapi.LineFlagV2ActiveLow
+	xli.Flags |= uapi.LineFlagV2ActiveLow
 	assert.Equal(t, xli, chg.Info)
 
 	chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
@@ -2143,10 +1889,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 	assert.Equal(t, uapi.LineChangedReleased, chg.Type)
 	xli = uapi.LineInfoV2{
 		Offset: 3,
-		Config: uapi.LineConfig{
-			Flags:     uapi.LineFlagV2Direction,
-			Direction: uapi.LineDirectionInput,
-		},
+		Flags:  uapi.LineFlagV2Input,
 	}
 	copy(xli.Name[:], lname)
 	assert.Equal(t, xli, chg.Info)
@@ -2172,9 +1915,7 @@ func TestReadLineEvent(t *testing.T) {
 		Lines:   2,
 		Offsets: [uapi.LinesMax]uint32{1, 2},
 		Config: uapi.LineConfig{
-			Flags:         uapi.LineFlagV2ActiveLow | uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-			Direction:     uapi.LineDirectionInput,
-			EdgeDetection: uapi.LineEdgeBoth,
+			Flags: uapi.LineFlagV2ActiveLow | uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
 		},
 	}
 	err = uapi.GetLine(f.Fd(), &lr)
@@ -2230,7 +1971,7 @@ func TestReadLineEvent(t *testing.T) {
 
 	unix.Close(int(lr.Fd))
 
-	lr.Config.EdgeDetection = uapi.LineEdgeFalling
+	lr.Config.Flags &^= uapi.LineFlagV2EdgeRising
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 
@@ -2253,8 +1994,8 @@ func TestReadLineEvent(t *testing.T) {
 	unix.Close(int(lr.Fd))
 
 	lr.Lines = 1
-	lr.Config.Flags &^= uapi.LineFlagV2ActiveLow
-	lr.Config.EdgeDetection = uapi.LineEdgeRising
+	lr.Config.Flags &^= uapi.LineFlagV2ActiveLow | uapi.LineFlagV2EdgeMask
+	lr.Config.Flags |= uapi.LineFlagV2EdgeRising
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 
@@ -2311,14 +2052,13 @@ func TestDebounce(t *testing.T) {
 		Lines:   1,
 		Offsets: [uapi.LinesMax]uint32{1},
 		Config: uapi.LineConfig{
-			Flags: uapi.LineFlagV2Direction |
-				uapi.LineFlagV2EdgeDetection |
-				uapi.LineFlagV2Debounce,
-			Direction:     uapi.LineDirectionInput,
-			EdgeDetection: uapi.LineEdgeBoth,
-			Debounce:      uint32(debouncePeriod / 1000),
+			Flags: uapi.LineFlagV2Input |
+				uapi.LineFlagV2EdgeBoth,
+			NumAttrs: 1,
 		},
 	}
+	lr.Config.Attrs[0].Mask[0] = 1
+	uapi.DebouncePeriod(debouncePeriod).Encode(&lr.Config.Attrs[0].Attr)
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 
@@ -2420,17 +2160,27 @@ func TestLineFlagsV2(t *testing.T) {
 	assert.True(t, uapi.LineFlagV2(0).IsAvailable())
 	assert.False(t, uapi.LineFlagV2(0).IsUsed())
 	assert.False(t, uapi.LineFlagV2(0).IsActiveLow())
-	assert.False(t, uapi.LineFlagV2(0).HasDirection())
-	assert.False(t, uapi.LineFlagV2(0).HasDrive())
-	assert.False(t, uapi.LineFlagV2(0).HasBias())
-	assert.False(t, uapi.LineFlagV2(0).HasEdgeDetection())
-	assert.False(t, uapi.LineFlagV2(0).HasDebounce())
+	assert.False(t, uapi.LineFlagV2(0).IsInput())
+	assert.False(t, uapi.LineFlagV2(0).IsOutput())
+	assert.False(t, uapi.LineFlagV2(0).IsRisingEdge())
+	assert.False(t, uapi.LineFlagV2(0).IsFallingEdge())
+	assert.False(t, uapi.LineFlagV2(0).IsBothEdges())
+	assert.False(t, uapi.LineFlagV2(0).IsOpenDrain())
+	assert.False(t, uapi.LineFlagV2(0).IsOpenSource())
+	assert.False(t, uapi.LineFlagV2(0).IsBiasDisabled())
+	assert.False(t, uapi.LineFlagV2(0).IsBiasPullUp())
+	assert.False(t, uapi.LineFlagV2(0).IsBiasPullDown())
 	assert.False(t, uapi.LineFlagV2Used.IsAvailable())
 	assert.True(t, uapi.LineFlagV2Used.IsUsed())
 	assert.True(t, uapi.LineFlagV2ActiveLow.IsActiveLow())
-	assert.True(t, uapi.LineFlagV2Direction.HasDirection())
-	assert.True(t, uapi.LineFlagV2Drive.HasDrive())
-	assert.True(t, uapi.LineFlagV2Bias.HasBias())
-	assert.True(t, uapi.LineFlagV2EdgeDetection.HasEdgeDetection())
-	assert.True(t, uapi.LineFlagV2Debounce.HasDebounce())
+	assert.True(t, uapi.LineFlagV2Input.IsInput())
+	assert.True(t, uapi.LineFlagV2Output.IsOutput())
+	assert.True(t, uapi.LineFlagV2EdgeRising.IsRisingEdge())
+	assert.True(t, uapi.LineFlagV2EdgeFalling.IsFallingEdge())
+	assert.True(t, uapi.LineFlagV2EdgeBoth.IsBothEdges())
+	assert.False(t, uapi.LineFlagV2EdgeRising.IsBothEdges())
+	assert.False(t, uapi.LineFlagV2EdgeFalling.IsBothEdges())
+	assert.True(t, uapi.LineFlagV2BiasDisabled.IsBiasDisabled())
+	assert.True(t, uapi.LineFlagV2BiasPullUp.IsBiasPullUp())
+	assert.True(t, uapi.LineFlagV2BiasPullDown.IsBiasPullDown())
 }

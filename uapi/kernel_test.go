@@ -90,8 +90,7 @@ func TestRepeatedGetLine(t *testing.T) {
 
 	lr := uapi.LineRequest{
 		Config: uapi.LineConfig{
-			Flags:     uapi.LineFlagV2Direction,
-			Direction: uapi.LineDirectionInput,
+			Flags: uapi.LineFlagV2Input,
 		},
 		Lines:   2,
 		Offsets: [uapi.LinesMax]uint32{1, 3},
@@ -106,7 +105,7 @@ func TestRepeatedGetLine(t *testing.T) {
 	assert.Equal(t, unix.EBUSY, err)
 
 	// output
-	lr.Config.Direction = uapi.LineDirectionOutput
+	lr.Config.Flags = uapi.LineFlagV2Output
 	err = uapi.GetLine(f.Fd(), &lr)
 	assert.Equal(t, unix.EBUSY, err)
 
@@ -268,9 +267,7 @@ func TestBulkEventReadV2(t *testing.T) {
 		Lines:   1,
 		Offsets: [uapi.LinesMax]uint32{1},
 		Config: uapi.LineConfig{
-			Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-			Direction:     uapi.LineDirectionInput,
-			EdgeDetection: uapi.LineEdgeBoth,
+			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
 		},
 	}
 	err = uapi.GetLine(f.Fd(), &lr)
@@ -410,9 +407,7 @@ func TestEdgeDetectionLinesMax(t *testing.T) {
 		Lines:   uint32(uapi.LinesMax),
 		Offsets: offsets,
 		Config: uapi.LineConfig{
-			Flags:         uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection,
-			Direction:     uapi.LineDirectionInput,
-			EdgeDetection: uapi.LineEdgeBoth,
+			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
 		},
 	}
 	err = uapi.GetLine(f.Fd(), &lr)
