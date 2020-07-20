@@ -64,11 +64,11 @@ func GetLineValuesV2(fd uintptr, values *LineValues) error {
 // SetLineValuesV2 sets the values of a set of requested lines.
 //
 // The fd is a requested line, as returned by GetLine.
-func SetLineValuesV2(fd uintptr, values LineValues) error {
+func SetLineValuesV2(fd uintptr, values LineSetValues) error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		fd,
 		uintptr(setLineValuesV2Ioctl),
-		uintptr(unsafe.Pointer(&values[0])))
+		uintptr(unsafe.Pointer(&values)))
 	if errno != 0 {
 		return errno
 	}
@@ -148,7 +148,8 @@ func init() {
 	setLineConfigV2Ioctl = iorw(0xB4, 0x0D, unsafe.Sizeof(lc))
 	var lv LineValues
 	getLineValuesV2Ioctl = iorw(0xB4, 0x0E, unsafe.Sizeof(lv))
-	setLineValuesV2Ioctl = iorw(0xB4, 0x0F, unsafe.Sizeof(lv))
+	var lsv LineSetValues
+	setLineValuesV2Ioctl = iorw(0xB4, 0x0F, unsafe.Sizeof(lsv))
 }
 
 // LineInfoV2 contains the details of a single line of a GPIO chip.
@@ -443,6 +444,11 @@ func (lv *LineValues) Set(n, v int) {
 	} else {
 		lv[idx] |= mask
 	}
+}
+
+type LineSetValues struct {
+	Mask [LinesBitmapSize]uint64
+	Bits [LinesBitmapSize]uint64
 }
 
 // LineEventID indicates the type of event detected.
