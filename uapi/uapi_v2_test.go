@@ -827,6 +827,7 @@ func TestSetLineValuesV2(t *testing.T) {
 		cnum int
 		lr   uapi.LineRequest
 		val  []int
+		mask []int
 		err  error
 	}{
 		{
@@ -840,6 +841,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
 			[]int{0},
+			[]int{1},
 			nil,
 		},
 		{
@@ -852,6 +854,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
+			[]int{1},
 			[]int{1},
 			nil,
 		},
@@ -866,6 +869,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
 			[]int{0},
+			[]int{1},
 			nil,
 		},
 		{
@@ -878,6 +882,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
+			[]int{1},
 			[]int{1},
 			nil,
 		},
@@ -892,6 +897,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
 			[]int{0},
+			[]int{1},
 			nil,
 		},
 		{
@@ -904,6 +910,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
+			[]int{1},
 			[]int{1},
 			nil,
 		},
@@ -918,6 +925,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{0, 1},
 			},
 			[]int{1, 0},
+			[]int{1, 1},
 			nil,
 		},
 		{
@@ -931,6 +939,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{2, 1},
 			},
 			[]int{0, 1},
+			[]int{1, 1},
 			nil,
 		},
 		{
@@ -944,6 +953,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2},
 			},
 			[]int{0, 1, 1},
+			[]int{1, 1, 1},
 			nil,
 		},
 		{
@@ -957,6 +967,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{0, 2, 1},
 			},
 			[]int{0, 1, 0},
+			[]int{1, 1, 1},
 			nil,
 		},
 		{
@@ -970,6 +981,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2, 3},
 			},
 			[]int{0, 1, 1, 1},
+			[]int{1, 1, 1, 1},
 			nil,
 		},
 		{
@@ -983,6 +995,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0},
 			},
 			[]int{1, 1, 0, 1},
+			[]int{1, 1, 1, 1},
 			nil,
 		},
 		{
@@ -996,6 +1009,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2, 3, 4, 5, 6, 7},
 			},
 			[]int{0, 1, 1, 1, 1, 1, 0, 0},
+			[]int{1, 1, 1, 1, 1, 1, 1, 1},
 			nil,
 		},
 		{
@@ -1009,6 +1023,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0, 4, 5, 6, 7},
 			},
 			[]int{1, 1, 0, 1, 1, 1, 0, 1},
+			[]int{1, 1, 1, 1, 1, 1, 1, 1},
 			nil,
 		},
 		{
@@ -1022,6 +1037,35 @@ func TestSetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0, 4, 5, 6, 7},
 			},
 			[]int{1, 1, 0, 1, 1, 0, 0, 0},
+			[]int{1, 1, 1, 1, 1, 1, 1, 1},
+			nil,
+		},
+		{
+			"sparse atv-hi",
+			1,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2Output,
+				},
+				Lines:   8,
+				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0, 4, 5, 6, 7},
+			},
+			[]int{0, 1, 1, 1, 1, 1, 0, 0},
+			[]int{1, 0, 1, 0, 1, 1, 0, 1},
+			nil,
+		},
+		{
+			"sparse atv-lo",
+			1,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2Output | uapi.LineFlagV2ActiveLow,
+				},
+				Lines:   8,
+				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0, 4, 5, 6, 7},
+			},
+			[]int{0, 1, 1, 1, 1, 1, 0, 0},
+			[]int{1, 0, 1, 0, 1, 1, 0, 1},
 			nil,
 		},
 		// expected failures....
@@ -1036,6 +1080,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
 			[]int{0},
+			[]int{1},
 			unix.EPERM,
 		},
 		{
@@ -1048,6 +1093,7 @@ func TestSetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
+			[]int{1},
 			[]int{1},
 			unix.EPERM,
 		},
@@ -1062,7 +1108,22 @@ func TestSetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
 			[]int{0},
+			[]int{1},
 			unix.EPERM,
+		},
+		{
+			"zero mask",
+			1,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2Output,
+				},
+				Lines:   8,
+				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0, 4, 5, 6, 7},
+			},
+			[]int{1, 1, 0, 1, 1, 1, 0, 1},
+			[]int{0, 0, 0, 0, 0, 0, 0, 0},
+			unix.EINVAL,
 		},
 	}
 	for _, p := range patterns {
@@ -1076,7 +1137,12 @@ func TestSetLineValuesV2(t *testing.T) {
 			err = uapi.GetLine(f.Fd(), &p.lr)
 			require.Nil(t, err)
 			lv := uapi.NewLineValues(p.val...)
-			err = uapi.SetLineValuesV2(uintptr(p.lr.Fd), lv)
+			mask := uapi.NewLineValues(p.mask...)
+			lsv := uapi.LineSetValues{
+				Mask: mask,
+				Bits: lv,
+			}
+			err = uapi.SetLineValuesV2(uintptr(p.lr.Fd), lsv)
 			assert.Equal(t, p.err, err)
 			if p.err == nil {
 				// check values from mock
@@ -1084,7 +1150,12 @@ func TestSetLineValuesV2(t *testing.T) {
 					o := int(p.lr.Offsets[i])
 					v, err := c.Value(int(o))
 					assert.Nil(t, err)
-					xv := int(p.val[i])
+					var xv int
+					if p.mask[i] == 0 {
+						xv = 0
+					} else {
+						xv = int(p.val[i])
+					}
 					if p.lr.Config.Flags.IsActiveLow() {
 						xv ^= 0x01 // assumes using 1 for high
 					}
@@ -1096,7 +1167,11 @@ func TestSetLineValuesV2(t *testing.T) {
 		t.Run(p.name, tf)
 	}
 	// badfd
-	err := uapi.SetLineValuesV2(0, uapi.NewLineValues(1))
+	err := uapi.SetLineValuesV2(0,
+		uapi.LineSetValues{
+			Mask: uapi.NewLineValues(1),
+			Bits: uapi.NewLineValues(1),
+		})
 	assert.NotNil(t, err)
 }
 
