@@ -78,7 +78,7 @@ func BenchmarkGetLineValuesV2(b *testing.B) {
 	require.Nil(b, err)
 	require.NotNil(b, f)
 	defer unix.Close(int(lr.Fd))
-	var lv uapi.LineValues
+	var lv uapi.LineBits
 	for i := 0; i < b.N; i++ {
 		uapi.GetLineValuesV2(uintptr(lr.Fd), &lv)
 	}
