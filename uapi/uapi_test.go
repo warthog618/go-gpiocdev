@@ -305,13 +305,13 @@ func TestGetLineEvent(t *testing.T) {
 			li, err := uapi.GetLineInfo(f.Fd(), int(p.offset))
 			assert.Nil(t, err)
 			if p.err != nil {
-				assert.False(t, li.Flags.IsRequested())
+				assert.False(t, li.Flags.IsUsed())
 				unix.Close(int(er.Fd))
 				return
 			}
 			xli := uapi.LineInfo{
 				Offset: p.offset,
-				Flags:  uapi.LineFlagRequested | lineFromHandle(p.handleFlag),
+				Flags:  uapi.LineFlagUsed | lineFromHandle(p.handleFlag),
 			}
 			copy(xli.Name[:], li.Name[:]) // don't care about name
 			copy(xli.Consumer[:31], p.name)
@@ -566,13 +566,13 @@ func TestGetLineHandle(t *testing.T) {
 			li, err := uapi.GetLineInfo(f.Fd(), int(p.offsets[0]))
 			assert.Nil(t, err)
 			if p.err != nil {
-				assert.False(t, li.Flags.IsRequested())
+				assert.False(t, li.Flags.IsUsed())
 				unix.Close(int(hr.Fd))
 				return
 			}
 			xli := uapi.LineInfo{
 				Offset: p.offsets[0],
-				Flags:  uapi.LineFlagRequested | lineFromHandle(p.handleFlag),
+				Flags:  uapi.LineFlagUsed | lineFromHandle(p.handleFlag),
 			}
 			copy(xli.Name[:], li.Name[:]) // don't care about name
 			copy(xli.Consumer[:31], p.name)
@@ -1338,12 +1338,12 @@ func TestSetLineHandleConfig(t *testing.T) {
 				li, err := uapi.GetLineInfo(f.Fd(), int(p.offsets[0]))
 				assert.Nil(t, err)
 				if p.err != nil {
-					assert.False(t, li.Flags.IsRequested())
+					assert.False(t, li.Flags.IsUsed())
 					return
 				}
 				xli := uapi.LineInfo{
 					Offset: p.offsets[0],
-					Flags: uapi.LineFlagRequested |
+					Flags: uapi.LineFlagUsed |
 						lineFromConfig(p.initialFlag, p.configFlag),
 				}
 				copy(xli.Name[:], li.Name[:]) // don't care about name
@@ -1441,12 +1441,12 @@ func TestSetLineEventConfig(t *testing.T) {
 				li, err := uapi.GetLineInfo(f.Fd(), int(p.offset))
 				assert.Nil(t, err)
 				if p.err != nil {
-					assert.False(t, li.Flags.IsRequested())
+					assert.False(t, li.Flags.IsUsed())
 					return
 				}
 				xli := uapi.LineInfo{
 					Offset: p.offset,
-					Flags: uapi.LineFlagRequested |
+					Flags: uapi.LineFlagUsed |
 						lineFromConfig(p.initialFlag, p.configFlag),
 				}
 				copy(xli.Name[:], li.Name[:]) // don't care about name
@@ -1514,7 +1514,7 @@ func TestWatchLineInfo(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedRequested, chg.Type)
-	xli.Flags |= uapi.LineFlagRequested
+	xli.Flags |= uapi.LineFlagUsed
 	copy(xli.Consumer[:], "testwatch")
 	assert.Equal(t, xli, chg.Info)
 
@@ -1683,12 +1683,12 @@ func TestBytesToString(t *testing.T) {
 	assert.Equal(t, name, v)
 }
 func TestLineFlags(t *testing.T) {
-	assert.False(t, uapi.LineFlag(0).IsRequested())
+	assert.False(t, uapi.LineFlag(0).IsUsed())
 	assert.False(t, uapi.LineFlag(0).IsOut())
 	assert.False(t, uapi.LineFlag(0).IsActiveLow())
 	assert.False(t, uapi.LineFlag(0).IsOpenDrain())
 	assert.False(t, uapi.LineFlag(0).IsOpenSource())
-	assert.True(t, uapi.LineFlagRequested.IsRequested())
+	assert.True(t, uapi.LineFlagUsed.IsUsed())
 	assert.True(t, uapi.LineFlagIsOut.IsOut())
 	assert.True(t, uapi.LineFlagActiveLow.IsActiveLow())
 	assert.True(t, uapi.LineFlagOpenDrain.IsOpenDrain())
@@ -1701,9 +1701,9 @@ func TestLineFlags(t *testing.T) {
 	assert.True(t, uapi.LineFlagPullDown.IsPullDown())
 	assert.False(t, uapi.LineFlagPullDown.IsBiasDisable())
 	assert.False(t, uapi.LineFlagPullDown.IsPullUp())
-	assert.True(t, uapi.LineFlagBiasDisable.IsBiasDisable())
-	assert.False(t, uapi.LineFlagBiasDisable.IsPullUp())
-	assert.False(t, uapi.LineFlagBiasDisable.IsPullDown())
+	assert.True(t, uapi.LineFlagBiasDisabled.IsBiasDisable())
+	assert.False(t, uapi.LineFlagBiasDisabled.IsPullUp())
+	assert.False(t, uapi.LineFlagBiasDisabled.IsPullDown())
 }
 
 func TestHandleFlags(t *testing.T) {
@@ -1773,7 +1773,7 @@ func lineFromHandle(hf uapi.HandleFlag) uapi.LineFlag {
 		lf |= uapi.LineFlagPullDown
 	}
 	if hf.IsBiasDisable() {
-		lf |= uapi.LineFlagBiasDisable
+		lf |= uapi.LineFlagBiasDisabled
 	}
 	return lf
 }
