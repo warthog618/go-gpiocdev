@@ -12,6 +12,37 @@ import (
 	"github.com/warthog618/gpiod"
 )
 
+func BenchmarkChipNewClose(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		c, _ := gpiod.NewChip(platform.Devpath())
+		c.Close()
+	}
+}
+
+func BenchmarkLineInfo(b *testing.B) {
+	c, err := gpiod.NewChip(platform.Devpath())
+	require.Nil(b, err)
+	require.NotNil(b, c)
+	defer c.Close()
+	for i := 0; i < b.N; i++ {
+		c.LineInfo(platform.IntrLine())
+	}
+}
+
+func BenchmarkLineReconfigure(b *testing.B) {
+	c, err := gpiod.NewChip(platform.Devpath())
+	require.Nil(b, err)
+	require.NotNil(b, c)
+	defer c.Close()
+	l, err := c.RequestLine(platform.IntrLine())
+	require.Nil(b, err)
+	require.NotNil(b, l)
+	defer l.Close()
+	for i := 0; i < b.N; i++ {
+		l.Reconfigure(gpiod.AsActiveLow)
+	}
+}
+
 func BenchmarkLineValue(b *testing.B) {
 	c, err := gpiod.NewChip(platform.Devpath())
 	require.Nil(b, err)
