@@ -186,7 +186,7 @@ func TestWatchIsolation(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedRequested, chg.Type)
-	xli.Flags |= uapi.LineFlagRequested
+	xli.Flags |= uapi.LineFlagUsed
 	copy(xli.Consumer[:], "testwatch")
 	assert.Equal(t, xli, chg.Info)
 
@@ -497,7 +497,7 @@ func testLineAsIs(t *testing.T, c *mockup.Chip, hr uapi.HandleRequest, info uapi
 	li, err := uapi.GetLineInfo(f.Fd(), line)
 	assert.Nil(t, err)
 	var xli uapi.LineInfo = info
-	xli.Flags |= uapi.LineFlagRequested
+	xli.Flags |= uapi.LineFlagUsed
 	copy(xli.Consumer[:31], "test-as-is")
 	li.Name = xli.Name // don't care about name
 	assert.Equal(t, xli, li)
@@ -520,7 +520,7 @@ func testLineAsIs(t *testing.T, c *mockup.Chip, hr uapi.HandleRequest, info uapi
 	assert.Nil(t, err)
 	xli = info
 	copy(xli.Consumer[:31], "test-as-is")
-	xli.Flags |= uapi.LineFlagRequested
+	xli.Flags |= uapi.LineFlagUsed
 	li.Name = xli.Name // don't care about name
 	assert.Equal(t, xli, li)
 	unix.Close(int(hr.Fd))
