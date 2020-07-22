@@ -25,9 +25,8 @@ var (
 	debouncePeriod = 5 * clkTick
 )
 
-type LineAttributeIf interface {
+type AttributeEncoder interface {
 	Encode(*uapi.LineAttribute)
-	Decode(uapi.LineAttribute)
 }
 
 func TestGetLineInfoV2(t *testing.T) {
@@ -802,8 +801,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				// mock is ignored for outputs
 				xval = make([]int, len(p.val))
 			}
-			lvx := uapi.NewLineValues(xval...)
-			lv := uapi.LineValues{}
+			lvx := uapi.NewLineBits(xval...)
+			lv := uapi.LineBits{}
 			err = uapi.GetLineValuesV2(uintptr(fd), &lv)
 			assert.Nil(t, err)
 			assert.Equal(t, lvx, lv)
@@ -812,8 +811,8 @@ func TestGetLineValuesV2(t *testing.T) {
 		t.Run(p.name, tf)
 	}
 	// badfd
-	lvx := uapi.NewLineValues(0, 0, 0)
-	lv := uapi.NewLineValues(0, 0, 0)
+	lvx := uapi.NewLineBits(0, 0, 0)
+	lv := uapi.NewLineBits(0, 0, 0)
 	err := uapi.GetLineValuesV2(0, &lv)
 	assert.NotNil(t, err)
 	assert.Equal(t, lvx, lv)
@@ -1136,8 +1135,8 @@ func TestSetLineValuesV2(t *testing.T) {
 			defer f.Close()
 			err = uapi.GetLine(f.Fd(), &p.lr)
 			require.Nil(t, err)
-			lv := uapi.NewLineValues(p.val...)
-			mask := uapi.NewLineValues(p.mask...)
+			lv := uapi.NewLineBits(p.val...)
+			mask := uapi.NewLineBits(p.mask...)
 			lsv := uapi.LineSetValues{
 				Mask: mask,
 				Bits: lv,
@@ -1169,8 +1168,8 @@ func TestSetLineValuesV2(t *testing.T) {
 	// badfd
 	err := uapi.SetLineValuesV2(0,
 		uapi.LineSetValues{
-			Mask: uapi.NewLineValues(1),
-			Bits: uapi.NewLineValues(1),
+			Mask: uapi.NewLineBits(1),
+			Bits: uapi.NewLineBits(1),
 		})
 	assert.NotNil(t, err)
 }
@@ -1182,9 +1181,9 @@ func TestSetLineConfigV2(t *testing.T) {
 		name   string
 		cnum   int
 		lr     uapi.LineRequest
-		ra     []LineAttributeIf
+		ra     []AttributeEncoder
 		config uapi.LineConfig
-		ca     []LineAttributeIf
+		ca     []AttributeEncoder
 		err    error
 	}{
 		{
@@ -1201,7 +1200,7 @@ func TestSetLineConfigV2(t *testing.T) {
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2Output,
 			},
-			[]LineAttributeIf{uapi.NewLineValues(1, 0, 1)},
+			[]AttributeEncoder{uapi.NewLineBits(1, 0, 1)},
 			nil,
 		},
 		{
@@ -1214,7 +1213,7 @@ func TestSetLineConfigV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
-			[]LineAttributeIf{uapi.NewLineValues(1, 0, 1)},
+			[]AttributeEncoder{uapi.NewLineBits(1, 0, 1)},
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2Input,
 			},
@@ -1294,11 +1293,11 @@ func TestSetLineConfigV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
-			[]LineAttributeIf{uapi.NewLineValues(0, 0, 1)},
+			[]AttributeEncoder{uapi.NewLineBits(0, 0, 1)},
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2Output,
 			},
-			[]LineAttributeIf{uapi.NewLineValues(1, 0, 1)},
+			[]AttributeEncoder{uapi.NewLineBits(1, 0, 1)},
 			nil,
 		},
 		{
@@ -1311,11 +1310,11 @@ func TestSetLineConfigV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
-			[]LineAttributeIf{uapi.NewLineValues(0, 0, 1)},
+			[]AttributeEncoder{uapi.NewLineBits(0, 0, 1)},
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2Output | uapi.LineFlagV2ActiveLow,
 			},
-			[]LineAttributeIf{uapi.NewLineValues(1, 0, 1)},
+			[]AttributeEncoder{uapi.NewLineBits(1, 0, 1)},
 			nil,
 		},
 		{
@@ -1394,7 +1393,7 @@ func TestSetLineConfigV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
-			[]LineAttributeIf{uapi.NewLineValues(1, 0, 1)},
+			[]AttributeEncoder{uapi.NewLineBits(1, 0, 1)},
 			uapi.LineConfig{},
 			nil,
 			nil,
@@ -1409,7 +1408,7 @@ func TestSetLineConfigV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
-			[]LineAttributeIf{uapi.NewLineValues(1, 0, 1)},
+			[]AttributeEncoder{uapi.NewLineBits(1, 0, 1)},
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2ActiveLow,
 			},
@@ -1447,7 +1446,7 @@ func TestSetLineConfigV2(t *testing.T) {
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2Input,
 			},
-			[]LineAttributeIf{uapi.DebouncePeriod(20)},
+			[]AttributeEncoder{uapi.DebouncePeriod(20)},
 			nil,
 		},
 		{
@@ -1460,11 +1459,11 @@ func TestSetLineConfigV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
-			[]LineAttributeIf{uapi.DebouncePeriod(20)},
+			[]AttributeEncoder{uapi.DebouncePeriod(20)},
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2Input,
 			},
-			[]LineAttributeIf{uapi.DebouncePeriod(0)},
+			[]AttributeEncoder{uapi.DebouncePeriod(0)},
 			nil,
 		},
 		{
@@ -1477,11 +1476,11 @@ func TestSetLineConfigV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
-			[]LineAttributeIf{uapi.DebouncePeriod(20)},
+			[]AttributeEncoder{uapi.DebouncePeriod(20)},
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2Input,
 			},
-			[]LineAttributeIf{uapi.DebouncePeriod(30)},
+			[]AttributeEncoder{uapi.DebouncePeriod(30)},
 			nil,
 		},
 		{
@@ -1494,11 +1493,11 @@ func TestSetLineConfigV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
-			[]LineAttributeIf{uapi.NewLineValues(1, 0, 1)},
+			[]AttributeEncoder{uapi.NewLineBits(1, 0, 1)},
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2Input,
 			},
-			[]LineAttributeIf{uapi.DebouncePeriod(20)},
+			[]AttributeEncoder{uapi.DebouncePeriod(20)},
 			nil,
 		},
 		{
@@ -1511,11 +1510,11 @@ func TestSetLineConfigV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
-			[]LineAttributeIf{uapi.DebouncePeriod(20)},
+			[]AttributeEncoder{uapi.DebouncePeriod(20)},
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2Output,
 			},
-			[]LineAttributeIf{uapi.NewLineValues(0, 0, 1)},
+			[]AttributeEncoder{uapi.NewLineBits(0, 0, 1)},
 			nil,
 		},
 		// expected errors
@@ -1652,7 +1651,7 @@ func TestSetLineConfigV2(t *testing.T) {
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2Output,
 			},
-			[]LineAttributeIf{uapi.NewLineValues(1, 0, 1)},
+			[]AttributeEncoder{uapi.NewLineBits(1, 0, 1)},
 			unix.EINVAL,
 		},
 		{
@@ -2210,7 +2209,7 @@ func TestDebounce(t *testing.T) {
 
 func checkLineValue(t *testing.T, fd int32, n, v int) {
 	t.Helper()
-	lv := uapi.NewLineValues(0)
+	lv := uapi.NewLineBits(0)
 	err := uapi.GetLineValuesV2(uintptr(fd), &lv)
 	assert.Nil(t, err)
 	assert.Equal(t, v, lv.Get(n))
