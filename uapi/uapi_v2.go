@@ -50,7 +50,9 @@ func GetLine(fd uintptr, request *LineRequest) error {
 // GetLineValuesV2 returns the values of a set of requested lines.
 //
 // The fd is a requested line, as returned by GetLine.
-func GetLineValuesV2(fd uintptr, values *LineValues) error {
+//
+// The values returned are the logical values, with inactive being 0.
+func GetLineValuesV2(fd uintptr, values *LineBits) error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		fd,
 		uintptr(getLineValuesV2Ioctl),
@@ -146,7 +148,7 @@ func init() {
 	getLineIoctl = iorw(0xB4, 0x07, unsafe.Sizeof(lr))
 	var lc LineConfig
 	setLineConfigV2Ioctl = iorw(0xB4, 0x0D, unsafe.Sizeof(lc))
-	var lv LineValues
+	var lv LineBits
 	getLineValuesV2Ioctl = iorw(0xB4, 0x0E, unsafe.Sizeof(lv))
 	var lsv LineSetValues
 	setLineValuesV2Ioctl = iorw(0xB4, 0x0F, unsafe.Sizeof(lsv))
@@ -234,15 +236,20 @@ const (
 	// LineFlagV2BiasDisabled indicates that the line bias is disabled.
 	LineFlagV2BiasDisabled
 
+	// LineFlagV2DirectionMask is a mask for all direction flags.
 	LineFlagV2DirectionMask = LineFlagV2Input | LineFlagV2Output
 
-	// LineFlagV2EdgeMask is a helper value for selecting edge detection on
-	// both edges.
+	// LineFlagV2EdgeMask is a mask for all edge flags.
 	LineFlagV2EdgeMask = LineFlagV2EdgeRising | LineFlagV2EdgeFalling
+
+	// LineFlagV2EdgeBoth is a helper value for selecting edge detection on
+	// both edges.
 	LineFlagV2EdgeBoth = LineFlagV2EdgeMask
 
+	// LineFlagV2DriveMask is a mask for all drive flags.
 	LineFlagV2DriveMask = LineFlagV2OpenDrain | LineFlagV2OpenSource
 
+	// LineFlagV2BiasMask is a mask for all bias flags.
 	LineFlagV2BiasMask = LineFlagV2BiasDisabled | LineFlagV2BiasPullUp | LineFlagV2BiasPullDown
 )
 
@@ -271,34 +278,42 @@ func (f LineFlagV2) IsOutput() bool {
 	return f&LineFlagV2Output != 0
 }
 
+// IsOpenDrain returns true if the line is an open drain.
 func (f LineFlagV2) IsOpenDrain() bool {
 	return f&LineFlagV2OpenDrain != 0
 }
 
+// IsOpenSource returns true if the line is an open source.
 func (f LineFlagV2) IsOpenSource() bool {
 	return f&LineFlagV2OpenSource != 0
 }
 
+// IsRisingEdge returns true if the line has edge detection on the rising edge.
 func (f LineFlagV2) IsRisingEdge() bool {
 	return f&LineFlagV2EdgeRising != 0
 }
 
+// IsFallingEdge returns true if the line has edge detection on the falling edge.
 func (f LineFlagV2) IsFallingEdge() bool {
 	return f&LineFlagV2EdgeFalling != 0
 }
 
+// IsBothEdges returns true if the line has edge detection on both edges.
 func (f LineFlagV2) IsBothEdges() bool {
 	return f&LineFlagV2EdgeBoth == LineFlagV2EdgeBoth
 }
 
+// IsBiasDisabled returns true if the line has bias disabled.
 func (f LineFlagV2) IsBiasDisabled() bool {
 	return f&LineFlagV2BiasDisabled != 0
 }
 
+// IsBiasPullUp returns true if the line has pull-up bias enabled.
 func (f LineFlagV2) IsBiasPullUp() bool {
 	return f&LineFlagV2BiasPullUp != 0
 }
 
+// IsBiasPullDown returns true if the line has pull-down bias enabled.
 func (f LineFlagV2) IsBiasPullDown() bool {
 	return f&LineFlagV2BiasPullDown != 0
 }
@@ -320,6 +335,7 @@ const (
 	lineInfoChangedV2PadSize int = 5
 )
 
+// LineAttribute defines a configuration attribute for a line.
 type LineAttribute struct {
 	ID LineAttributeID
 
@@ -328,47 +344,75 @@ type LineAttribute struct {
 	Value [8]byte
 }
 
+// Encode32 populates the LineAttribute using the id and 32-bit value.
+func (la *LineAttribute) Encode32(id LineAttributeID, value uint32) {
+	la.ID = id
+	nativeEndian.PutUint32(la.Value[:], value)
+}
+
+// Encode64 populates the LineAttribute using the id and 64-bit value.
+func (la *LineAttribute) Encode64(id LineAttributeID, value uint64) {
+	la.ID = id
+	nativeEndian.PutUint64(la.Value[:], value)
+}
+
+// Value32 returns the 32-bit value from the LineAttribute.
 func (la LineAttribute) Value32() uint32 {
 	return nativeEndian.Uint32(la.Value[:])
 }
 
+// Value64 returns the 64-bit value from the LineAttribute.
 func (la LineAttribute) Value64() uint64 {
 	return nativeEndian.Uint64(la.Value[:])
 }
 
+// LineAttributeID identfies the type of a configuration attribute.
 type LineAttributeID uint32
 
 const (
+	// LineAttributeIDFlags indicates the attribute contains LineFlagV2 flags.
 	LineAttributeIDFlags LineAttributeID = iota + 1
 
+	// LineAttributeIDOutputValues indicates the attribute contains line output values.
 	LineAttributeIDOutputValues
 
+	// LineAttributeIDDebounce indicates the attribute contains a debounce period.
 	LineAttributeIDDebounce
 )
 
+// DebouncePeriod specifies the time the line must be stable before a level
+// transisition is recognized.
 type DebouncePeriod time.Duration
 
-func (d DebouncePeriod) Encode(attr *LineAttribute) {
-	attr.ID = LineAttributeIDDebounce
-	nativeEndian.PutUint32(attr.Value[:], uint32(d/1000))
+// Encode populates the LineAttribute with the value from the DebouncePeriod.
+func (d DebouncePeriod) Encode(la *LineAttribute) {
+	la.Encode32(LineAttributeIDDebounce, uint32(d/1000))
 }
 
-func (d DebouncePeriod) Decode(attr LineAttribute) {
-	d = DebouncePeriod(attr.Value32() * 1000)
+// Decode populates the DebouncePeriod with value from the LineAttribute.
+func (d *DebouncePeriod) Decode(la LineAttribute) {
+	*d = DebouncePeriod(la.Value32() * 1000)
 }
 
-func (v LineValues) Encode(attr *LineAttribute) {
-	attr.ID = LineAttributeIDOutputValues
-	nativeEndian.PutUint64(attr.Value[:], uint64(v[0]))
+// Encode populates the LineAttribute with the value from the LineBits.
+func (lv LineBits) Encode(la *LineAttribute) {
+	la.Encode64(LineAttributeIDOutputValues, uint64(lv[0]))
 }
 
-func (v LineValues) Decode(attr LineAttribute) {
-	v[0] = attr.Value64()
+// Decode populates the LineValues with values from the LineAttribute.
+func (lv LineBits) Decode(la LineAttribute) {
+	lv[0] = la.Value64()
 }
 
+// LineConfigAttribute associates a configuration attribute with one or more
+// requested lines.
 type LineConfigAttribute struct {
-	Mask [LinesBitmapSize]uint64
+	// Mask identifies the lines to which this attribute applies.
+	//
+	// This is a bitmap of lines in LineRequest.Offsets.
+	Mask LineBits
 
+	// Attr contains the configuration attribute.
 	Attr LineAttribute
 }
 
@@ -383,6 +427,45 @@ type LineConfig struct {
 	Padding [lineConfigPadSize]uint32
 
 	Attrs [10]LineConfigAttribute
+}
+
+// AddAttribute adds an attribute to the configuration.
+//
+// This is an unconditional add - it performs no filtering or consistency
+// checking other than limiting the number of attributes.
+func (lc *LineConfig) AddAttribute(lca LineConfigAttribute) {
+	if lc.NumAttrs < 10 {
+		lc.Attrs[lc.NumAttrs] = lca
+		lc.NumAttrs++
+	}
+}
+
+// RemoveAttribute removes an attribute from the configuration.
+func (lc *LineConfig) RemoveAttribute(lca LineConfigAttribute) {
+	d := 0
+	for s := 0; s < int(lc.NumAttrs); s++ {
+		if lc.Attrs[s] != lca {
+			if d != s {
+				lc.Attrs[d] = lc.Attrs[s]
+			}
+			d++
+		}
+	}
+	lc.NumAttrs = uint32(d)
+}
+
+// RemoveAttributeID removes all attributes with a given ID from the configuration.
+func (lc *LineConfig) RemoveAttributeID(id LineAttributeID) {
+	d := 0
+	for s := 0; s < int(lc.NumAttrs); s++ {
+		if lc.Attrs[s].Attr.ID != id {
+			if d != s {
+				lc.Attrs[d] = lc.Attrs[s]
+			}
+			d++
+		}
+	}
+	lc.NumAttrs = uint32(d)
 }
 
 // LineRequest is a request for control of a set of lines.
@@ -411,22 +494,36 @@ type LineRequest struct {
 	Fd int32
 }
 
-// LineValues is a bitmap containing the logical value for each line.
-//
-// Zero is a logical low (inactive) and 1 is a logical high (active).
-type LineValues [LinesBitmapSize]uint64
+// LineBits is a bitmap containing a bit for each line.
+type LineBits [LinesBitmapSize]uint64
 
-// NewLineValues creates a new LineValues from an array of values.
-func NewLineValues(vv ...int) LineValues {
-	var lv LineValues
+// NewLineBits creates a new LineBits from an array of values.
+func NewLineBits(vv ...int) LineBits {
+	var lv LineBits
 	for i, v := range vv {
 		lv.Set(i, v)
 	}
 	return lv
 }
 
+// NewLineBitMask returns a mask of n bits.
+func NewLineBitMask(n int) LineBits {
+	var lv LineBits
+	if n >= LinesMax {
+		n = LinesMax
+	}
+	for i := 0; i < n>>6; i++ {
+		lv[i] = 0xffffffffffffffff
+	}
+	remainder := uint(n % 64)
+	if remainder != 0 {
+		lv[n>>6] = (uint64(1) << remainder) - 1
+	}
+	return lv
+}
+
 // Get returns the value of the nth bit.
-func (lv *LineValues) Get(n int) int {
+func (lv *LineBits) Get(n int) int {
 	idx := n >> 6
 	mask := uint64(1) << uint(n%64)
 	if lv[idx]&mask != 0 {
@@ -436,7 +533,7 @@ func (lv *LineValues) Get(n int) int {
 }
 
 // Set sets the value of the nth bit.
-func (lv *LineValues) Set(n, v int) {
+func (lv *LineBits) Set(n, v int) {
 	idx := n >> 6
 	mask := uint64(1) << uint(n%64)
 	if v == 0 {
@@ -446,9 +543,19 @@ func (lv *LineValues) Set(n, v int) {
 	}
 }
 
+// LineSetValues contains the output values for a set of lines.
 type LineSetValues struct {
-	Mask [LinesBitmapSize]uint64
-	Bits [LinesBitmapSize]uint64
+	// Mask identifies the lines to which this attribute applies.
+	//
+	// This is a bitmap of lines in LineRequest.Offsets.
+	Mask LineBits
+
+	// Bits contains the logical value of the the lines.
+	//
+	// Zero is a logical low (inactive) and 1 is a logical high (active).
+	//
+	// This is a bitmap of lines in LineRequest.Offsets.
+	Bits LineBits
 }
 
 // LineEventID indicates the type of event detected.
