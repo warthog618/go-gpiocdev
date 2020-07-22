@@ -295,10 +295,10 @@ const (
 type LineFlag uint32
 
 const (
-	// LineFlagRequested indicates that the line has been requested.
+	// LineFlagUsed indicates that the line has been requested.
 	// It may have been requested by this process or another process.
 	// The line cannot be requested again until this flag is clear.
-	LineFlagRequested LineFlag = 1 << iota
+	LineFlagUsed LineFlag = 1 << iota
 
 	// LineFlagIsOut indicates that the line is an output.
 	LineFlagIsOut
@@ -322,13 +322,13 @@ const (
 	// LineFlagPullDown indicates that the internal line pull down is enabled.
 	LineFlagPullDown
 
-	// LineFlagBiasDisable indicates that the internal line bias is disabled.
-	LineFlagBiasDisable
+	// LineFlagBiasDisabled indicates that the internal line bias is disabled.
+	LineFlagBiasDisabled
 )
 
-// IsRequested returns true if the line is requested.
-func (f LineFlag) IsRequested() bool {
-	return f&LineFlagRequested != 0
+// IsUsed returns true if the line is requested.
+func (f LineFlag) IsUsed() bool {
+	return f&LineFlagUsed != 0
 }
 
 // IsOut returns true if the line is an output.
@@ -353,7 +353,7 @@ func (f LineFlag) IsOpenSource() bool {
 
 // IsBiasDisable returns true if the line has bias disabled.
 func (f LineFlag) IsBiasDisable() bool {
-	return f&LineFlagBiasDisable != 0
+	return f&LineFlagBiasDisabled != 0
 }
 
 // IsPullDown returns true if the line has pull-down enabled.
