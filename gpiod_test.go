@@ -42,7 +42,7 @@ var (
 	biasKernel      = mockup.Semver{5, 5} // bias flags added
 	setConfigKernel = mockup.Semver{5, 5} // setLineConfig ioctl added
 	infoWatchKernel = mockup.Semver{5, 7} // watchLineInfo ioctl added
-	uapiV2Kernel    = mockup.Semver{5, 7} // uapi v2 added
+	uapiV2Kernel    = mockup.Semver{5, 8} // uapi v2 added
 )
 
 func TestNewChip(t *testing.T) {
@@ -186,7 +186,7 @@ func TestChipLineInfo(t *testing.T) {
 		Offset: platform.IntrLine(),
 		Name:   platform.IntrName(),
 		Config: gpiod.LineConfig{
-			Flags: uapi.LineFlagV2Direction,
+			Direction: gpiod.LineDirectionInput,
 		},
 	}
 	assert.Equal(t, xli, li)
