@@ -6,8 +6,6 @@ package gpiod
 
 import (
 	"time"
-
-	"github.com/warthog618/gpiod/uapi"
 )
 
 // ChipOption defines the interface required to provide a Chip option.
@@ -57,7 +55,6 @@ type LineReconfig interface {
 type LineOptions struct {
 	consumer string
 	Config   LineConfig
-	values   []int
 	eh       EventHandler
 	abi      int
 }
@@ -75,8 +72,7 @@ type AsIsOption struct{}
 var AsIs = AsIsOption{}
 
 func (o AsIsOption) applyLineOption(l *LineOptions) {
-	l.Config.Flags &^= uapi.LineFlagV2Direction
-	l.Config.Direction = 0
+	l.Config.Direction = LineDirectionUnknown
 }
 
 // InputOption indicates the line direction should be set to an input.
@@ -89,18 +85,15 @@ type InputOption struct{}
 var AsInput = InputOption{}
 
 func (o InputOption) applyChipOption(c *ChipOptions) {
-	c.Config.Flags |= uapi.LineFlagV2Direction
-	c.Config.Direction = uapi.LineDirectionInput
+	c.Config.Direction = LineDirectionInput
 }
 
 func (o InputOption) applyLineOption(l *LineOptions) {
-	l.Config.Flags |= uapi.LineFlagV2Direction
-	l.Config.Direction = uapi.LineDirectionInput
+	l.Config.Direction = LineDirectionInput
 }
 
 func (o InputOption) applyLineReconfig(l *LineOptions) {
-	l.Config.Flags |= uapi.LineFlagV2Direction
-	l.Config.Direction = uapi.LineDirectionInput
+	l.Config.Direction = LineDirectionInput
 }
 
 // OutputOption indicates the line direction should be set to an output.
@@ -122,12 +115,10 @@ func AsOutput(values ...int) OutputOption {
 }
 
 func (o OutputOption) applyLineOption(l *LineOptions) {
-	l.Config.Flags |= uapi.LineFlagV2Direction
-	l.Config.Direction = uapi.LineDirectionOutput
-	l.values = o.values
-	l.Config.Flags &^= (uapi.LineFlagV2EdgeDetection | uapi.LineFlagV2Debounce)
-	l.Config.EdgeDetection = 0
-	l.Config.Debounce = 0
+	l.Config.Direction = LineDirectionOutput
+	l.Config.values = o.values
+	l.Config.Debounced = false
+	l.Config.DebouncePeriod = 0
 }
 
 func (o OutputOption) applyLineReconfig(l *LineOptions) {
@@ -139,23 +130,16 @@ type LevelOption struct {
 	activeLow bool
 }
 
-func (o LevelOption) updateFlags(f uapi.LineFlagV2) uapi.LineFlagV2 {
-	if o.activeLow {
-		return f | uapi.LineFlagV2ActiveLow
-	}
-	return f &^ uapi.LineFlagV2ActiveLow
-}
-
 func (o LevelOption) applyChipOption(c *ChipOptions) {
-	c.Config.Flags = o.updateFlags(c.Config.Flags)
+	c.Config.ActiveLow = o.activeLow
 }
 
 func (o LevelOption) applyLineOption(l *LineOptions) {
-	l.Config.Flags = o.updateFlags(l.Config.Flags)
+	l.Config.ActiveLow = o.activeLow
 }
 
 func (o LevelOption) applyLineReconfig(l *LineOptions) {
-	l.Config.Flags = o.updateFlags(l.Config.Flags)
+	l.Config.ActiveLow = o.activeLow
 }
 
 // AsActiveLow indicates that a line be considered active when the line level
@@ -170,16 +154,14 @@ var AsActiveHigh = LevelOption{}
 
 // DriveOption determines if a line is open drain, open source or push-pull.
 type DriveOption struct {
-	drive uapi.LineDrive
+	drive LineDrive
 }
 
 func (o DriveOption) applyLineOption(l *LineOptions) {
-	l.Config.Flags |= uapi.LineFlagV2Direction | uapi.LineFlagV2Drive
-	l.Config.Flags &^= uapi.LineFlagV2EdgeDetection | uapi.LineFlagV2Debounce
-	l.Config.Direction = uapi.LineDirectionOutput
 	l.Config.Drive = o.drive
-	l.Config.EdgeDetection = 0
-	l.Config.Debounce = 0
+	l.Config.Direction = LineDirectionOutput
+	l.Config.Debounced = false
+	l.Config.DebouncePeriod = 0
 }
 
 func (o DriveOption) applyLineReconfig(l *LineOptions) {
@@ -190,13 +172,13 @@ func (o DriveOption) applyLineReconfig(l *LineOptions) {
 //
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, OpenSource, or Debounce options.
-var AsOpenDrain = DriveOption{uapi.LineDriveOpenDrain}
+var AsOpenDrain = DriveOption{LineDriveOpenDrain}
 
 // AsOpenSource indicates that a line be driven low but left floating for high.
 //
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, OpenDrain, or Debounce options.
-var AsOpenSource = DriveOption{uapi.LineDriveOpenSource}
+var AsOpenSource = DriveOption{LineDriveOpenSource}
 
 // AsPushPull indicates that a line be driven both low and high.
 //
@@ -209,16 +191,14 @@ var AsPushPull = DriveOption{}
 //
 // Bias options require Linux v5.5 or later.
 type BiasOption struct {
-	bias uapi.LineBias
+	bias LineBias
 }
 
 func (o BiasOption) applyChipOption(c *ChipOptions) {
-	c.Config.Flags |= uapi.LineFlagV2Bias
 	c.Config.Bias = o.bias
 }
 
 func (o BiasOption) applyLineOption(l *LineOptions) {
-	l.Config.Flags |= uapi.LineFlagV2Bias
 	l.Config.Bias = o.bias
 }
 
@@ -231,34 +211,31 @@ func (o BiasOption) applyLineReconfig(l *LineOptions) {
 // This option overrides and clears any previous bias options.
 //
 // Requires Linux v5.5 or later.
-var WithBiasDisabled = BiasOption{uapi.LineBiasDisabled}
+var WithBiasDisabled = BiasOption{LineBiasDisabled}
 
 // WithPullDown indicates that a line have its internal pull-down enabled.
 //
 // This option overrides and clears any previous bias options.
 //
 // Requires Linux v5.5 or later.
-var WithPullDown = BiasOption{uapi.LineBiasPullDown}
+var WithPullDown = BiasOption{LineBiasPullDown}
 
 // WithPullUp indicates that a line have its internal pull-up enabled.
 //
 // This option overrides and clears any previous bias options.
 //
 // Requires Linux v5.5 or later.
-var WithPullUp = BiasOption{uapi.LineBiasPullUp}
+var WithPullUp = BiasOption{LineBiasPullUp}
 
 // EdgeOption indicates that a line will generate events when edges are detected.
 type EdgeOption struct {
 	eh   EventHandler
-	edge uapi.LineEdge
+	edge LineEdge
 }
 
 func (o EdgeOption) applyLineOption(l *LineOptions) {
-	l.Config.Flags |= (uapi.LineFlagV2Direction | uapi.LineFlagV2EdgeDetection)
-	l.Config.Flags &^= uapi.LineFlagV2Drive
-	l.Config.Direction = uapi.LineDirectionInput
 	l.Config.EdgeDetection = o.edge
-	l.Config.Drive = 0
+	l.Config.Direction = LineDirectionInput
 	l.eh = o.eh
 }
 
@@ -270,7 +247,7 @@ func (o EdgeOption) applyLineOption(l *LineOptions) {
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
 func WithFallingEdge(e func(LineEvent)) EdgeOption {
-	return EdgeOption{EventHandler(e), uapi.LineEdgeFalling}
+	return EdgeOption{EventHandler(e), LineEdgeFalling}
 }
 
 // WithRisingEdge indicates that a line will generate events when its active
@@ -281,7 +258,7 @@ func WithFallingEdge(e func(LineEvent)) EdgeOption {
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
 func WithRisingEdge(e func(LineEvent)) EdgeOption {
-	return EdgeOption{EventHandler(e), uapi.LineEdgeRising}
+	return EdgeOption{EventHandler(e), LineEdgeRising}
 }
 
 // WithBothEdges indicates that a line will generate events when its active
@@ -292,7 +269,7 @@ func WithRisingEdge(e func(LineEvent)) EdgeOption {
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
 func WithBothEdges(e func(LineEvent)) EdgeOption {
-	return EdgeOption{EventHandler(e), uapi.LineEdgeBoth}
+	return EdgeOption{EventHandler(e), LineEdgeBoth}
 }
 
 // DebounceOption indicates that a line will be debounced.
@@ -301,7 +278,8 @@ type DebounceOption struct {
 }
 
 func (o DebounceOption) applyLineOption(l *LineOptions) {
-	l.Config.Debounce = uint32(o.period.Microseconds())
+	l.Config.Debounced = true
+	l.Config.DebouncePeriod = o.period
 }
 
 // WithDebounce indicates that a line will be debounced with the specified

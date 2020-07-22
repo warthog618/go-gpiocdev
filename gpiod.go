@@ -81,24 +81,93 @@ type Chip struct {
 
 // LineConfig contains the configuration parameters for the line.
 type LineConfig struct {
-	// The flags indicating which fields apply to the line.
-	Flags uapi.LineFlagV2
+	// A flag indicating if the line is active low.
+	ActiveLow bool
 
-	// The line direction, if LineFlagV2Direction is set.
-	Direction uapi.LineDirection
+	// The line direction.
+	Direction LineDirection
 
-	// The line drive, if LineFlagV2Drive is set.
-	Drive uapi.LineDrive
+	// output values
+	values []int
 
-	// The line bias, if LineFlagV2Bias is set.
-	Bias uapi.LineBias
+	// The line drive.
+	Drive LineDrive
 
-	// The line edge detection, if LineFlagV2EdgeDetection is set.
-	EdgeDetection uapi.LineEdge
+	// The line bias.
+	Bias LineBias
 
-	// The line debounce value, if LineFlagV2Debounce is set.
-	Debounce uint32
+	// The line edge detection.
+	EdgeDetection LineEdge
+
+	// A flag indicating if the line is debounced.
+	Debounced bool
+
+	// The line debounce period.
+	DebouncePeriod time.Duration
 }
+
+// LineDirection indicates the direction of a line.
+type LineDirection int
+
+const (
+	// LineDirectionUnknown indicate the line direction is unknown.
+	LineDirectionUnknown LineDirection = iota
+
+	// LineDirectionInput indicates the line is an input.
+	LineDirectionInput
+
+	// LineDirectionOutput indicates the line is an output.
+	LineDirectionOutput
+)
+
+// LineDrive indicates the drive of an output line.
+type LineDrive int
+
+const (
+	// LineDrivePushPull indicatges the line is driven in both directions.
+	LineDrivePushPull LineDrive = iota
+
+	// LineDriveOpenDrain indicates the line is an open drain output.
+	LineDriveOpenDrain
+
+	// LineDriveOpenSource indicates the line is an open souce output.
+	LineDriveOpenSource
+)
+
+// LineBias indicates the bias applied to a line.
+type LineBias int
+
+const (
+	// LineBiasUnknown indicates the line bias is unknown.
+	LineBiasUnknown LineBias = iota
+
+	// LineBiasDisabled indicates the line bias is disabled.
+	LineBiasDisabled
+
+	// LineBiasPullUp indicates the line has pull up enabled.
+	LineBiasPullUp
+
+	// LineBiasPullDown indicates the line has pull down enabled.
+	LineBiasPullDown
+)
+
+// LineEdge indicates the edges detected by the line.
+type LineEdge int
+
+const (
+	// LineEdgeNone indicates the line edge detection is disabled.
+	LineEdgeNone LineEdge = iota
+
+	// LineEdgeRising indicates the line has rising edge detection enabled.
+	LineEdgeRising
+
+	// LineEdgeFalling indicates the line has falling edge detection enabled.
+	LineEdgeFalling
+
+	// LineEdgeBoth indicates the line has both rising and falling edge
+	// detection enabled.
+	LineEdgeBoth = LineEdgeRising | LineEdgeFalling
+)
 
 // LineInfo contains a summary of publicly available information about the
 // line.
@@ -111,6 +180,9 @@ type LineInfo struct {
 
 	// A string identifying the requester of the line, if requested.
 	Consumer string
+
+	// The line is in use.
+	Used bool
 
 	// The configuration parameters for the line.
 	Config LineConfig
@@ -264,30 +336,65 @@ func (c *Chip) LineInfo(offset int) (info LineInfo, err error) {
 
 func lineInfoToLineConfig(li uapi.LineInfo) LineConfig {
 	lc := LineConfig{}
-	if li.Flags.IsActiveLow() {
-		lc.Flags |= uapi.LineFlagV2ActiveLow
-	}
+	lc.ActiveLow = li.Flags.IsActiveLow()
 
-	lc.Flags |= uapi.LineFlagV2Direction
 	if li.Flags.IsOut() {
-		lc.Direction = uapi.LineDirectionOutput
-		lc.Flags |= uapi.LineFlagV2Drive
+		lc.Direction = LineDirectionOutput
 		if li.Flags.IsOpenDrain() {
-			lc.Drive = uapi.LineDriveOpenDrain
+			lc.Drive = LineDriveOpenDrain
 		} else if li.Flags.IsOpenSource() {
-			lc.Drive = uapi.LineDriveOpenSource
+			lc.Drive = LineDriveOpenSource
 		}
+	} else {
+		lc.Direction = LineDirectionInput
 	}
 
 	if li.Flags.IsPullUp() {
-		lc.Flags |= uapi.LineFlagV2Bias
-		lc.Bias = uapi.LineBiasPullUp
+		lc.Bias = LineBiasPullUp
 	} else if li.Flags.IsPullDown() {
-		lc.Flags |= uapi.LineFlagV2Bias
-		lc.Bias = uapi.LineBiasPullDown
+		lc.Bias = LineBiasPullDown
 	} else if li.Flags.IsBiasDisable() {
-		lc.Flags |= uapi.LineFlagV2Bias
-		lc.Bias = uapi.LineBiasDisabled
+		lc.Bias = LineBiasDisabled
+	}
+	return lc
+}
+
+func lineInfoV2ToLineConfig(li uapi.LineInfoV2) LineConfig {
+	lc := LineConfig{}
+	lc.ActiveLow = li.Flags.IsActiveLow()
+
+	if li.Flags.IsOutput() {
+		lc.Direction = LineDirectionOutput
+		if li.Flags.IsOpenDrain() {
+			lc.Drive = LineDriveOpenDrain
+		} else if li.Flags.IsOpenSource() {
+			lc.Drive = LineDriveOpenSource
+		}
+	} else {
+		lc.Direction = LineDirectionInput
+	}
+
+	if li.Flags.IsBothEdges() {
+		lc.EdgeDetection = LineEdgeBoth
+	} else if li.Flags.IsRisingEdge() {
+		lc.EdgeDetection = LineEdgeRising
+	} else if li.Flags.IsFallingEdge() {
+		lc.EdgeDetection = LineEdgeFalling
+	}
+
+	if li.Flags.IsBiasPullUp() {
+		lc.Bias = LineBiasPullUp
+	} else if li.Flags.IsBiasPullDown() {
+		lc.Bias = LineBiasPullDown
+	} else if li.Flags.IsBiasDisabled() {
+		lc.Bias = LineBiasDisabled
+	}
+
+	for i := 0; i < int(li.NumAttrs); i++ {
+		if li.Attrs[i].ID == uapi.LineAttributeIDDebounce {
+			lc.Debounced = true
+			lc.DebouncePeriod = time.Duration(li.Attrs[i].Value32()) * time.Microsecond
+		}
 	}
 	return lc
 }
@@ -297,6 +404,7 @@ func newLineInfo(li uapi.LineInfo) LineInfo {
 		Offset:   int(li.Offset),
 		Name:     uapi.BytesToString(li.Name[:]),
 		Consumer: uapi.BytesToString(li.Consumer[:]),
+		Used:     li.Flags.IsUsed(),
 		Config:   lineInfoToLineConfig(li),
 	}
 }
@@ -306,14 +414,8 @@ func newLineInfoV2(li uapi.LineInfoV2) LineInfo {
 		Offset:   int(li.Offset),
 		Name:     uapi.BytesToString(li.Name[:]),
 		Consumer: uapi.BytesToString(li.Consumer[:]),
-		Config: LineConfig{
-			Flags:         li.Config.Flags,
-			Direction:     li.Config.Direction,
-			Drive:         li.Config.Drive,
-			Bias:          li.Config.Bias,
-			EdgeDetection: li.Config.EdgeDetection,
-			Debounce:      li.Config.Debounce,
-		},
+		Used:     li.Flags.IsUsed(),
+		Config:   lineInfoV2ToLineConfig(li),
 	}
 }
 
@@ -337,7 +439,6 @@ func (c *Chip) RequestLine(offset int, options ...LineOption) (*Line, error) {
 		chip:    ll.chip,
 		abi:     ll.abi,
 		config:  ll.config,
-		values:  ll.values,
 		watcher: ll.watcher,
 	}}
 	return &l, nil
@@ -358,15 +459,14 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 	for _, option := range options {
 		option.applyLineOption(&lo)
 	}
-	if len(lo.values) > len(offsets) {
-		lo.values = lo.values[:len(offsets)]
+	if len(lo.Config.values) > len(offsets) {
+		lo.Config.values = lo.Config.values[:len(offsets)]
 	}
 	ll := Lines{baseLine{
 		offsets: append([]int(nil), offsets...),
 		chip:    c.Name,
 		abi:     lo.abi,
 		config:  lo.Config,
-		values:  lo.values,
 	}}
 	var err error
 	if ll.abi == 2 {
@@ -459,35 +559,22 @@ func (c *Chip) UnwatchLineInfo(offset int) error {
 
 func (c *Chip) getLine(offsets []int, lo LineOptions) (uintptr, io.Closer, error) {
 
+	lines := len(offsets)
 	lr := uapi.LineRequest{
-		Lines: uint32(len(offsets)),
-		Config: uapi.LineConfig{
-			Flags:         lo.Config.Flags,
-			Direction:     lo.Config.Direction,
-			Drive:         lo.Config.Drive,
-			Bias:          lo.Config.Bias,
-			EdgeDetection: lo.Config.EdgeDetection,
-			Debounce:      lo.Config.Debounce,
-		},
+		Lines:  uint32(lines),
+		Config: lineConfigToLineConfig(lo.Config, lines),
 	}
 	copy(lr.Consumer[:len(lr.Consumer)-1], lo.consumer)
 	// copy(hr.Offsets[:], offsets) - with cast
 	for i, o := range offsets {
 		lr.Offsets[i] = uint32(o)
 	}
-	// copy(hr.DefaultValues[:], lo.values[:len(offsets)]) -- with cast
-	if len(lo.values) > len(offsets) {
-		lo.values = lo.values[:len(offsets)]
-	}
-	for i, v := range lo.values {
-		lr.Config.Values.Set(i, v)
-	}
 	err := uapi.GetLine(c.f.Fd(), &lr)
 	if err != nil {
 		return 0, nil, err
 	}
 	var w io.Closer
-	if lo.Config.EdgeDetection != 0 {
+	if lo.Config.EdgeDetection != LineEdgeNone {
 		w, err = newWatcher(lr.Fd, lo.eh)
 		if err != nil {
 			unix.Close(int(lr.Fd))
@@ -500,35 +587,30 @@ func (c *Chip) getLine(offsets []int, lo LineOptions) (uintptr, io.Closer, error
 func lineConfigToHandleFlags(lc LineConfig) uapi.HandleFlag {
 	var flags uapi.HandleFlag
 
-	if lc.Flags.IsActiveLow() {
+	if lc.ActiveLow {
 		flags |= uapi.HandleRequestActiveLow
 	}
 
-	if lc.Direction == uapi.LineDirectionOutput {
-
+	switch lc.Direction {
+	case LineDirectionOutput:
 		flags |= uapi.HandleRequestOutput
-	} else if (lc.Direction == uapi.LineDirectionInput) &&
-		(lc.Flags.HasDirection()) {
+	case LineDirectionInput:
 		flags |= uapi.HandleRequestInput
 	}
 
-	if lc.Drive == uapi.LineDriveOpenDrain {
-
+	switch lc.Drive {
+	case LineDriveOpenDrain:
 		flags |= uapi.HandleRequestOpenDrain
-	} else if lc.Drive == uapi.LineDriveOpenSource {
-
+	case LineDriveOpenSource:
 		flags |= uapi.HandleRequestOpenSource
 	}
 
-	if lc.Bias == uapi.LineBiasPullUp {
-
+	switch lc.Bias {
+	case LineBiasPullUp:
 		flags |= uapi.HandleRequestPullUp
-	} else if lc.Bias == uapi.LineBiasPullDown {
-
+	case LineBiasPullDown:
 		flags |= uapi.HandleRequestPullDown
-	} else if (lc.Bias == uapi.LineBiasDisabled) &&
-		(lc.Flags.HasBias()) {
-
+	case LineBiasDisabled:
 		flags |= uapi.HandleRequestBiasDisable
 	}
 
@@ -536,20 +618,64 @@ func lineConfigToHandleFlags(lc LineConfig) uapi.HandleFlag {
 }
 
 func lineConfigToEventFlag(lc LineConfig) uapi.EventFlag {
-	var flags uapi.EventFlag
+	switch lc.EdgeDetection {
+	case LineEdgeBoth:
+		return uapi.EventRequestBothEdges
+	case LineEdgeRising:
+		return uapi.EventRequestRisingEdge
+	case LineEdgeFalling:
+		return uapi.EventRequestFallingEdge
+	default:
+		return 0
+	}
+}
 
-	if lc.EdgeDetection == uapi.LineEdgeBoth {
+func lineConfigToLineConfig(lc LineConfig, lines int) uapi.LineConfig {
+	var ulc uapi.LineConfig
 
-		flags |= uapi.EventRequestBothEdges
-	} else if lc.EdgeDetection == uapi.LineEdgeRising {
+	ulc.Flags = 0
 
-		flags |= uapi.EventRequestRisingEdge
-	} else if lc.EdgeDetection == uapi.LineEdgeFalling {
-
-		flags |= uapi.EventRequestFallingEdge
+	if lc.ActiveLow {
+		ulc.Flags |= uapi.LineFlagV2ActiveLow
 	}
 
-	return flags
+	if lc.Direction == LineDirectionOutput {
+		ulc.Flags |= uapi.LineFlagV2Output
+		if lc.Drive == LineDriveOpenDrain {
+			ulc.Flags |= uapi.LineFlagV2OpenDrain
+		} else if lc.Drive == LineDriveOpenSource {
+			ulc.Flags |= uapi.LineFlagV2OpenSource
+		}
+		if len(lc.values) > 0 {
+			lv := uapi.NewLineBits(lc.values...)
+			ulc.Attrs[ulc.NumAttrs].Mask = uapi.NewLineBitMask(lines)
+			lv.Encode(&ulc.Attrs[ulc.NumAttrs].Attr)
+			ulc.NumAttrs++
+		}
+	} else if lc.Direction == LineDirectionInput {
+		ulc.Flags |= uapi.LineFlagV2Input
+		if lc.EdgeDetection&LineEdgeRising != 0 {
+			ulc.Flags |= uapi.LineFlagV2EdgeRising
+		}
+		if lc.EdgeDetection&LineEdgeFalling != 0 {
+			ulc.Flags |= uapi.LineFlagV2EdgeFalling
+		}
+		if lc.Debounced {
+			ulc.Attrs[ulc.NumAttrs].Mask = uapi.NewLineBitMask(lines)
+			uapi.DebouncePeriod(lc.DebouncePeriod).Encode(&ulc.Attrs[ulc.NumAttrs].Attr)
+			ulc.NumAttrs++
+		}
+	}
+
+	if lc.Bias == LineBiasDisabled {
+		ulc.Flags |= uapi.LineFlagV2BiasDisabled
+	} else if lc.Bias == LineBiasPullUp {
+		ulc.Flags |= uapi.LineFlagV2BiasPullUp
+	} else if lc.Bias == LineBiasPullDown {
+		ulc.Flags |= uapi.LineFlagV2BiasPullDown
+	}
+
+	return ulc
 }
 
 func (c *Chip) getEventRequest(offsets []int, lo LineOptions) (uintptr, io.Closer, error) {
@@ -592,8 +718,8 @@ func (c *Chip) getHandleRequest(offsets []int, lo LineOptions) (uintptr, error) 
 	for i, o := range offsets {
 		hr.Offsets[i] = uint32(o)
 	}
-	// copy(hr.DefaultValues[:], lo.values[:len(offsets)]) -- with cast
-	for i, v := range lo.values {
+	// copy(hr.DefaultValues[:], lo.Config.values[:len(offsets)]) -- with cast
+	for i, v := range lo.Config.values {
 		hr.DefaultValues[i] = uint8(v)
 	}
 	err := uapi.GetLineHandle(c.f.Fd(), &hr)
@@ -612,7 +738,6 @@ type baseLine struct {
 	// mu covers all that follow - those above are immutable
 	mu      sync.Mutex
 	config  LineConfig
-	values  []int
 	info    []*LineInfo
 	closed  bool
 	watcher io.Closer
@@ -661,17 +786,16 @@ func (l *baseLine) Reconfigure(options ...LineReconfig) error {
 	}
 	lo := LineOptions{
 		Config: l.config,
-		values: l.values,
 	}
 	for _, option := range options {
 		option.applyLineReconfig(&lo)
 	}
-	if len(lo.values) > len(l.offsets) {
-		lo.values = lo.values[:len(l.offsets)]
+	if len(lo.Config.values) > len(l.offsets) {
+		lo.Config.values = lo.Config.values[:len(l.offsets)]
 	}
 	if l.abi == 1 {
 		hc := uapi.HandleConfig{Flags: lineConfigToHandleFlags(lo.Config)}
-		for i, v := range lo.values {
+		for i, v := range lo.Config.values {
 			hc.DefaultValues[i] = uint8(v)
 		}
 		err := uapi.SetLineConfig(l.vfd, &hc)
@@ -680,23 +804,10 @@ func (l *baseLine) Reconfigure(options ...LineReconfig) error {
 		}
 		return err
 	}
-	config := uapi.LineConfig{
-		Flags:         lo.Config.Flags,
-		Direction:     lo.Config.Direction,
-		Drive:         lo.Config.Drive,
-		Bias:          lo.Config.Bias,
-		EdgeDetection: lo.Config.EdgeDetection,
-		Debounce:      lo.Config.Debounce,
-	}
-	if lo.Config.Direction == uapi.LineDirectionOutput {
-		for i, v := range lo.values {
-			config.Values.Set(i, v)
-		}
-	}
+	config := lineConfigToLineConfig(lo.Config, len(l.offsets))
 	err := uapi.SetLineConfigV2(l.vfd, &config)
 	if err == nil {
 		l.config = lo.Config
-		l.values = lo.values
 	}
 	return err
 }
@@ -749,7 +860,7 @@ func (l *Line) Value() (int, error) {
 		err := uapi.GetLineValues(l.vfd, &hd)
 		return int(hd[0]), err
 	}
-	lv := uapi.LineValues{}
+	lv := uapi.LineBits{}
 	err := uapi.GetLineValuesV2(l.vfd, &lv)
 	return lv.Get(0), err
 }
@@ -760,7 +871,7 @@ func (l *Line) Value() (int, error) {
 func (l *Line) SetValue(value int) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.config.Direction != uapi.LineDirectionOutput {
+	if l.config.Direction != LineDirectionOutput {
 		return ErrPermissionDenied
 	}
 	if l.closed {
@@ -770,14 +881,17 @@ func (l *Line) SetValue(value int) error {
 		hd := uapi.HandleData{}
 		err := uapi.SetLineValues(l.vfd, hd)
 		if err == nil {
-			l.values = []int{value}
+			l.config.values = []int{value}
 		}
 		return err
 	}
-	lv := uapi.NewLineValues(value)
-	err := uapi.SetLineValuesV2(l.vfd, lv)
+	lsv := uapi.LineSetValues{
+		Mask: uapi.NewLineBits(1),
+		Bits: uapi.NewLineBits(value),
+	}
+	err := uapi.SetLineValuesV2(l.vfd, lsv)
 	if err == nil {
-		l.values = []int{value}
+		l.config.values = []int{value}
 	}
 	return err
 }
@@ -844,7 +958,7 @@ func (l *Lines) Values(values []int) error {
 		}
 		return nil
 	}
-	lv := uapi.LineValues{}
+	lv := uapi.LineBits{}
 	err := uapi.GetLineValuesV2(l.vfd, &lv)
 	if err != nil {
 		return err
@@ -865,7 +979,7 @@ func (l *Lines) Values(values []int) error {
 func (l *Lines) SetValues(values []int) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.config.Direction != uapi.LineDirectionOutput {
+	if l.config.Direction != LineDirectionOutput {
 		return ErrPermissionDenied
 	}
 	if l.closed {
@@ -874,13 +988,17 @@ func (l *Lines) SetValues(values []int) error {
 	if len(values) > len(l.offsets) {
 		values = values[:len(l.offsets)]
 	}
-	var vv uapi.LineValues
+	var vv uapi.LineBits
 	for i, v := range values {
 		vv.Set(i, v)
 	}
-	err := uapi.SetLineValuesV2(l.vfd, vv)
+	lsv := uapi.LineSetValues{
+		Mask: uapi.NewLineBitMask(len(l.offsets)),
+		Bits: vv,
+	}
+	err := uapi.SetLineValuesV2(l.vfd, lsv)
 	if err == nil {
-		l.values = values
+		l.config.values = values
 	}
 
 	return err
