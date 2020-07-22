@@ -278,6 +278,7 @@ type DebounceOption struct {
 }
 
 func (o DebounceOption) applyLineOption(l *LineOptions) {
+	l.Config.Direction = LineDirectionInput
 	l.Config.Debounced = true
 	l.Config.DebouncePeriod = o.period
 }

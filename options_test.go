@@ -617,6 +617,18 @@ func clearEvents(ch <-chan gpiod.LineEvent) {
 
 func TestWithDebounce(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
-	t.Skip("Not implemented")
-	// !!!
+	c := getChip(t)
+	defer c.Close()
+
+	l, err := c.RequestLine(platform.IntrLine(),
+		gpiod.WithDebounce(10*time.Microsecond))
+	require.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+
+	inf, err := c.LineInfo(platform.IntrLine())
+	assert.Nil(t, err)
+	assert.Equal(t, gpiod.LineDirectionInput, inf.Config.Direction)
+	assert.True(t, inf.Config.Debounced)
+	assert.Equal(t, 10*time.Microsecond, inf.Config.DebouncePeriod)
 }
