@@ -2,8 +2,6 @@
 //
 // Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
 
-// +build linux
-
 // Package gpiod is a library for accessing GPIO pins/lines on Linux platforms
 // using the GPIO character device.
 //

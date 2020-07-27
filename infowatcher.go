@@ -2,8 +2,6 @@
 //
 // Copyright © 2020 Kent Gibson <warthog618@gmail.com>.
 
-// +build linux
-
 package gpiod
 
 import (
