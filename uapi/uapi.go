@@ -568,37 +568,3 @@ type EventData struct {
 	_ uint32
 }
 
-// ioctl constants
-const (
-	iocNRBits    = 8
-	iocTypeBits  = 8
-	iocDirBits   = 2
-	iocSizeBits  = 14
-	iocNRShift   = 0
-	iocTypeShift = iocNRShift + iocNRBits
-	iocSizeShift = iocTypeShift + iocTypeBits
-	iocDirShift  = iocSizeShift + iocSizeBits
-	iocWrite     = 1
-	iocRead      = 2
-)
-
-func ior(t, nr, size uintptr) ioctl {
-	return ioctl((iocRead << iocDirShift) |
-		(size << iocSizeShift) |
-		(t << iocTypeShift) |
-		(nr << iocNRShift))
-}
-
-func iorw(t, nr, size uintptr) ioctl {
-	return ioctl(((iocRead | iocWrite) << iocDirShift) |
-		(size << iocSizeShift) |
-		(t << iocTypeShift) |
-		(nr << iocNRShift))
-}
-
-func iow(t, nr, size uintptr) ioctl {
-	return ioctl((iocWrite << iocDirShift) |
-		(size << iocSizeShift) |
-		(t << iocTypeShift) |
-		(nr << iocNRShift))
-}
