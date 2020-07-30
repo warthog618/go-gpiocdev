@@ -761,7 +761,7 @@ func IsChip(name string) error {
 	if err = unix.Lstat(path, &stat); err != nil {
 		return err
 	}
-	devstr := fmt.Sprintf("%d:%d", unix.Major(stat.Rdev), unix.Minor(stat.Rdev))
+	devstr := fmt.Sprintf("%d:%d", unix.Major(uint64(stat.Rdev)), unix.Minor(uint64(stat.Rdev)))
 	sysstr := string(sysfsdev[:n-1])
 	if devstr != sysstr {
 		return ErrNotCharacterDevice
