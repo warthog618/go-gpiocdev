@@ -480,6 +480,8 @@ func TestGetLineValuesV2(t *testing.T) {
 		cnum int
 		lr   uapi.LineRequest
 		val  []int
+		mask []int
+		err  error
 	}{
 		{
 			"as-is atv-lo lo",
@@ -492,6 +494,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
 			[]int{0},
+			[]int{1},
+			nil,
 		},
 		{
 			"as-is atv-lo hi",
@@ -504,6 +508,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
 			[]int{1},
+			[]int{1},
+			nil,
 		},
 		{
 			"as-is lo",
@@ -513,6 +519,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
 			[]int{0},
+			[]int{1},
+			nil,
 		},
 		{
 			"as-is hi",
@@ -522,6 +530,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
 			[]int{1},
+			[]int{1},
+			nil,
 		},
 		{
 			"input lo",
@@ -533,7 +543,10 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]int{0}},
+			[]int{0},
+			[]int{1},
+			nil,
+		},
 		{
 			"input hi",
 			0,
@@ -545,6 +558,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
 			[]int{1},
+			[]int{1},
+			nil,
 		},
 		{
 			"output lo",
@@ -557,6 +572,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
 			[]int{0},
+			[]int{1},
+			nil,
 		},
 		{
 			"output hi",
@@ -569,6 +586,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
 			[]int{1},
+			[]int{1},
+			nil,
 		},
 		{
 			"both lo",
@@ -581,6 +600,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
 			[]int{0},
+			[]int{1},
+			nil,
 		},
 		{
 			"both hi",
@@ -593,6 +614,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
 			[]int{1},
+			[]int{1},
+			nil,
 		},
 		{
 			"falling lo",
@@ -605,6 +628,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
 			[]int{0},
+			[]int{1},
+			nil,
 		},
 		{
 			"falling hi",
@@ -617,6 +642,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
 			[]int{1},
+			[]int{1},
+			nil,
 		},
 		{
 			"rising lo",
@@ -629,6 +656,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
 			[]int{0},
+			[]int{1},
+			nil,
 		},
 		{
 			"rising hi",
@@ -641,6 +670,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
 			[]int{1},
+			[]int{1},
+			nil,
 		},
 		{
 			"input 2a",
@@ -653,6 +684,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{0, 1},
 			},
 			[]int{1, 0},
+			[]int{1, 1},
+			nil,
 		},
 		{
 			"input 2b",
@@ -665,6 +698,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{2, 1},
 			},
 			[]int{0, 1},
+			[]int{1, 1},
+			nil,
 		},
 		{
 			"input 3a",
@@ -677,6 +712,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2},
 			},
 			[]int{0, 1, 1},
+			[]int{1, 1, 1},
+			nil,
 		},
 		{
 			"input 3b",
@@ -689,6 +726,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{0, 2, 1},
 			},
 			[]int{0, 1, 0},
+			[]int{1, 1, 1},
+			nil,
 		},
 		{
 			"input 4a",
@@ -701,6 +740,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2, 3},
 			},
 			[]int{0, 1, 1, 1},
+			[]int{1, 1, 1, 1},
+			nil,
 		},
 		{
 			"input 4b",
@@ -713,6 +754,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0},
 			},
 			[]int{1, 1, 0, 1},
+			[]int{1, 1, 1, 1},
+			nil,
 		},
 		{
 			"input 8a",
@@ -725,6 +768,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{0, 1, 2, 3, 4, 5, 6, 7},
 			},
 			[]int{0, 1, 1, 1, 1, 1, 0, 0},
+			[]int{1, 1, 1, 1, 1, 1, 1, 1},
+			nil,
 		},
 		{
 			"input 8b",
@@ -737,6 +782,8 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0, 4, 5, 6, 7},
 			},
 			[]int{1, 1, 0, 1, 1, 1, 0, 1},
+			[]int{1, 1, 1, 1, 1, 1, 1, 1},
+			nil,
 		},
 		{
 			"atv-lo 8b",
@@ -749,6 +796,22 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0, 4, 5, 6, 7},
 			},
 			[]int{1, 1, 0, 1, 1, 1, 0, 0},
+			[]int{1, 1, 1, 1, 1, 1, 1, 1},
+			nil,
+		},
+		{
+			"sparse atv-lo",
+			1,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2ActiveLow,
+				},
+				Lines:   8,
+				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0, 4, 5, 6, 7},
+			},
+			[]int{1, 1, 0, 1, 1, 1, 0, 0},
+			[]int{1, 0, 1, 1, 0, 1, 0, 1},
+			nil,
 		},
 		{
 			"edge detection lo",
@@ -760,7 +823,10 @@ func TestGetLineValuesV2(t *testing.T) {
 				Lines:   1,
 				Offsets: [uapi.LinesMax]uint32{2},
 			},
-			[]int{0}},
+			[]int{0},
+			[]int{1},
+			nil,
+		},
 		{
 			"edge detection hi",
 			0,
@@ -772,6 +838,22 @@ func TestGetLineValuesV2(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
 			[]int{1},
+			[]int{1},
+			nil,
+		},
+		{
+			"zero mask",
+			0,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
+				},
+				Lines:   4,
+				Offsets: [uapi.LinesMax]uint32{0, 1, 2, 3},
+			},
+			[]int{1, 0, 1, 1},
+			[]int{0, 0, 0, 0},
+			unix.EINVAL,
 		},
 	}
 	for _, p := range patterns {
@@ -794,6 +876,9 @@ func TestGetLineValuesV2(t *testing.T) {
 			defer f.Close()
 			var fd int32
 			xval := p.val
+			for i, v := range p.mask {
+				xval[i] &= v
+			}
 			err = uapi.GetLine(f.Fd(), &p.lr)
 			require.Nil(t, err)
 			fd = p.lr.Fd
@@ -801,16 +886,20 @@ func TestGetLineValuesV2(t *testing.T) {
 				// mock is ignored for outputs
 				xval = make([]int, len(p.val))
 			}
+			mask := uapi.NewLineBits(p.mask...)
 			lvx := uapi.LineValues{
-				Mask: uapi.NewLineBitMask(int(p.lr.Lines)),
+				Mask: mask,
 				Bits: uapi.NewLineBits(xval...),
 			}
 			lv := uapi.LineValues{
-				Mask: uapi.NewLineBitMask(int(p.lr.Lines)),
+				Mask: mask,
+				Bits: uapi.NewLineBits(p.val...),
 			}
 			err = uapi.GetLineValuesV2(uintptr(fd), &lv)
-			assert.Nil(t, err)
-			assert.Equal(t, lvx, lv)
+			assert.Equal(t, p.err, err)
+			if p.err == nil {
+				assert.Equal(t, lvx, lv)
+			}
 			unix.Close(int(fd))
 		}
 		t.Run(p.name, tf)
