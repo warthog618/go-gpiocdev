@@ -860,7 +860,7 @@ func (l *Line) Value() (int, error) {
 		err := uapi.GetLineValues(l.vfd, &hd)
 		return int(hd[0]), err
 	}
-	lv := uapi.LineBits{}
+	lv := uapi.LineValues{Mask: 1}
 	err := uapi.GetLineValuesV2(l.vfd, &lv)
 	return lv.Get(0), err
 }
@@ -885,7 +885,7 @@ func (l *Line) SetValue(value int) error {
 		}
 		return err
 	}
-	lsv := uapi.LineSetValues{
+	lsv := uapi.LineValues{
 		Mask: uapi.NewLineBits(1),
 		Bits: uapi.NewLineBits(value),
 	}
@@ -958,7 +958,7 @@ func (l *Lines) Values(values []int) error {
 		}
 		return nil
 	}
-	lv := uapi.LineBits{}
+	lv := uapi.LineValues{Mask: uapi.NewLineBitMask(lines)}
 	err := uapi.GetLineValuesV2(l.vfd, &lv)
 	if err != nil {
 		return err
@@ -988,15 +988,15 @@ func (l *Lines) SetValues(values []int) error {
 	if len(values) > len(l.offsets) {
 		values = values[:len(l.offsets)]
 	}
-	var vv uapi.LineBits
+	var vv uapi.LineBitmap
 	for i, v := range values {
 		vv.Set(i, v)
 	}
-	lsv := uapi.LineSetValues{
+	lv := uapi.LineValues{
 		Mask: uapi.NewLineBitMask(len(l.offsets)),
 		Bits: vv,
 	}
-	err := uapi.SetLineValuesV2(l.vfd, lsv)
+	err := uapi.SetLineValuesV2(l.vfd, lv)
 	if err == nil {
 		l.config.values = values
 	}

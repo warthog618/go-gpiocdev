@@ -801,8 +801,13 @@ func TestGetLineValuesV2(t *testing.T) {
 				// mock is ignored for outputs
 				xval = make([]int, len(p.val))
 			}
-			lvx := uapi.NewLineBits(xval...)
-			lv := uapi.LineBits{}
+			lvx := uapi.LineValues{
+				Mask: uapi.NewLineBitMask(int(p.lr.Lines)),
+				Bits: uapi.NewLineBits(xval...),
+			}
+			lv := uapi.LineValues{
+				Mask: uapi.NewLineBitMask(int(p.lr.Lines)),
+			}
 			err = uapi.GetLineValuesV2(uintptr(fd), &lv)
 			assert.Nil(t, err)
 			assert.Equal(t, lvx, lv)
@@ -811,8 +816,12 @@ func TestGetLineValuesV2(t *testing.T) {
 		t.Run(p.name, tf)
 	}
 	// badfd
-	lvx := uapi.NewLineBits(0, 0, 0)
-	lv := uapi.NewLineBits(0, 0, 0)
+	lvx := uapi.LineValues{
+		Mask: uapi.NewLineBits(0, 0, 0),
+	}
+	lv := uapi.LineValues{
+		Mask: uapi.NewLineBits(0, 0, 0),
+	}
 	err := uapi.GetLineValuesV2(0, &lv)
 	assert.NotNil(t, err)
 	assert.Equal(t, lvx, lv)
@@ -1137,7 +1146,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			require.Nil(t, err)
 			lv := uapi.NewLineBits(p.val...)
 			mask := uapi.NewLineBits(p.mask...)
-			lsv := uapi.LineSetValues{
+			lsv := uapi.LineValues{
 				Mask: mask,
 				Bits: lv,
 			}
@@ -1167,7 +1176,7 @@ func TestSetLineValuesV2(t *testing.T) {
 	}
 	// badfd
 	err := uapi.SetLineValuesV2(0,
-		uapi.LineSetValues{
+		uapi.LineValues{
 			Mask: uapi.NewLineBits(1),
 			Bits: uapi.NewLineBits(1),
 		})
@@ -1711,7 +1720,7 @@ func TestSetLineConfigV2(t *testing.T) {
 			copy(p.lr.Consumer[:31], p.name)
 			p.lr.Config.NumAttrs = uint32(len(p.ra))
 			for i, a := range p.ra {
-				p.lr.Config.Attrs[i].Mask[0] = 7 // for 3 lines
+				p.lr.Config.Attrs[i].Mask = 7 // for 3 lines
 				a.Encode(&p.lr.Config.Attrs[i].Attr)
 			}
 			err = uapi.GetLine(f.Fd(), &p.lr)
@@ -1720,7 +1729,7 @@ func TestSetLineConfigV2(t *testing.T) {
 			// apply config change
 			p.config.NumAttrs = uint32(len(p.ca))
 			for i, a := range p.ca {
-				p.config.Attrs[i].Mask[0] = 7 // for 3 lines
+				p.config.Attrs[i].Mask = 7 // for 3 lines
 				a.Encode(&p.config.Attrs[i].Attr)
 			}
 			err = uapi.SetLineConfigV2(uintptr(p.lr.Fd), &p.config)
@@ -2131,7 +2140,7 @@ func TestDebounce(t *testing.T) {
 			NumAttrs: 1,
 		},
 	}
-	lr.Config.Attrs[0].Mask[0] = 1
+	lr.Config.Attrs[0].Mask = 1
 	uapi.DebouncePeriod(debouncePeriod).Encode(&lr.Config.Attrs[0].Attr)
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
@@ -2209,7 +2218,7 @@ func TestDebounce(t *testing.T) {
 
 func checkLineValue(t *testing.T, fd int32, n, v int) {
 	t.Helper()
-	lv := uapi.NewLineBits(0)
+	lv := uapi.LineValues{Mask: 1}
 	err := uapi.GetLineValuesV2(uintptr(fd), &lv)
 	assert.Nil(t, err)
 	assert.Equal(t, v, lv.Get(n))

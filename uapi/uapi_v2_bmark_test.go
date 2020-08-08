@@ -78,7 +78,7 @@ func BenchmarkGetLineValuesV2(b *testing.B) {
 	require.Nil(b, err)
 	require.NotNil(b, f)
 	defer unix.Close(int(lr.Fd))
-	var lv uapi.LineBits
+	lv := uapi.LineValues{Mask: 1}
 	for i := 0; i < b.N; i++ {
 		uapi.GetLineValuesV2(uintptr(lr.Fd), &lv)
 	}
@@ -102,11 +102,9 @@ func BenchmarkSetLineValuesV2(b *testing.B) {
 	require.Nil(b, err)
 	require.NotNil(b, f)
 	defer unix.Close(int(lr.Fd))
-	lsv := uapi.LineSetValues{
-		Mask: [uapi.LinesBitmapSize]uint64{1},
-	}
+	lv := uapi.LineValues{Mask: 1}
 	for i := 0; i < b.N; i++ {
-		uapi.SetLineValuesV2(uintptr(lr.Fd), lsv)
+		uapi.SetLineValuesV2(uintptr(lr.Fd), lv)
 	}
 }
 
@@ -129,11 +127,9 @@ func BenchmarkSetLineValuesV2Sparse(b *testing.B) {
 	require.Nil(b, err)
 	require.NotNil(b, f)
 	defer unix.Close(int(lr.Fd))
-	lsv := uapi.LineSetValues{
-		Mask: [uapi.LinesBitmapSize]uint64{0x0a},
-	}
+	lv := uapi.LineValues{Mask: 0x0a}
 	for i := 0; i < b.N; i++ {
-		uapi.SetLineValuesV2(uintptr(lr.Fd), lsv)
+		uapi.SetLineValuesV2(uintptr(lr.Fd), lv)
 	}
 }
 

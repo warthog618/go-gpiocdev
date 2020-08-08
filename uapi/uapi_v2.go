@@ -52,11 +52,11 @@ func GetLine(fd uintptr, request *LineRequest) error {
 // The fd is a requested line, as returned by GetLine.
 //
 // The values returned are the logical values, with inactive being 0.
-func GetLineValuesV2(fd uintptr, values *LineBits) error {
+func GetLineValuesV2(fd uintptr, values *LineValues) error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		fd,
 		uintptr(getLineValuesV2Ioctl),
-		uintptr(unsafe.Pointer(&values[0])))
+		uintptr(unsafe.Pointer(values)))
 	if errno != 0 {
 		return errno
 	}
@@ -66,7 +66,7 @@ func GetLineValuesV2(fd uintptr, values *LineBits) error {
 // SetLineValuesV2 sets the values of a set of requested lines.
 //
 // The fd is a requested line, as returned by GetLine.
-func SetLineValuesV2(fd uintptr, values LineSetValues) error {
+func SetLineValuesV2(fd uintptr, values LineValues) error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		fd,
 		uintptr(setLineValuesV2Ioctl),
@@ -148,10 +148,9 @@ func init() {
 	getLineIoctl = iorw(0xB4, 0x07, unsafe.Sizeof(lr))
 	var lc LineConfig
 	setLineConfigV2Ioctl = iorw(0xB4, 0x0D, unsafe.Sizeof(lc))
-	var lv LineBits
+	var lv LineValues
 	getLineValuesV2Ioctl = iorw(0xB4, 0x0E, unsafe.Sizeof(lv))
-	var lsv LineSetValues
-	setLineValuesV2Ioctl = iorw(0xB4, 0x0F, unsafe.Sizeof(lsv))
+	setLineValuesV2Ioctl = iorw(0xB4, 0x0F, unsafe.Sizeof(lv))
 }
 
 // LineInfoV2 contains the details of a single line of a GPIO chip.
@@ -323,10 +322,6 @@ const (
 	// request.
 	LinesMax int = 64
 
-	// LinesBitmapSize is number of uint64 in a bitmap large enough for
-	// LinesMax.
-	LinesBitmapSize int = (LinesMax + 63) / 64
-
 	// the pad sizes of each struct
 	lineConfigPadSize        int = 5
 	lineRequestPadSize       int = 5
@@ -395,13 +390,13 @@ func (d *DebouncePeriod) Decode(la LineAttribute) {
 }
 
 // Encode populates the LineAttribute with the value from the LineBits.
-func (lv LineBits) Encode(la *LineAttribute) {
-	la.Encode64(LineAttributeIDOutputValues, uint64(lv[0]))
+func (lb LineBitmap) Encode(la *LineAttribute) {
+	la.Encode64(LineAttributeIDOutputValues, uint64(lb))
 }
 
 // Decode populates the LineValues with values from the LineAttribute.
-func (lv LineBits) Decode(la LineAttribute) {
-	lv[0] = la.Value64()
+func (lb *LineBitmap) Decode(la LineAttribute) {
+	*lb = LineBitmap(la.Value64())
 }
 
 // LineConfigAttribute associates a configuration attribute with one or more
@@ -410,7 +405,7 @@ type LineConfigAttribute struct {
 	// Mask identifies the lines to which this attribute applies.
 	//
 	// This is a bitmap of lines in LineRequest.Offsets.
-	Mask LineBits
+	Mask LineBitmap
 
 	// Attr contains the configuration attribute.
 	Attr LineAttribute
@@ -494,68 +489,70 @@ type LineRequest struct {
 	Fd int32
 }
 
-// LineBits is a bitmap containing a bit for each line.
-type LineBits [LinesBitmapSize]uint64
+// LineBitmap is a bitmap containing a bit for each line.
+type LineBitmap uint64
 
 // NewLineBits creates a new LineBits from an array of values.
-func NewLineBits(vv ...int) LineBits {
-	var lv LineBits
+func NewLineBits(vv ...int) LineBitmap {
+	var lb LineBitmap
 	for i, v := range vv {
-		lv.Set(i, v)
+		lb.Set(i, v)
 	}
-	return lv
+	return lb
 }
 
 // NewLineBitMask returns a mask of n bits.
-func NewLineBitMask(n int) LineBits {
-	var lv LineBits
+func NewLineBitMask(n int) LineBitmap {
 	if n >= LinesMax {
 		n = LinesMax
 	}
-	for i := 0; i < n>>6; i++ {
-		lv[i] = 0xffffffffffffffff
+	if n == LinesMax {
+		return 0xffffffffffffffff
 	}
-	remainder := uint(n % 64)
-	if remainder != 0 {
-		lv[n>>6] = (uint64(1) << remainder) - 1
-	}
-	return lv
+	return (LineBitmap(1) << uint(n)) - 1
 }
 
 // Get returns the value of the nth bit.
-func (lv *LineBits) Get(n int) int {
-	idx := n >> 6
-	mask := uint64(1) << uint(n%64)
-	if lv[idx]&mask != 0 {
+func (lb *LineBitmap) Get(n int) int {
+	mask := LineBitmap(1) << uint(n)
+	if *lb&mask != 0 {
 		return 1
 	}
 	return 0
 }
 
 // Set sets the value of the nth bit.
-func (lv *LineBits) Set(n, v int) {
-	idx := n >> 6
-	mask := uint64(1) << uint(n%64)
+func (lb *LineBitmap) Set(n, v int) {
+	mask := LineBitmap(1) << uint(n)
 	if v == 0 {
-		lv[idx] &^= mask
+		*lb &^= mask
 	} else {
-		lv[idx] |= mask
+		*lb |= mask
 	}
 }
 
-// LineSetValues contains the output values for a set of lines.
-type LineSetValues struct {
+// LineValues contains the output values for a set of lines.
+type LineValues struct {
 	// Mask identifies the lines to which this attribute applies.
 	//
 	// This is a bitmap of lines in LineRequest.Offsets.
-	Mask LineBits
+	Mask LineBitmap
 
 	// Bits contains the logical value of the the lines.
 	//
 	// Zero is a logical low (inactive) and 1 is a logical high (active).
 	//
 	// This is a bitmap of lines in LineRequest.Offsets.
-	Bits LineBits
+	Bits LineBitmap
+}
+
+// Get returns the value of the nth bit.
+func (lv *LineValues) Get(n int) int {
+	mask := LineBitmap(1) << uint(n)
+	if lv.Bits&mask != 0 {
+		return 1
+	}
+	return 0
 }
 
 // LineEventID indicates the type of event detected.
