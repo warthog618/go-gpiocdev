@@ -814,6 +814,34 @@ func TestGetLineValuesV2(t *testing.T) {
 			nil,
 		},
 		{
+			"sparse atv-hi",
+			1,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2Input,
+				},
+				Lines:   8,
+				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0, 4, 5, 6, 7},
+			},
+			[]int{1, 1, 0, 1, 1, 1, 0, 0},
+			[]int{1, 0, 1, 1, 0, 1, 0, 1},
+			nil,
+		},
+		{
+			"overwide sparse atv-hi",
+			1,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2Input,
+				},
+				Lines:   8,
+				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0, 4, 5, 6, 7},
+			},
+			[]int{1, 1, 0, 1, 1, 1, 0, 0},
+			[]int{1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1},
+			nil,
+		},
+		{
 			"edge detection lo",
 			0,
 			uapi.LineRequest{
@@ -876,7 +904,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			defer f.Close()
 			var fd int32
 			xval := p.val
-			for i, v := range p.mask {
+			for i, v := range p.mask[:len(p.val)] {
 				xval[i] &= v
 			}
 			err = uapi.GetLine(f.Fd(), &p.lr)
@@ -1149,6 +1177,20 @@ func TestSetLineValuesV2(t *testing.T) {
 			},
 			[]int{0, 1, 1, 1, 1, 1, 0, 0},
 			[]int{1, 0, 1, 0, 1, 1, 0, 1},
+			nil,
+		},
+		{
+			"overwide sparse atv-hi",
+			1,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2Output,
+				},
+				Lines:   8,
+				Offsets: [uapi.LinesMax]uint32{3, 2, 1, 0, 4, 5, 6, 7},
+			},
+			[]int{0, 1, 1, 1, 1, 1, 0, 0},
+			[]int{1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1},
 			nil,
 		},
 		{
