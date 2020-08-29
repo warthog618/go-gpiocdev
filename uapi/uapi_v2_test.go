@@ -449,14 +449,6 @@ func TestGetLineValidation(t *testing.T) {
 				Offsets: [uapi.LinesMax]uint32{1},
 			},
 		},
-		{
-			"non-zero event buffer size",
-			uapi.LineRequest{
-				Lines:           1,
-				Offsets:         [uapi.LinesMax]uint32{1},
-				EventBufferSize: 42,
-			},
-		},
 	}
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
@@ -1713,6 +1705,125 @@ func TestSetLineConfigV2(t *testing.T) {
 			[]AttributeEncoder{uapi.NewLineBits(0, 0, 1)},
 			nil,
 		},
+		{
+			"edge to no edge",
+			0,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
+				},
+				Lines:   3,
+				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
+			},
+			nil,
+			uapi.LineConfig{
+				Flags: uapi.LineFlagV2Input,
+			},
+			nil,
+			nil,
+		},
+		{
+			"edge to none",
+			0,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
+				},
+				Lines:   3,
+				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
+			},
+			nil,
+			uapi.LineConfig{
+				Flags: uapi.LineFlagV2Input,
+			},
+			nil,
+			nil,
+		},
+		{
+			"rising edge to falling edge",
+			0,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
+				},
+				Lines:   3,
+				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
+			},
+			nil,
+			uapi.LineConfig{
+				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising,
+			},
+			nil,
+			nil,
+		},
+		{
+			"output to edge",
+			0,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2Output,
+				},
+				Lines:   3,
+				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
+			},
+			nil,
+			uapi.LineConfig{
+				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
+			},
+			[]AttributeEncoder{uapi.NewLineBits(1, 0, 1)},
+			nil,
+		},
+		{
+			"edge to output",
+			0,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
+				},
+				Lines:   3,
+				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
+			},
+			nil,
+			uapi.LineConfig{
+				Flags: uapi.LineFlagV2Output,
+			},
+			[]AttributeEncoder{uapi.NewLineBits(1, 0, 1)},
+			nil,
+		},
+		{
+			"edge to atv-lo",
+			0,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
+				},
+				Lines:   3,
+				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
+			},
+			nil,
+			uapi.LineConfig{
+				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling | uapi.LineFlagV2ActiveLow,
+			},
+			nil,
+			nil,
+		},
+		{
+			"edge atv-lo to atv-hi",
+			0,
+			uapi.LineRequest{
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling | uapi.LineFlagV2ActiveLow,
+				},
+				Lines:   3,
+				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
+			},
+			nil,
+			uapi.LineConfig{
+				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
+			},
+			nil,
+			nil,
+		},
 		// expected errors
 		{
 			"input drain",
@@ -1778,108 +1889,6 @@ func TestSetLineConfigV2(t *testing.T) {
 			nil,
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2OpenSource,
-			},
-			nil,
-			unix.EINVAL,
-		},
-		{
-			"edge to no edge",
-			0,
-			uapi.LineRequest{
-				Config: uapi.LineConfig{
-					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
-				},
-				Lines:   3,
-				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
-			},
-			nil,
-			uapi.LineConfig{
-				Flags: uapi.LineFlagV2Input,
-			},
-			nil,
-			unix.EINVAL,
-		},
-		{
-			"edge to none",
-			0,
-			uapi.LineRequest{
-				Config: uapi.LineConfig{
-					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
-				},
-				Lines:   3,
-				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
-			},
-			nil,
-			uapi.LineConfig{
-				Flags: uapi.LineFlagV2Input,
-			},
-			nil,
-			unix.EINVAL,
-		},
-		{
-			"rising edge to falling edge",
-			0,
-			uapi.LineRequest{
-				Config: uapi.LineConfig{
-					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
-				},
-				Lines:   3,
-				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
-			},
-			nil,
-			uapi.LineConfig{
-				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising,
-			},
-			nil,
-			unix.EINVAL,
-		},
-		{
-			"edge to output",
-			0,
-			uapi.LineRequest{
-				Config: uapi.LineConfig{
-					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
-				},
-				Lines:   3,
-				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
-			},
-			nil,
-			uapi.LineConfig{
-				Flags: uapi.LineFlagV2Output,
-			},
-			[]AttributeEncoder{uapi.NewLineBits(1, 0, 1)},
-			unix.EINVAL,
-		},
-		{
-			"edge to atv-lo",
-			0,
-			uapi.LineRequest{
-				Config: uapi.LineConfig{
-					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
-				},
-				Lines:   3,
-				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
-			},
-			nil,
-			uapi.LineConfig{
-				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling | uapi.LineFlagV2ActiveLow,
-			},
-			nil,
-			unix.EINVAL,
-		},
-		{
-			"edge atv-lo to atv-hi",
-			0,
-			uapi.LineRequest{
-				Config: uapi.LineConfig{
-					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling | uapi.LineFlagV2ActiveLow,
-				},
-				Lines:   3,
-				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
-			},
-			nil,
-			uapi.LineConfig{
-				Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling,
 			},
 			nil,
 			unix.EINVAL,
