@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	uapiV2Kernel   = mockup.Semver{5, 7} // uapi v2 added
+	uapiV2Kernel   = mockup.Semver{5, 8} // uapi v2 added
 	debouncePeriod = 5 * clkTick
 )
 

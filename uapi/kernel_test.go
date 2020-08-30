@@ -255,6 +255,7 @@ func TestBulkEventRead(t *testing.T) {
 }
 
 func TestBulkEventReadV2(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
 	requireMockup(t)
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
@@ -345,6 +346,314 @@ func TestWatchInfoVersionLockV2(t *testing.T) {
 
 	err = uapi.WatchLineInfoV2(f.Fd(), &li)
 	require.Nil(t, err)
+}
+
+func TestSetConfigEdgeDetection(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
+	requireMockup(t)
+	c, err := mock.Chip(0)
+	require.Nil(t, err)
+
+	require.NotNil(t, c)
+
+	patterns := []struct {
+		name  string
+		flags uapi.LineFlagV2
+	}{
+		{"input", uapi.LineFlagV2Input},
+		{"output", uapi.LineFlagV2Output},
+		{"rising", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising},
+		{"falling", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling},
+		{"both", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth},
+	}
+
+	f, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f.Close()
+	err = c.SetValue(1, 0)
+	require.Nil(t, err)
+	for _, p1 := range patterns {
+		for _, p2 := range patterns {
+			tf := func(t *testing.T) {
+				lr := uapi.LineRequest{
+					Lines:   1,
+					Offsets: [uapi.LinesMax]uint32{1},
+					Config: uapi.LineConfig{
+						Flags: p1.flags,
+					},
+				}
+				err = uapi.GetLine(f.Fd(), &lr)
+				require.Nil(t, err)
+				defer unix.Close(int(lr.Fd))
+
+				xevt := uapi.LineEvent{
+					Offset:    1,
+					LineSeqno: 1,
+					Seqno:     1,
+				}
+				testEdgeDetectionEvents(t, c, lr.Fd, &xevt, p1.flags)
+
+				config := uapi.LineConfig{
+					Flags: p2.flags,
+				}
+				err = uapi.SetLineConfigV2(uintptr(lr.Fd), &config)
+				require.Nil(t, err)
+				testEdgeDetectionEvents(t, c, lr.Fd, &xevt, p2.flags)
+
+				config.Flags = p1.flags
+				err = uapi.SetLineConfigV2(uintptr(lr.Fd), &config)
+				require.Nil(t, err)
+				testEdgeDetectionEvents(t, c, lr.Fd, &xevt, p1.flags)
+			}
+			t.Run(fmt.Sprintf("%s-to-%s", p1.name, p2.name), tf)
+		}
+	}
+}
+
+func testEdgeDetectionEvents(t *testing.T, c *mockup.Chip, fd int32, xevt *uapi.LineEvent, flags uapi.LineFlagV2) {
+	line := int(xevt.Offset)
+	for i := 0; i < 2; i++ {
+		c.SetValue(line, 1)
+		if flags&uapi.LineFlagV2EdgeRising == 0 {
+			evt, err := readLineEventTimeout(fd, spuriousEventWaitTimeout)
+			assert.Nil(t, err)
+			assert.Nil(t, evt, "spurious event")
+		} else {
+			xevt.ID = uapi.LineEventRisingEdge
+			evt, err := readLineEventTimeout(fd, eventWaitTimeout)
+			require.Nil(t, err)
+			require.NotNil(t, evt, flags)
+			evt.Timestamp = 0
+			assert.Equal(t, *xevt, *evt)
+			xevt.LineSeqno++
+			xevt.Seqno++
+		}
+
+		c.SetValue(line, 0)
+		if flags&uapi.LineFlagV2EdgeFalling == 0 {
+			evt, err := readLineEventTimeout(fd, spuriousEventWaitTimeout)
+			assert.Nil(t, err)
+			assert.Nil(t, evt, "spurious event")
+		} else {
+			xevt.ID = uapi.LineEventFallingEdge
+			evt, err := readLineEventTimeout(fd, eventWaitTimeout)
+			require.Nil(t, err)
+			require.NotNil(t, evt)
+			evt.Timestamp = 0
+			assert.Equal(t, *xevt, *evt)
+			xevt.LineSeqno++
+			xevt.Seqno++
+		}
+	}
+}
+
+func TestSetConfigDebouncedEdges(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
+	requireMockup(t)
+	c, err := mock.Chip(0)
+	require.Nil(t, err)
+
+	require.NotNil(t, c)
+	f, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f.Close()
+	err = c.SetValue(1, 0)
+	require.Nil(t, err)
+	lr := uapi.LineRequest{
+		Lines:   1,
+		Offsets: [uapi.LinesMax]uint32{1},
+		Config: uapi.LineConfig{
+			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
+		},
+	}
+	err = uapi.GetLine(f.Fd(), &lr)
+	require.Nil(t, err)
+	defer unix.Close(int(lr.Fd))
+
+	periods := []int{-1, 1, 0, 2}
+	xevt := uapi.LineEvent{
+		Seqno:     1,
+		LineSeqno: 1,
+		Offset:    1,
+	}
+
+	evt, err := readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
+	assert.Nil(t, err)
+	assert.Nil(t, evt, "spurious event")
+
+	for _, period := range periods {
+		if period >= 0 {
+			config := uapi.LineConfig{
+				Flags: lr.Config.Flags,
+			}
+			config.NumAttrs = 1
+			config.Attrs[0].Mask = 1
+			uapi.DebouncePeriod(period).Encode(&config.Attrs[0].Attr)
+			err = uapi.SetLineConfigV2(uintptr(lr.Fd), &config)
+			require.Nil(t, err, period)
+		}
+
+		for i := 0; i < 2; i++ {
+			xevt.ID = uapi.LineEventRisingEdge
+			c.SetValue(1, 1)
+			evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
+			require.Nil(t, err, i)
+			require.NotNil(t, evt, i)
+			evt.Timestamp = 0
+			assert.Equal(t, xevt, *evt, i)
+
+			xevt.LineSeqno++
+			xevt.Seqno++
+			xevt.ID = uapi.LineEventFallingEdge
+			c.SetValue(1, 0)
+			evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
+			require.Nil(t, err, i)
+			require.NotNil(t, evt, i)
+			evt.Timestamp = 0
+			assert.Equal(t, xevt, *evt, i)
+
+			xevt.LineSeqno++
+			xevt.Seqno++
+		}
+	}
+}
+
+func TestGetLineDebouncedEdges(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
+	requireMockup(t)
+	c, err := mock.Chip(0)
+	require.Nil(t, err)
+
+	require.NotNil(t, c)
+	f, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f.Close()
+	err = c.SetValue(1, 0)
+	require.Nil(t, err)
+	lr := uapi.LineRequest{
+		Lines:   1,
+		Offsets: [uapi.LinesMax]uint32{1},
+		Config: uapi.LineConfig{
+			Flags:    uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
+			NumAttrs: 1,
+		},
+	}
+	lr.Config.Attrs[0].Mask = 1
+	uapi.DebouncePeriod(20).Encode(&lr.Config.Attrs[0].Attr)
+	err = uapi.GetLine(f.Fd(), &lr)
+	require.Nil(t, err)
+	defer unix.Close(int(lr.Fd))
+
+	xevt := uapi.LineEvent{
+		Seqno:     1,
+		LineSeqno: 1,
+		Offset:    1,
+	}
+
+	evt, err := readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
+	assert.Nil(t, err)
+	assert.Nil(t, evt, "spurious event")
+
+	for i := 0; i < 2; i++ {
+		xevt.ID = uapi.LineEventRisingEdge
+		c.SetValue(1, 1)
+		evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
+		require.Nil(t, err, i)
+		require.NotNil(t, evt, i)
+		evt.Timestamp = 0
+		assert.Equal(t, xevt, *evt, i)
+
+		xevt.LineSeqno++
+		xevt.Seqno++
+		xevt.ID = uapi.LineEventFallingEdge
+		c.SetValue(1, 0)
+		evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
+		require.Nil(t, err, i)
+		require.NotNil(t, evt, i)
+		evt.Timestamp = 0
+		assert.Equal(t, xevt, *evt, i)
+
+		xevt.LineSeqno++
+		xevt.Seqno++
+	}
+}
+
+func TestSetConfigEdgeDetectionPolarity(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
+	requireMockup(t)
+	c, err := mock.Chip(0)
+	require.Nil(t, err)
+
+	require.NotNil(t, c)
+	f, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f.Close()
+	err = c.SetValue(1, 0)
+	require.Nil(t, err)
+	lr := uapi.LineRequest{
+		Lines:   1,
+		Offsets: [uapi.LinesMax]uint32{1},
+		Config: uapi.LineConfig{
+			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising,
+		},
+	}
+	err = uapi.GetLine(f.Fd(), &lr)
+	require.Nil(t, err)
+	defer unix.Close(int(lr.Fd))
+
+	flags := []uapi.LineFlagV2{0, uapi.LineFlagV2ActiveLow, 0, uapi.LineFlagV2ActiveLow}
+	xevt := uapi.LineEvent{
+		Seqno:     1,
+		LineSeqno: 1,
+		Offset:    1,
+		ID:        uapi.LineEventRisingEdge,
+	}
+
+	evt, err := readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
+	assert.Nil(t, err)
+	assert.Nil(t, evt, "spurious event")
+
+	for _, flag := range flags {
+		config := uapi.LineConfig{
+			Flags: lr.Config.Flags | flag,
+		}
+		err = uapi.SetLineConfigV2(uintptr(lr.Fd), &config)
+		require.Nil(t, err, flag)
+
+		if flag == 0 {
+			for i := 0; i < 2; i++ {
+				c.SetValue(1, 1)
+				evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
+				require.Nil(t, err, i)
+				require.NotNil(t, evt, i)
+				evt.Timestamp = 0
+				assert.Equal(t, xevt, *evt, i)
+
+				xevt.LineSeqno++
+				xevt.Seqno++
+				c.SetValue(1, 0)
+				evt, err := readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
+				assert.Nil(t, err, i)
+				assert.Nil(t, evt, "spurious event", i)
+			}
+		} else {
+			for i := 0; i < 2; i++ {
+				c.SetValue(1, 1)
+				evt, err := readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
+				assert.Nil(t, err, i)
+				assert.Nil(t, evt, "spurious event", i)
+
+				c.SetValue(1, 0)
+				evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
+				require.Nil(t, err, i)
+				require.NotNil(t, evt, i)
+				evt.Timestamp = 0
+				assert.Equal(t, xevt, *evt, i)
+				xevt.LineSeqno++
+				xevt.Seqno++
+			}
+		}
+	}
 }
 
 func TestOutputSets(t *testing.T) {
