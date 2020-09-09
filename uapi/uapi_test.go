@@ -1377,6 +1377,7 @@ func TestReadEvent(t *testing.T) {
 	}
 	err = uapi.GetLineEvent(f.Fd(), &er)
 	require.Nil(t, err)
+	defer unix.Close(int(er.Fd))
 
 	evt, err := readEventTimeout(uintptr(er.Fd), time.Second)
 	assert.Nil(t, err)
@@ -1393,8 +1394,6 @@ func TestReadEvent(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, evt)
 	assert.Equal(t, uint32(1), evt.ID) // returns rising edge
-
-	unix.Close(int(er.Fd))
 }
 
 func readEventTimeout(fd uintptr, t time.Duration) (*uapi.EventData, error) {
