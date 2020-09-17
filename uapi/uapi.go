@@ -553,18 +553,3 @@ func (f EventFlag) IsFallingEdge() bool {
 func (f EventFlag) IsBothEdges() bool {
 	return f&EventRequestBothEdges == EventRequestBothEdges
 }
-
-// EventData contains the details of a particular line event.
-//
-// This is returned via the event request fd in response to events.
-type EventData struct {
-	// The time the event was detected.
-	Timestamp uint64
-
-	// The type of event detected.
-	ID uint32
-
-	// pad to workaround 64bit OS padding
-	_ uint32
-}
-
