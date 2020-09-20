@@ -448,6 +448,61 @@ func testEdgeDetectionEvents(t *testing.T, c *mockup.Chip, fd int32, xevt *uapi.
 }
 
 func TestEventBufferOverflow(t *testing.T) {
+	requireMockup(t)
+	c, err := mock.Chip(0)
+	require.Nil(t, err)
+
+	require.NotNil(t, c)
+
+	f, err := os.Open(c.DevPath)
+	require.Nil(t, err)
+	defer f.Close()
+	err = c.SetValue(1, 1)
+	require.Nil(t, err)
+	er := uapi.EventRequest{
+		Offset: 1,
+		HandleFlags: uapi.HandleRequestInput |
+			uapi.HandleRequestActiveLow,
+		EventFlags: uapi.EventRequestBothEdges,
+	}
+	err = uapi.GetLineEvent(f.Fd(), &er)
+	require.Nil(t, err)
+	defer unix.Close(int(er.Fd))
+
+	for i := 0; i < 19; i++ {
+		err = c.SetValue(1, i&1)
+		require.Nil(t, err)
+		time.Sleep(clkTick)
+	}
+	// last 3 events should be discarded by the kernel
+	xevt := uapi.EventData{}
+	for i := 0; i < 16; i++ {
+		evt, err := readEventTimeout(er.Fd, eventWaitTimeout)
+		require.Nil(t, err)
+		require.NotNil(t, evt)
+		evt.Timestamp = 0
+		// events are out of sync due to overflow...
+		if i&1 != 0 {
+			xevt.ID = uapi.EventRequestFallingEdge
+		} else {
+			xevt.ID = uapi.EventRequestRisingEdge
+		}
+		assert.Equal(t, xevt, *evt)
+	}
+	// actual state is high while final event was falling...
+	var hd uapi.HandleData
+	var hdx uapi.HandleData
+	hdx[0] = 1
+	err = uapi.GetLineValues(uintptr(er.Fd), &hd)
+	assert.Nil(t, err)
+	assert.Equal(t, hdx, hd)
+
+	evt, err := readEventTimeout(er.Fd, spuriousEventWaitTimeout)
+	assert.Nil(t, err)
+	assert.Nil(t, evt, "spurious event")
+}
+
+func TestEventBufferOverflowV2(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
 	requireMockup(t)
 	c, err := mock.Chip(0)
@@ -476,10 +531,11 @@ func TestEventBufferOverflow(t *testing.T) {
 		require.Nil(t, err)
 		time.Sleep(clkTick)
 	}
+	// first 4 events should be discarded by the kernel
 	xevt := uapi.LineEvent{
 		Offset:    1,
-		LineSeqno: 1,
-		Seqno:     1,
+		LineSeqno: 5,
+		Seqno:     5,
 	}
 	for i := 0; i < 16; i++ {
 		evt, err := readLineEventTimeout(lr.Fd, eventWaitTimeout)
