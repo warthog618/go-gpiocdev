@@ -15,7 +15,7 @@ type EventData struct {
 	Timestamp uint64
 
 	// The type of event detected.
-	ID uint32
+	ID EventFlag
 
 	// No pad required for i386.
 }

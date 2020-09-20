@@ -1387,13 +1387,13 @@ func TestReadEvent(t *testing.T) {
 	evt, err = readEventTimeout(uintptr(er.Fd), time.Second)
 	require.Nil(t, err)
 	require.NotNil(t, evt)
-	assert.Equal(t, uint32(2), evt.ID) // returns falling edge
+	assert.Equal(t, uapi.EventRequestFallingEdge, evt.ID)
 
 	c.SetValue(1, 0)
 	evt, err = readEventTimeout(uintptr(er.Fd), time.Second)
 	assert.Nil(t, err)
 	require.NotNil(t, evt)
-	assert.Equal(t, uint32(1), evt.ID) // returns rising edge
+	assert.Equal(t, uapi.EventRequestRisingEdge, evt.ID)
 }
 
 func readEventTimeout(fd uintptr, t time.Duration) (*uapi.EventData, error) {
