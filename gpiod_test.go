@@ -459,7 +459,12 @@ func TestLineReconfigure(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	err = l.Reconfigure(gpiod.AsActiveLow)
-	assert.Equal(t, unix.EINVAL, err)
+	switch l.UapiAbiVersion() {
+	case 1:
+		assert.Equal(t, unix.EINVAL, err)
+	case 2:
+		assert.Nil(t, err)
+	}
 	l.Close()
 }
 

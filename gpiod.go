@@ -743,6 +743,11 @@ type baseLine struct {
 	watcher io.Closer
 }
 
+// UapiAbiVersion returns the version of the GPIO uAPI the line is using.
+func (l *baseLine) UapiAbiVersion() int {
+	return l.abi
+}
+
 // Chip returns the name of the chip from which the line was requested.
 func (l *baseLine) Chip() string {
 	return l.chip
