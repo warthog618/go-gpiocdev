@@ -402,13 +402,13 @@ func (lb *LineBitmap) Decode(la LineAttribute) {
 // LineConfigAttribute associates a configuration attribute with one or more
 // requested lines.
 type LineConfigAttribute struct {
+	// Attr contains the configuration attribute.
+	Attr LineAttribute
+
 	// Mask identifies the lines to which this attribute applies.
 	//
 	// This is a bitmap of lines in LineRequest.Offsets.
 	Mask LineBitmap
-
-	// Attr contains the configuration attribute.
-	Attr LineAttribute
 }
 
 // LineConfig contains the configuration of a line.
@@ -533,17 +533,17 @@ func (lb *LineBitmap) Set(n, v int) {
 
 // LineValues contains the output values for a set of lines.
 type LineValues struct {
-	// Mask identifies the lines to which this attribute applies.
-	//
-	// This is a bitmap of lines in LineRequest.Offsets.
-	Mask LineBitmap
-
 	// Bits contains the logical value of the the lines.
 	//
 	// Zero is a logical low (inactive) and 1 is a logical high (active).
 	//
 	// This is a bitmap of lines in LineRequest.Offsets.
 	Bits LineBitmap
+
+	// Mask identifies the lines to which this attribute applies.
+	//
+	// This is a bitmap of lines in LineRequest.Offsets.
+	Mask LineBitmap
 }
 
 // Get returns the value of the nth bit.
