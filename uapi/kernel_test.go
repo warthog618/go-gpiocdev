@@ -835,6 +835,9 @@ func TestEdgeDetectionLinesMax(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
+	lv := uapi.LineValues{
+		Mask: uapi.NewLineBitMask(uapi.LinesMax),
+	}
 	for i := 0; i < uapi.LinesMax; i++ {
 		c.SetValue(i, 1)
 		evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
@@ -842,6 +845,10 @@ func TestEdgeDetectionLinesMax(t *testing.T) {
 		require.NotNil(t, evt)
 		assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
 		assert.Equal(t, uint32(i), evt.Offset)
+
+		err = uapi.GetLineValuesV2(uintptr(lr.Fd), &lv)
+		assert.Nil(t, err)
+		assert.Equal(t, 1, lv.Bits.Get(i))
 	}
 
 	for i := 0; i < uapi.LinesMax; i++ {
@@ -851,6 +858,10 @@ func TestEdgeDetectionLinesMax(t *testing.T) {
 		require.NotNil(t, evt)
 		assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
 		assert.Equal(t, uint32(i), evt.Offset)
+
+		err = uapi.GetLineValuesV2(uintptr(lr.Fd), &lv)
+		assert.Nil(t, err)
+		assert.Equal(t, 0, lv.Bits.Get(i))
 	}
 
 	evt, err = readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
