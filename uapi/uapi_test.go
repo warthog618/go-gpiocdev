@@ -93,7 +93,7 @@ func TestGetLineInfo(t *testing.T) {
 	for n := 0; n < mock.Chips(); n++ {
 		c, err := mock.Chip(n)
 		require.Nil(t, err)
-		for l := 0; l < c.Lines; l++ {
+		for l := 0; l <= c.Lines; l++ {
 			f := func(t *testing.T) {
 				f, err := os.Open(c.DevPath)
 				require.Nil(t, err)
@@ -105,8 +105,12 @@ func TestGetLineInfo(t *testing.T) {
 				copy(xli.Name[:], fmt.Sprintf("%s-%d", c.Label, l))
 				copy(xli.Consumer[:], "")
 				li, err := uapi.GetLineInfo(f.Fd(), l)
-				assert.Nil(t, err)
-				assert.Equal(t, xli, li)
+				if l < c.Lines {
+					assert.Nil(t, err)
+					assert.Equal(t, xli, li)
+				} else {
+					assert.Equal(t, unix.EINVAL, err)
+				}
 			}
 			t.Run(fmt.Sprintf("%s-%d", c.Name, l), f)
 		}
@@ -295,6 +299,7 @@ func TestGetLineEvent(t *testing.T) {
 			er := uapi.EventRequest{
 				Offset:      p.offset,
 				HandleFlags: p.handleFlag,
+				EventFlags:  p.eventFlag,
 			}
 			copy(er.Consumer[:], p.name)
 			err = uapi.GetLineEvent(f.Fd(), &er)
