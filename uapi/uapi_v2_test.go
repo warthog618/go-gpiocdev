@@ -36,7 +36,7 @@ func TestGetLineInfoV2(t *testing.T) {
 	for n := 0; n < mock.Chips(); n++ {
 		c, err := mock.Chip(n)
 		require.Nil(t, err)
-		for l := 0; l < c.Lines; l++ {
+		for l := 0; l <= c.Lines; l++ {
 			f := func(t *testing.T) {
 				f, err := os.Open(c.DevPath)
 				require.Nil(t, err)
@@ -48,8 +48,12 @@ func TestGetLineInfoV2(t *testing.T) {
 				copy(xli.Name[:], fmt.Sprintf("%s-%d", c.Label, l))
 				copy(xli.Consumer[:], "")
 				li, err := uapi.GetLineInfoV2(f.Fd(), l)
-				assert.Nil(t, err)
-				assert.Equal(t, xli, li)
+				if l < c.Lines {
+					assert.Nil(t, err)
+					assert.Equal(t, xli, li)
+				} else {
+					assert.Equal(t, unix.EINVAL, err)
+				}
 			}
 			t.Run(fmt.Sprintf("%s-%d", c.Name, l), f)
 		}
@@ -457,6 +461,7 @@ func TestGetLineValidation(t *testing.T) {
 	defer f.Close()
 	for _, p := range patterns {
 		tf := func(t *testing.T) {
+			copy(p.lr.Consumer[:31], "test-get-line-validation")
 			err = uapi.GetLine(f.Fd(), &p.lr)
 			assert.Equal(t, unix.EINVAL, err)
 		}
@@ -927,6 +932,7 @@ func TestGetLineValuesV2(t *testing.T) {
 			for i, v := range p.mask[:len(p.val)] {
 				xval[i] &= v
 			}
+			copy(p.lr.Consumer[:31], "test-get-line-values-V2")
 			err = uapi.GetLine(f.Fd(), &p.lr)
 			require.Nil(t, err)
 			fd = p.lr.Fd
@@ -1321,6 +1327,7 @@ func TestSetLineValuesV2(t *testing.T) {
 			f, err := os.Open(c.DevPath)
 			require.Nil(t, err)
 			defer f.Close()
+			copy(p.lr.Consumer[:31], "test-set-line-values-V2")
 			err = uapi.GetLine(f.Fd(), &p.lr)
 			require.Nil(t, err)
 			lv := uapi.NewLineBits(p.val...)
@@ -1970,7 +1977,7 @@ func TestSetLineConfigV2(t *testing.T) {
 	}
 }
 
-func TestSetLineV2Validation(t *testing.T) {
+func TestSetLineConfigV2Validation(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
 	requireMockup(t)
 	patterns := []struct {

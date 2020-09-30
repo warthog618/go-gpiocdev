@@ -34,6 +34,7 @@ func TestRepeatedGetLineHandle(t *testing.T) {
 		Lines:   2,
 		Offsets: [uapi.HandlesMax]uint32{1, 3},
 	}
+	copy(hr.Consumer[:31], "test-repeated-get-line-handle")
 
 	// input
 	err = uapi.GetLineHandle(f.Fd(), &hr)
@@ -67,6 +68,7 @@ func TestRepeatedGetLineEvent(t *testing.T) {
 		HandleFlags: uapi.HandleRequestInput,
 		EventFlags:  uapi.EventRequestBothEdges,
 	}
+	copy(er.Consumer[:31], "test-repeated-get-line-event")
 
 	// input
 	err = uapi.GetLineEvent(f.Fd(), &er)
@@ -95,6 +97,7 @@ func TestRepeatedGetLine(t *testing.T) {
 		Lines:   2,
 		Offsets: [uapi.LinesMax]uint32{1, 3},
 	}
+	copy(lr.Consumer[:31], "test-repeated-get-line")
 
 	// input
 	err = uapi.GetLine(f.Fd(), &lr)
@@ -179,7 +182,7 @@ func TestWatchIsolation(t *testing.T) {
 	// request line
 	hr := uapi.HandleRequest{Lines: 1, Flags: uapi.HandleRequestInput}
 	hr.Offsets[0] = 3
-	copy(hr.Consumer[:], "testwatch")
+	copy(hr.Consumer[:], "test-watch-isolation")
 	err = uapi.GetLineHandle(f2.Fd(), &hr)
 	assert.Nil(t, err)
 	chg, err = readLineInfoChangedTimeout(f1.Fd(), eventWaitTimeout)
@@ -187,7 +190,7 @@ func TestWatchIsolation(t *testing.T) {
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedRequested, chg.Type)
 	xli.Flags |= uapi.LineFlagUsed
-	copy(xli.Consumer[:], "testwatch")
+	copy(xli.Consumer[:], "test-watch-isolation")
 	assert.Equal(t, xli, chg.Info)
 
 	chg, err = readLineInfoChangedTimeout(f2.Fd(), spuriousEventWaitTimeout)
@@ -229,6 +232,7 @@ func TestBulkEventRead(t *testing.T) {
 			uapi.HandleRequestActiveLow,
 		EventFlags: uapi.EventRequestBothEdges,
 	}
+	copy(er.Consumer[:31], "test-bulk-event-read")
 	err = uapi.GetLineEvent(f.Fd(), &er)
 	require.Nil(t, err)
 
@@ -271,6 +275,7 @@ func TestBulkEventReadV2(t *testing.T) {
 			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
 		},
 	}
+	copy(lr.Consumer[:31], "test-bulk-event-read-V2")
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 
@@ -382,6 +387,7 @@ func TestSetConfigEdgeDetection(t *testing.T) {
 						Flags: p1.flags,
 					},
 				}
+				copy(lr.Consumer[:31], "test-set-config-edge-detection")
 				err = uapi.GetLine(f.Fd(), &lr)
 				require.Nil(t, err)
 				defer unix.Close(int(lr.Fd))
@@ -465,6 +471,7 @@ func TestEventBufferOverflow(t *testing.T) {
 			uapi.HandleRequestActiveLow,
 		EventFlags: uapi.EventRequestBothEdges,
 	}
+	copy(er.Consumer[:31], "test-event-buffer-overflow")
 	err = uapi.GetLineEvent(f.Fd(), &er)
 	require.Nil(t, err)
 	defer unix.Close(int(er.Fd))
@@ -522,6 +529,7 @@ func TestEventBufferOverflowV2(t *testing.T) {
 			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
 		},
 	}
+	copy(lr.Consumer[:31], "test-event-buffer-overflow-V2")
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 	defer unix.Close(int(lr.Fd))
@@ -575,6 +583,7 @@ func TestSetConfigDebouncedEdges(t *testing.T) {
 			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
 		},
 	}
+	copy(lr.Consumer[:31], "test-set-config-debounced-edges")
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 	defer unix.Close(int(lr.Fd))
@@ -647,6 +656,7 @@ func TestGetLineDebouncedEdges(t *testing.T) {
 			NumAttrs: 1,
 		},
 	}
+	copy(lr.Consumer[:31], "test-get-line-debounced-edges")
 	lr.Config.Attrs[0].Mask = 1
 	uapi.DebouncePeriod(20).Encode(&lr.Config.Attrs[0].Attr)
 	err = uapi.GetLine(f.Fd(), &lr)
@@ -706,6 +716,7 @@ func TestSetConfigEdgeDetectionPolarity(t *testing.T) {
 			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising,
 		},
 	}
+	copy(lr.Consumer[:31], "test-set-config-edge-detection-polarity")
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 	defer unix.Close(int(lr.Fd))
@@ -828,6 +839,7 @@ func TestEdgeDetectionLinesMax(t *testing.T) {
 			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
 		},
 	}
+	copy(lr.Consumer[:31], "test-edge-detection-lines-max")
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 

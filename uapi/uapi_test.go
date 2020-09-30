@@ -808,6 +808,7 @@ func TestGetLineValues(t *testing.T) {
 					Flags: p.handleFlag,
 					Lines: uint32(len(p.offsets)),
 				}
+				copy(hr.Consumer[:31], "test-get-line-values")
 				copy(hr.Offsets[:], p.offsets)
 				err := uapi.GetLineHandle(f.Fd(), &hr)
 				require.Nil(t, err)
@@ -823,6 +824,7 @@ func TestGetLineValues(t *testing.T) {
 					HandleFlags: p.handleFlag,
 					EventFlags:  p.evtFlag,
 				}
+				copy(er.Consumer[:31], "test-get-line-values")
 				err = uapi.GetLineEvent(f.Fd(), &er)
 				require.Nil(t, err)
 				fd = er.Fd
@@ -1008,6 +1010,7 @@ func TestSetLineValues(t *testing.T) {
 				Flags: p.handleFlag,
 				Lines: uint32(len(p.offsets)),
 			}
+			copy(hr.Consumer[:31], "test-set-line-values")
 			copy(hr.Offsets[:], p.offsets)
 			err = uapi.GetLineHandle(f.Fd(), &hr)
 			require.Nil(t, err)
