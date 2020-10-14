@@ -235,6 +235,10 @@ const (
 	// LineFlagV2BiasDisabled indicates that the line bias is disabled.
 	LineFlagV2BiasDisabled
 
+	// LineFlagV2EventClockRealtime indicates that the CLOCK_REALTIME will be
+	// the source for event timestamps.
+	LineFlagV2EventClockRealtime
+
 	// LineFlagV2DirectionMask is a mask for all direction flags.
 	LineFlagV2DirectionMask = LineFlagV2Input | LineFlagV2Output
 

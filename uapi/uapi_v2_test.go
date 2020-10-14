@@ -2197,6 +2197,8 @@ func TestReadLineEvent(t *testing.T) {
 	require.Nil(t, err)
 	err = c.SetValue(2, 1)
 	require.Nil(t, err)
+
+	// active low, both edges
 	lr := uapi.LineRequest{
 		Lines:   2,
 		Offsets: [uapi.LinesMax]uint32{1, 2},
@@ -2257,6 +2259,7 @@ func TestReadLineEvent(t *testing.T) {
 
 	unix.Close(int(lr.Fd))
 
+	// falling edge
 	lr.Config.Flags &^= uapi.LineFlagV2EdgeRising
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
@@ -2279,6 +2282,7 @@ func TestReadLineEvent(t *testing.T) {
 
 	unix.Close(int(lr.Fd))
 
+	// active hi, rising edge
 	lr.Lines = 1
 	lr.Config.Flags &^= uapi.LineFlagV2ActiveLow | uapi.LineFlagV2EdgeMask
 	lr.Config.Flags |= uapi.LineFlagV2EdgeRising
@@ -2303,6 +2307,42 @@ func TestReadLineEvent(t *testing.T) {
 	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 	require.Nil(t, err)
 	require.NotNil(t, evt)
+	evt.Timestamp = 0
+	xevt.ID = uapi.LineEventRisingEdge
+	xevt.Seqno++
+	xevt.LineSeqno++
+	assert.Equal(t, xevt, *evt)
+
+	unix.Close(int(lr.Fd))
+
+	// realtime timestamp
+	lr.Lines = 1
+	lr.Config.Flags |= uapi.LineFlagV2EventClockRealtime | uapi.LineFlagV2EdgeBoth
+	err = uapi.GetLine(f.Fd(), &lr)
+	require.Nil(t, err)
+
+	start := time.Now()
+	c.SetValue(1, 0)
+	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
+	end := time.Now()
+	require.Nil(t, err)
+	require.NotNil(t, evt)
+	assert.LessOrEqual(t, uint64(start.UnixNano()), evt.Timestamp)
+	assert.GreaterOrEqual(t, uint64(end.UnixNano()), evt.Timestamp)
+	evt.Timestamp = 0
+	xevt.ID = uapi.LineEventFallingEdge
+	xevt.Seqno = 1
+	xevt.LineSeqno = 1
+	assert.Equal(t, xevt, *evt)
+
+	start = time.Now()
+	c.SetValue(1, 1)
+	evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
+	end = time.Now()
+	require.Nil(t, err)
+	require.NotNil(t, evt)
+	assert.LessOrEqual(t, uint64(start.UnixNano()), evt.Timestamp)
+	assert.GreaterOrEqual(t, uint64(end.UnixNano()), evt.Timestamp)
 	evt.Timestamp = 0
 	xevt.ID = uapi.LineEventRisingEdge
 	xevt.Seqno++
