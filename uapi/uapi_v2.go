@@ -321,6 +321,12 @@ func (f LineFlagV2) IsBiasPullDown() bool {
 	return f&LineFlagV2BiasPullDown != 0
 }
 
+// HasRealtimeEventClock returns true if the line events will contain real-time
+// timestamps.
+func (f LineFlagV2) HasRealtimeEventClock() bool {
+	return f&LineFlagV2EventClockRealtime != 0
+}
+
 const (
 	// LinesMax is the maximum number of lines that can be requested in a single
 	// request.
@@ -380,7 +386,7 @@ const (
 )
 
 // DebouncePeriod specifies the time the line must be stable before a level
-// transisition is recognized.
+// transition is recognized.
 type DebouncePeriod time.Duration
 
 // Encode populates the LineAttribute with the value from the DebouncePeriod.
@@ -393,14 +399,16 @@ func (d *DebouncePeriod) Decode(la LineAttribute) {
 	*d = DebouncePeriod(la.Value32() * 1000)
 }
 
-// Encode populates the LineAttribute with the value from the LineBits.
-func (lb LineBitmap) Encode(la *LineAttribute) {
-	la.Encode64(LineAttributeIDOutputValues, uint64(lb))
+type OutputValues LineBitmap
+
+// Encode populates the LineAttribute with the values from the OutputValues.
+func (ov OutputValues) Encode(la *LineAttribute) {
+	la.Encode64(LineAttributeIDOutputValues, uint64(ov))
 }
 
-// Decode populates the LineValues with values from the LineAttribute.
-func (lb *LineBitmap) Decode(la LineAttribute) {
-	*lb = LineBitmap(la.Value64())
+// Decode populates the OutputValues with values from the LineAttribute.
+func (ov *OutputValues) Decode(la LineAttribute) {
+	*ov = OutputValues(la.Value64())
 }
 
 // LineConfigAttribute associates a configuration attribute with one or more
@@ -496,11 +504,11 @@ type LineRequest struct {
 // LineBitmap is a bitmap containing a bit for each line.
 type LineBitmap uint64
 
-// NewLineBits creates a new LineBits from an array of values.
+// NewLineBits creates a new LineBitmap from an array of bit numbers.
 func NewLineBits(vv ...int) LineBitmap {
 	var lb LineBitmap
-	for i, v := range vv {
-		lb.Set(i, v)
+	for _, bit := range vv {
+		lb.Set(bit, 1)
 	}
 	return lb
 }
