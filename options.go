@@ -273,6 +273,8 @@ func WithBothEdges(e func(LineEvent)) EdgeOption {
 }
 
 // DebounceOption indicates that a line will be debounced.
+//
+// The DebounceOption requires Linux v5.10 or later.
 type DebounceOption struct {
 	period time.Duration
 }
@@ -288,6 +290,8 @@ func (o DebounceOption) applyLineOption(l *LineOptions) {
 //
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
+//
+// Requires Linux v5.10 or later.
 func WithDebounce(period time.Duration) DebounceOption {
 	return DebounceOption{period}
 }
@@ -308,6 +312,8 @@ func (o ABIVersionOption) applyLineOption(l *LineOptions) {
 // WithABIVersion indicates the version of the GPIO ioctls to use.
 //
 // The default is to use the latest version supported by the kernel.
+//
+// ABI version 2 requires Linux v5.10 or later.
 func WithABIVersion(version int) ABIVersionOption {
 	return ABIVersionOption(version)
 }
