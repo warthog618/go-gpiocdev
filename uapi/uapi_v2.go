@@ -513,6 +513,15 @@ func NewLineBits(vv ...int) LineBitmap {
 	return lb
 }
 
+// NewLineBitmap creates a bitmap from an array of bit values.
+func NewLineBitmap(vv ...int) LineBitmap {
+	var lb LineBitmap
+	for i, v := range vv {
+		lb.Set(i, v)
+	}
+	return lb
+}
+
 // NewLineBitMask returns a mask of n bits.
 func NewLineBitMask(n int) LineBitmap {
 	if n >= LinesMax {

@@ -647,7 +647,7 @@ func lineConfigToLineConfig(lc LineConfig, lines int) uapi.LineConfig {
 			ulc.Flags |= uapi.LineFlagV2OpenSource
 		}
 		if len(lc.values) > 0 {
-			lv := uapi.NewLineBits(lc.values...)
+			lv := uapi.OutputValues(uapi.NewLineBitmap(lc.values...))
 			ulc.Attrs[ulc.NumAttrs].Mask = uapi.NewLineBitMask(lines)
 			lv.Encode(&ulc.Attrs[ulc.NumAttrs].Attr)
 			ulc.NumAttrs++
@@ -891,8 +891,8 @@ func (l *Line) SetValue(value int) error {
 		return err
 	}
 	lsv := uapi.LineValues{
-		Mask: uapi.NewLineBits(1),
-		Bits: uapi.NewLineBits(value),
+		Mask: 1,
+		Bits: uapi.NewLineBitmap(value),
 	}
 	err := uapi.SetLineValuesV2(l.vfd, lsv)
 	if err == nil {
@@ -993,13 +993,20 @@ func (l *Lines) SetValues(values []int) error {
 	if len(values) > len(l.offsets) {
 		values = values[:len(l.offsets)]
 	}
-	var vv uapi.LineBitmap
-	for i, v := range values {
-		vv.Set(i, v)
+	if l.abi == 1 {
+		hd := uapi.HandleData{}
+		for i, v := range values {
+			hd[i] = uint8(v)
+		}
+		err := uapi.SetLineValues(l.vfd, hd)
+		if err == nil {
+			l.config.values = append([]int(nil), values...)
+		}
+		return err
 	}
 	lv := uapi.LineValues{
 		Mask: uapi.NewLineBitMask(len(l.offsets)),
-		Bits: vv,
+		Bits: uapi.NewLineBitmap(values...),
 	}
 	err := uapi.SetLineValuesV2(l.vfd, lv)
 	if err == nil {
