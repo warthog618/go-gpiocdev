@@ -471,11 +471,17 @@ func (c *Chip) RequestLines(offsets []int, options ...LineOption) (*Lines, error
 	var err error
 	if ll.abi == 2 {
 		ll.vfd, ll.watcher, err = c.getLine(ll.offsets, lo)
-	} else if lo.eh != nil {
-		ll.isEvent = true
-		ll.vfd, ll.watcher, err = c.getEventRequest(ll.offsets, lo)
 	} else {
-		ll.vfd, err = c.getHandleRequest(ll.offsets, lo)
+		err = lo.Config.v1Validate()
+		if err != nil {
+			return nil, err
+		}
+		if lo.eh == nil {
+			ll.vfd, err = c.getHandleRequest(ll.offsets, lo)
+		} else {
+			ll.isEvent = true
+			ll.vfd, ll.watcher, err = c.getEventRequest(ll.offsets, lo)
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -562,7 +568,7 @@ func (c *Chip) getLine(offsets []int, lo LineOptions) (uintptr, io.Closer, error
 	lines := len(offsets)
 	lr := uapi.LineRequest{
 		Lines:  uint32(lines),
-		Config: lineConfigToLineConfig(lo.Config, lines),
+		Config: lo.Config.toULineConfig(lines),
 	}
 	copy(lr.Consumer[:len(lr.Consumer)-1], lo.consumer)
 	// copy(hr.Offsets[:], offsets) - with cast
@@ -584,7 +590,7 @@ func (c *Chip) getLine(offsets []int, lo LineOptions) (uintptr, io.Closer, error
 	return uintptr(lr.Fd), w, nil
 }
 
-func lineConfigToHandleFlags(lc LineConfig) uapi.HandleFlag {
+func (lc LineConfig) toHandleFlags() uapi.HandleFlag {
 	var flags uapi.HandleFlag
 
 	if lc.ActiveLow {
@@ -617,7 +623,7 @@ func lineConfigToHandleFlags(lc LineConfig) uapi.HandleFlag {
 	return flags
 }
 
-func lineConfigToEventFlag(lc LineConfig) uapi.EventFlag {
+func (lc LineConfig) toEventFlags() uapi.EventFlag {
 	switch lc.EdgeDetection {
 	case LineEdgeBoth:
 		return uapi.EventRequestBothEdges
@@ -630,7 +636,7 @@ func lineConfigToEventFlag(lc LineConfig) uapi.EventFlag {
 	}
 }
 
-func lineConfigToLineConfig(lc LineConfig, lines int) uapi.LineConfig {
+func (lc LineConfig) toULineConfig(lines int) uapi.LineConfig {
 	var ulc uapi.LineConfig
 
 	ulc.Flags = 0
@@ -678,14 +684,21 @@ func lineConfigToLineConfig(lc LineConfig, lines int) uapi.LineConfig {
 	return ulc
 }
 
+func (lc LineConfig) v1Validate() error {
+	if lc.Debounced {
+		return ErrUapiIncompatibility{"debounce", 1}
+	}
+	return nil
+}
+
 func (c *Chip) getEventRequest(offsets []int, lo LineOptions) (uintptr, io.Closer, error) {
 	var vfd uintptr
 	fds := make(map[int]int)
 	for i, o := range offsets {
 		er := uapi.EventRequest{
 			Offset:      uint32(o),
-			HandleFlags: lineConfigToHandleFlags(lo.Config),
-			EventFlags:  lineConfigToEventFlag(lo.Config),
+			HandleFlags: lo.Config.toHandleFlags(),
+			EventFlags:  lo.Config.toEventFlags(),
 		}
 		copy(er.Consumer[:len(er.Consumer)-1], lo.consumer)
 		err := uapi.GetLineEvent(c.f.Fd(), &er)
@@ -711,7 +724,7 @@ func (c *Chip) getEventRequest(offsets []int, lo LineOptions) (uintptr, io.Close
 func (c *Chip) getHandleRequest(offsets []int, lo LineOptions) (uintptr, error) {
 	hr := uapi.HandleRequest{
 		Lines: uint32(len(offsets)),
-		Flags: lineConfigToHandleFlags(lo.Config),
+		Flags: lo.Config.toHandleFlags(),
 	}
 	copy(hr.Consumer[:len(hr.Consumer)-1], lo.consumer)
 	// copy(hr.Offsets[:], offsets) - with cast
@@ -727,6 +740,11 @@ func (c *Chip) getHandleRequest(offsets []int, lo LineOptions) (uintptr, error) 
 		return 0, err
 	}
 	return uintptr(hr.Fd), nil
+}
+
+// UapiAbiVersion returns the version of the GPIO uAPI the chip is using.
+func (c *Chip) UapiAbiVersion() int {
+	return c.options.abi
 }
 
 type baseLine struct {
@@ -799,17 +817,21 @@ func (l *baseLine) Reconfigure(options ...LineReconfig) error {
 		lo.Config.values = lo.Config.values[:len(l.offsets)]
 	}
 	if l.abi == 1 {
-		hc := uapi.HandleConfig{Flags: lineConfigToHandleFlags(lo.Config)}
+		err := lo.Config.v1Validate()
+		if err != nil {
+			return err
+		}
+		hc := uapi.HandleConfig{Flags: lo.Config.toHandleFlags()}
 		for i, v := range lo.Config.values {
 			hc.DefaultValues[i] = uint8(v)
 		}
-		err := uapi.SetLineConfig(l.vfd, &hc)
+		err = uapi.SetLineConfig(l.vfd, &hc)
 		if err == nil {
 			l.config = lo.Config
 		}
 		return err
 	}
-	config := lineConfigToLineConfig(lo.Config, len(l.offsets))
+	config := lo.Config.toULineConfig(len(l.offsets))
 	err := uapi.SetLineConfigV2(l.vfd, &config)
 	if err == nil {
 		l.config = lo.Config
@@ -884,6 +906,7 @@ func (l *Line) SetValue(value int) error {
 	}
 	if l.abi == 1 {
 		hd := uapi.HandleData{}
+		hd[0] = uint8(value)
 		err := uapi.SetLineValues(l.vfd, hd)
 		if err == nil {
 			l.config.values = []int{value}
@@ -1181,3 +1204,14 @@ var (
 	// for the operation.
 	ErrPermissionDenied = errors.New("permission denied")
 )
+
+// ErrUapiIncompatibility indicates the feature is not supported by the given
+// kernel uAPI version.
+type ErrUapiIncompatibility struct {
+	Feature    string
+	AbiVersion int
+}
+
+func (e ErrUapiIncompatibility) Error() string {
+	return fmt.Sprintf("%s not available in kernel GPIO uAPI v%d", e.Feature, e.AbiVersion)
+}
