@@ -622,6 +622,13 @@ func TestWithDebounce(t *testing.T) {
 
 	l, err := c.RequestLine(platform.IntrLine(),
 		gpiod.WithDebounce(10*time.Microsecond))
+
+	if c.UapiAbiVersion() == 1 {
+		xerr := gpiod.ErrUapiIncompatibility{"debounce", 1}
+		assert.Equal(t, xerr, err)
+		assert.Nil(t, l)
+		return
+	}
 	require.Nil(t, err)
 	require.NotNil(t, l)
 	defer l.Close()

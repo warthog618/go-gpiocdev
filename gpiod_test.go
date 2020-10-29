@@ -22,10 +22,12 @@ import (
 )
 
 var platform Platform
+var kernelAbiVersion int
 
 func TestMain(m *testing.M) {
 	var pname string
 	flag.StringVar(&pname, "platform", "mockup", "test platform")
+	flag.IntVar(&kernelAbiVersion, "abi", 0, "kernel uAPI version")
 	flag.Parse()
 	p, err := newPlatform(pname)
 	if err != nil {
@@ -39,10 +41,11 @@ func TestMain(m *testing.M) {
 }
 
 var (
-	biasKernel      = mockup.Semver{5, 5} // bias flags added
-	setConfigKernel = mockup.Semver{5, 5} // setLineConfig ioctl added
-	infoWatchKernel = mockup.Semver{5, 7} // watchLineInfo ioctl added
-	uapiV2Kernel    = mockup.Semver{5, 8} // uapi v2 added
+	biasKernel               = mockup.Semver{5, 5}  // bias flags added
+	setConfigKernel          = mockup.Semver{5, 5}  // setLineConfig ioctl added
+	infoWatchKernel          = mockup.Semver{5, 7}  // watchLineInfo ioctl added
+	uapiV2Kernel             = mockup.Semver{5, 10} // uapi v2 added
+	eventRealtimeClockKernel = mockup.Semver{5, 11} // realtime event clock option added
 )
 
 func TestNewChip(t *testing.T) {
@@ -694,7 +697,11 @@ func waitNoInfoEvent(t *testing.T, ch <-chan gpiod.LineInfoChangeEvent) {
 }
 
 func getChip(t *testing.T) *gpiod.Chip {
-	c, err := gpiod.NewChip(platform.Devpath())
+	var chipOpts []gpiod.ChipOption
+	if kernelAbiVersion != 0 {
+		chipOpts = append(chipOpts, gpiod.ABIVersionOption(kernelAbiVersion))
+	}
+	c, err := gpiod.NewChip(platform.Devpath(), chipOpts...)
 	require.Nil(t, err)
 	require.NotNil(t, c)
 	return c
@@ -955,7 +962,25 @@ func newPlatform(pname string) (Platform, error) {
 }
 
 func requireKernel(t *testing.T, min mockup.Semver) {
+	t.Helper()
 	if err := mockup.CheckKernelVersion(min); err != nil {
 		t.Skip(err)
 	}
+}
+
+func requireABI(t *testing.T, chip *gpiod.Chip, abi int) {
+	t.Helper()
+	if chip.UapiAbiVersion() != abi {
+		t.Skip(ErrorBadABIVersion{abi, chip.UapiAbiVersion()})
+	}
+}
+
+// ErrorBadVersion indicates the kernel version is insufficient.
+type ErrorBadABIVersion struct {
+	Need int
+	Have int
+}
+
+func (e ErrorBadABIVersion) Error() string {
+	return fmt.Sprintf("require kernel ABI %d, but using %d", e.Need, e.Have)
 }
