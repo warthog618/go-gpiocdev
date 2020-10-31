@@ -2378,8 +2378,8 @@ func TestDebouncePeriod(t *testing.T) {
 	dp.Encode(&la)
 	assert.Equal(t, uapi.LineAttributeIDDebounce, la.ID)
 	assert.Zero(t, la.Padding)
-	assert.Equal(t, uint64(0), la.Value64())
-	la.Encode64(uapi.LineAttributeIDDebounce, 42000)
+	assert.Equal(t, uint32(0), la.Value32())
+	la.Encode32(uapi.LineAttributeIDDebounce, 42000)
 	dp.Decode(la)
 	assert.Equal(t, uapi.DebouncePeriod(42*time.Millisecond), dp)
 
@@ -2387,7 +2387,7 @@ func TestDebouncePeriod(t *testing.T) {
 	dp.Encode(&la)
 	assert.Equal(t, uapi.LineAttributeIDDebounce, la.ID)
 	assert.Zero(t, la.Padding)
-	assert.Equal(t, uint64(1234), la.Value64())
+	assert.Equal(t, uint32(1234), la.Value32())
 	dp = 0
 	dp.Decode(la)
 	assert.Equal(t, uapi.DebouncePeriod(1234*time.Microsecond), dp)
