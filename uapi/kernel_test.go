@@ -82,6 +82,7 @@ func TestRepeatedGetLineEvent(t *testing.T) {
 }
 
 func TestRepeatedGetLine(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
 	requireMockup(t)
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
