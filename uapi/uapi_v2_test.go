@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	uapiV2Kernel   = mockup.Semver{5, 8} // uapi v2 added
+	uapiV2Kernel   = mockup.Semver{5, 10} // uapi v2 added
 	debouncePeriod = 5 * clkTick
 )
 
@@ -2538,6 +2538,7 @@ func TestLineConfig(t *testing.T) {
 }
 
 func TestDebounce(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
 	requireMockup(t)
 	c, err := mock.Chip(0)
 	require.Nil(t, err)
