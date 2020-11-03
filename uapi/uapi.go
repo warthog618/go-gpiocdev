@@ -473,6 +473,12 @@ func (f HandleFlag) IsOpenSource() bool {
 	return f&HandleRequestOpenSource != 0
 }
 
+// HasBiasFlag returns true if any bias flags are set.
+func (f HandleFlag) HasBiasFlag() bool {
+	return f&(HandleRequestBiasDisable|HandleRequestPullDown|HandleRequestPullUp) != 0
+
+}
+
 // IsBiasDisable returns true if the line is requested with bias disabled.
 func (f HandleFlag) IsBiasDisable() bool {
 	return f&HandleRequestBiasDisable != 0

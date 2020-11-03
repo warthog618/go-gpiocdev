@@ -293,6 +293,9 @@ func TestGetLineEvent(t *testing.T) {
 		c, err := mock.Chip(p.cnum)
 		require.Nil(t, err)
 		tf := func(t *testing.T) {
+			if p.handleFlag.HasBiasFlag() {
+				requireKernel(t, setConfigKernel)
+			}
 			f, err := os.Open(c.DevPath)
 			require.Nil(t, err)
 			defer f.Close()
@@ -553,6 +556,9 @@ func TestGetLineHandle(t *testing.T) {
 		c, err := mock.Chip(p.cnum)
 		require.Nil(t, err)
 		tf := func(t *testing.T) {
+			if p.handleFlag.HasBiasFlag() {
+				requireKernel(t, setConfigKernel)
+			}
 			f, err := os.Open(c.DevPath)
 			require.Nil(t, err)
 			defer f.Close()
@@ -1041,6 +1047,7 @@ func TestSetLineValues(t *testing.T) {
 }
 
 func TestSetLineHandleConfig(t *testing.T) {
+	requireKernel(t, setConfigKernel)
 	requireMockup(t)
 	patterns := []struct {
 		name        string
