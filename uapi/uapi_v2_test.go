@@ -21,8 +21,9 @@ import (
 )
 
 var (
-	uapiV2Kernel   = mockup.Semver{5, 10} // uapi v2 added
-	debouncePeriod = 5 * clkTick
+	uapiV2Kernel             = mockup.Semver{5, 10} // uapi v2 added
+	eventClockRealtimeKernel = mockup.Semver{5, 11} // add LineFlagV2EventClockRealtime
+	debouncePeriod           = 5 * clkTick
 )
 
 type AttributeEncoder interface {
@@ -2306,6 +2307,10 @@ func TestReadLineEvent(t *testing.T) {
 	assert.Equal(t, xevt, *evt)
 
 	unix.Close(int(lr.Fd))
+
+	if mockup.CheckKernelVersion(eventClockRealtimeKernel) != nil {
+		return
+	}
 
 	// realtime timestamp
 	lr.Lines = 1
