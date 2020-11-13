@@ -1,7 +1,7 @@
 # gpiod
 
 [![Build Status](https://travis-ci.org/warthog618/gpiod.svg)](https://travis-ci.org/warthog618/gpiod)
-[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://pkg.go.dev/github.com/warthog618/gpiod)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/warthog618/gpiod)](https://pkg.go.dev/github.com/warthog618/gpiod)
 [![Go Report Card](https://goreportcard.com/badge/github.com/warthog618/gpiod)](https://goreportcard.com/report/github.com/warthog618/gpiod)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/warthog618/gpiod/blob/master/LICENSE)
 
