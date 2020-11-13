@@ -265,7 +265,7 @@ type LineInfoChanged struct {
 	// The updated info.
 	Info LineInfo
 
-	// The time the change occured.
+	// The time the change occurred.
 	Timestamp uint64
 
 	// The type of change.
@@ -275,7 +275,7 @@ type LineInfoChanged struct {
 	_ [5]uint32
 }
 
-// ChangeType indicates the type of change that has occured to a line.
+// ChangeType indicates the type of change that has occurred to a line.
 type ChangeType uint32
 
 const (
