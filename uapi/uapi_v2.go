@@ -399,6 +399,7 @@ func (d *DebouncePeriod) Decode(la LineAttribute) {
 	*d = DebouncePeriod(la.Value32() * 1000)
 }
 
+// OutputValues specifiy the active level of output lines.
 type OutputValues LineBitmap
 
 // Encode populates the LineAttribute with the values from the OutputValues.
