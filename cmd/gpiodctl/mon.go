@@ -115,8 +115,8 @@ func monWait(evtchan <-chan gpiod.LineEvent) {
 	}
 }
 
-func makeMonOpts(eh gpiod.EventHandler) []gpiod.LineOption {
-	opts := []gpiod.LineOption{}
+func makeMonOpts(eh gpiod.EventHandler) []gpiod.LineReqOption {
+	opts := []gpiod.LineReqOption{}
 	if monOpts.ActiveLow {
 		opts = append(opts, gpiod.AsActiveLow)
 	}

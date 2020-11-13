@@ -77,8 +77,8 @@ func get(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func makeGetOpts() []gpiod.LineOption {
-	opts := []gpiod.LineOption{}
+func makeGetOpts() []gpiod.LineReqOption {
+	opts := []gpiod.LineReqOption{}
 	if getOpts.ActiveLow {
 		opts = append(opts, gpiod.AsActiveLow)
 	}

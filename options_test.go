@@ -83,7 +83,7 @@ func TestAsIs(t *testing.T) {
 }
 
 func testLineDirectionOption(t *testing.T,
-	contraOption, option gpiod.LineOption, config gpiod.LineConfig) {
+	contraOption, option gpiod.LineReqOption, config gpiod.LineConfig) {
 
 	t.Helper()
 
@@ -118,8 +118,8 @@ func testLineDirectionOption(t *testing.T,
 	assert.Nil(t, err)
 }
 
-func testLineDirectionReconfigure(t *testing.T, createOption gpiod.LineOption,
-	reconfigOption gpiod.LineReconfig, config gpiod.LineConfig) {
+func testLineDirectionReconfigure(t *testing.T, createOption gpiod.LineReqOption,
+	reconfigOption gpiod.LineConfigOption, config gpiod.LineConfig) {
 
 	tf := func(t *testing.T) {
 		requireKernel(t, setConfigKernel)
@@ -237,7 +237,7 @@ func testChipLevelOption(t *testing.T, option gpiod.ChipOption,
 	testEdgeEventPolarity(t, l, ich, activeLevel)
 }
 
-func testLineLevelOptionInput(t *testing.T, option gpiod.LineOption,
+func testLineLevelOptionInput(t *testing.T, option gpiod.LineReqOption,
 	isActiveLow bool, activeLevel int) {
 
 	t.Helper()
@@ -262,7 +262,7 @@ func testLineLevelOptionInput(t *testing.T, option gpiod.LineOption,
 	testEdgeEventPolarity(t, l, ich, activeLevel)
 }
 
-func testLineLevelOptionOutput(t *testing.T, option gpiod.LineOption,
+func testLineLevelOptionOutput(t *testing.T, option gpiod.LineReqOption,
 	isActiveLow bool, activeLevel int) {
 
 	t.Helper()
@@ -291,8 +291,8 @@ func testLineLevelOptionOutput(t *testing.T, option gpiod.LineOption,
 	assert.Nil(t, err)
 }
 
-func testLineLevelReconfigure(t *testing.T, createOption gpiod.LineOption,
-	reconfigOption gpiod.LineReconfig, isActiveLow bool, activeLevel int) {
+func testLineLevelReconfigure(t *testing.T, createOption gpiod.LineReqOption,
+	reconfigOption gpiod.LineConfigOption, isActiveLow bool, activeLevel int) {
 
 	tf := func(t *testing.T) {
 		requireKernel(t, setConfigKernel)
@@ -300,8 +300,7 @@ func testLineLevelReconfigure(t *testing.T, createOption gpiod.LineOption,
 		c := getChip(t)
 		defer c.Close()
 
-		l, err := c.RequestLine(platform.OutLine(),
-			createOption, gpiod.AsOutput(1))
+		l, err := c.RequestLine(platform.OutLine(), createOption, gpiod.AsOutput(1))
 		assert.Nil(t, err)
 		require.NotNil(t, l)
 		v := platform.ReadOut()
@@ -335,7 +334,7 @@ func TestAsActiveHigh(t *testing.T) {
 	testLineLevelReconfigure(t, gpiod.AsActiveLow, gpiod.AsActiveHigh, false, 1)
 }
 
-func testLineDriveOption(t *testing.T, option gpiod.LineOption,
+func testLineDriveOption(t *testing.T, option gpiod.LineReqOption,
 	drive gpiod.LineDrive, values ...int) {
 
 	t.Helper()
@@ -359,8 +358,8 @@ func testLineDriveOption(t *testing.T, option gpiod.LineOption,
 	}
 }
 
-func testLineDriveReconfigure(t *testing.T, createOption gpiod.LineOption,
-	reconfigOption gpiod.LineReconfig, drive gpiod.LineDrive, values ...int) {
+func testLineDriveReconfigure(t *testing.T, createOption gpiod.LineReqOption,
+	reconfigOption gpiod.LineConfigOption, drive gpiod.LineDrive, values ...int) {
 
 	tf := func(t *testing.T) {
 		requireKernel(t, setConfigKernel)
@@ -440,7 +439,7 @@ func testChipBiasOption(t *testing.T, option gpiod.ChipOption,
 	t.Run("Chip", tf)
 }
 
-func testLineBiasOption(t *testing.T, option gpiod.LineOption,
+func testLineBiasOption(t *testing.T, option gpiod.LineReqOption,
 	bias gpiod.LineBias, expval int) {
 
 	tf := func(t *testing.T) {
@@ -466,8 +465,8 @@ func testLineBiasOption(t *testing.T, option gpiod.LineOption,
 	t.Run("Line", tf)
 }
 
-func testLineBiasReconfigure(t *testing.T, createOption gpiod.LineOption,
-	reconfigOption gpiod.LineReconfig, bias gpiod.LineBias, expval int) {
+func testLineBiasReconfigure(t *testing.T, createOption gpiod.LineReqOption,
+	reconfigOption gpiod.LineConfigOption, bias gpiod.LineBias, expval int) {
 
 	tf := func(t *testing.T) {
 		requireKernel(t, setConfigKernel)

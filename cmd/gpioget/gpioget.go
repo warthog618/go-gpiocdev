@@ -49,8 +49,8 @@ func main() {
 	fmt.Println(vstr)
 }
 
-func makeOpts(cfg *config.Config) []gpiod.LineOption {
-	opts := []gpiod.LineOption{}
+func makeOpts(cfg *config.Config) []gpiod.LineReqOption {
+	opts := []gpiod.LineReqOption{}
 	if cfg.MustGet("active-low").Bool() {
 		opts = append(opts, gpiod.AsActiveLow)
 	}

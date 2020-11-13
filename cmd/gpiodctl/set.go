@@ -144,8 +144,8 @@ func setWait() {
 	<-done
 }
 
-func makeSetOpts(vv []int) []gpiod.LineOption {
-	opts := []gpiod.LineOption{gpiod.AsOutput(vv...)}
+func makeSetOpts(vv []int) []gpiod.LineReqOption {
+	opts := []gpiod.LineReqOption{gpiod.AsOutput(vv...)}
 	if setOpts.ActiveLow {
 		opts = append(opts, gpiod.AsActiveLow)
 	}

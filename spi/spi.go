@@ -73,7 +73,7 @@ func New(c *gpiod.Chip, sclk, ssz, mosi, miso int, options ...Option) (*SPI, err
 		return nil, err
 	}
 	s.Ssz = l
-	clkOpts := []gpiod.LineOption{gpiod.AsOutput(0)}
+	clkOpts := []gpiod.LineReqOption{gpiod.AsOutput(0)}
 	if s.cpol != 0 {
 		clkOpts = append(clkOpts, gpiod.AsActiveLow)
 	}

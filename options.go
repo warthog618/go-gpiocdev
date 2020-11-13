@@ -16,7 +16,7 @@ type ChipOption interface {
 // ChipOptions contains the options for a Chip.
 type ChipOptions struct {
 	consumer string
-	Config   LineConfig
+	config   LineConfig
 	abi      int
 }
 
@@ -35,28 +35,36 @@ func (o ConsumerOption) applyChipOption(c *ChipOptions) {
 	c.consumer = string(o)
 }
 
-func (o ConsumerOption) applyLineOption(l *LineOptions) {
+func (o ConsumerOption) applyLineReqOption(l *lineReqOptions) {
 	l.consumer = string(o)
 }
 
-// LineOption defines the interface required to provide an option for Line and
-// Lines.
-type LineOption interface {
-	applyLineOption(*LineOptions)
+// LineReqOption defines the interface required to provide an option for Line and
+// Lines as part of a line request.
+type LineReqOption interface {
+	applyLineReqOption(*lineReqOptions)
 }
 
-// LineReconfig defines the interface required to update an option for Line and
+// LineConfigOption defines the interface required to update an option for Line and
 // Lines.
-type LineReconfig interface {
-	applyLineReconfig(*LineOptions)
+type LineConfigOption interface {
+	applyLineConfigOption(*lineConfigOptions)
 }
 
-// LineOptions contains the options for a Line or Lines.
-type LineOptions struct {
+// lineReqOptions contains the options for a Line(s) request.
+type lineReqOptions struct {
+	lineConfigOptions
 	consumer string
-	Config   LineConfig
-	eh       EventHandler
 	abi      int
+}
+
+// lineConfigOptions contains the configuration options for a Line(s) reconfigure.
+type lineConfigOptions struct {
+	offsets []int
+	values  []int
+	defCfg  LineConfig
+	lineCfg map[int]LineConfig
+	eh      EventHandler
 }
 
 // EventHandler is a receiver for line events.
@@ -71,8 +79,8 @@ type AsIsOption struct{}
 // previous Input or Output options.
 var AsIs = AsIsOption{}
 
-func (o AsIsOption) applyLineOption(l *LineOptions) {
-	l.Config.Direction = LineDirectionUnknown
+func (o AsIsOption) applyLineReqOption(l *lineReqOptions) {
+	l.defCfg.Direction = LineDirectionUnknown
 }
 
 // InputOption indicates the line direction should be set to an input.
@@ -85,15 +93,15 @@ type InputOption struct{}
 var AsInput = InputOption{}
 
 func (o InputOption) applyChipOption(c *ChipOptions) {
-	c.Config.Direction = LineDirectionInput
+	c.config.Direction = LineDirectionInput
 }
 
-func (o InputOption) applyLineOption(l *LineOptions) {
-	l.Config.Direction = LineDirectionInput
+func (o InputOption) applyLineReqOption(l *lineReqOptions) {
+	l.defCfg.Direction = LineDirectionInput
 }
 
-func (o InputOption) applyLineReconfig(l *LineOptions) {
-	l.Config.Direction = LineDirectionInput
+func (o InputOption) applyLineConfigOption(l *lineConfigOptions) {
+	l.defCfg.Direction = LineDirectionInput
 }
 
 // OutputOption indicates the line direction should be set to an output.
@@ -114,15 +122,15 @@ func AsOutput(values ...int) OutputOption {
 	return OutputOption{vv}
 }
 
-func (o OutputOption) applyLineOption(l *LineOptions) {
-	l.Config.Direction = LineDirectionOutput
-	l.Config.values = o.values
-	l.Config.Debounced = false
-	l.Config.DebouncePeriod = 0
+func (o OutputOption) applyLineReqOption(l *lineReqOptions) {
+	o.applyLineConfigOption(&l.lineConfigOptions)
 }
 
-func (o OutputOption) applyLineReconfig(l *LineOptions) {
-	o.applyLineOption(l)
+func (o OutputOption) applyLineConfigOption(l *lineConfigOptions) {
+	l.defCfg.Direction = LineDirectionOutput
+	l.values = o.values
+	l.defCfg.Debounced = false
+	l.defCfg.DebouncePeriod = 0
 }
 
 // LevelOption determines the line level that is considered active.
@@ -131,15 +139,15 @@ type LevelOption struct {
 }
 
 func (o LevelOption) applyChipOption(c *ChipOptions) {
-	c.Config.ActiveLow = o.activeLow
+	c.config.ActiveLow = o.activeLow
 }
 
-func (o LevelOption) applyLineOption(l *LineOptions) {
-	l.Config.ActiveLow = o.activeLow
+func (o LevelOption) applyLineReqOption(l *lineReqOptions) {
+	l.defCfg.ActiveLow = o.activeLow
 }
 
-func (o LevelOption) applyLineReconfig(l *LineOptions) {
-	l.Config.ActiveLow = o.activeLow
+func (o LevelOption) applyLineConfigOption(l *lineConfigOptions) {
+	l.defCfg.ActiveLow = o.activeLow
 }
 
 // AsActiveLow indicates that a line be considered active when the line level
@@ -157,15 +165,15 @@ type DriveOption struct {
 	drive LineDrive
 }
 
-func (o DriveOption) applyLineOption(l *LineOptions) {
-	l.Config.Drive = o.drive
-	l.Config.Direction = LineDirectionOutput
-	l.Config.Debounced = false
-	l.Config.DebouncePeriod = 0
+func (o DriveOption) applyLineReqOption(l *lineReqOptions) {
+	o.applyLineConfigOption(&l.lineConfigOptions)
 }
 
-func (o DriveOption) applyLineReconfig(l *LineOptions) {
-	o.applyLineOption(l)
+func (o DriveOption) applyLineConfigOption(l *lineConfigOptions) {
+	l.defCfg.Drive = o.drive
+	l.defCfg.Direction = LineDirectionOutput
+	l.defCfg.Debounced = false
+	l.defCfg.DebouncePeriod = 0
 }
 
 // AsOpenDrain indicates that a line be driven low but left floating for high.
@@ -195,15 +203,15 @@ type BiasOption struct {
 }
 
 func (o BiasOption) applyChipOption(c *ChipOptions) {
-	c.Config.Bias = o.bias
+	c.config.Bias = o.bias
 }
 
-func (o BiasOption) applyLineOption(l *LineOptions) {
-	l.Config.Bias = o.bias
+func (o BiasOption) applyLineReqOption(l *lineReqOptions) {
+	o.applyLineConfigOption(&l.lineConfigOptions)
 }
 
-func (o BiasOption) applyLineReconfig(l *LineOptions) {
-	o.applyLineOption(l)
+func (o BiasOption) applyLineConfigOption(l *lineConfigOptions) {
+	l.defCfg.Bias = o.bias
 }
 
 // WithBiasDisabled indicates that a line have its internal bias disabled.
@@ -233,9 +241,9 @@ type EdgeOption struct {
 	edge LineEdge
 }
 
-func (o EdgeOption) applyLineOption(l *LineOptions) {
-	l.Config.EdgeDetection = o.edge
-	l.Config.Direction = LineDirectionInput
+func (o EdgeOption) applyLineReqOption(l *lineReqOptions) {
+	l.defCfg.EdgeDetection = o.edge
+	l.defCfg.Direction = LineDirectionInput
 	l.eh = o.eh
 }
 
@@ -279,10 +287,14 @@ type DebounceOption struct {
 	period time.Duration
 }
 
-func (o DebounceOption) applyLineOption(l *LineOptions) {
-	l.Config.Direction = LineDirectionInput
-	l.Config.Debounced = true
-	l.Config.DebouncePeriod = o.period
+func (o DebounceOption) applyLineReqOption(l *lineReqOptions) {
+	o.applyLineConfigOption(&l.lineConfigOptions)
+}
+
+func (o DebounceOption) applyLineConfigOption(l *lineConfigOptions) {
+	l.defCfg.Direction = LineDirectionInput
+	l.defCfg.Debounced = true
+	l.defCfg.DebouncePeriod = o.period
 }
 
 // WithDebounce indicates that a line will be debounced with the specified
@@ -305,7 +317,7 @@ func (o ABIVersionOption) applyChipOption(c *ChipOptions) {
 	c.abi = int(o)
 }
 
-func (o ABIVersionOption) applyLineOption(l *LineOptions) {
+func (o ABIVersionOption) applyLineReqOption(l *lineReqOptions) {
 	l.abi = int(o)
 }
 
