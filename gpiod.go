@@ -459,6 +459,7 @@ func (c *Chip) RequestLines(offsets []int, options ...LineReqOption) (*Lines, er
 		},
 		consumer: c.options.consumer,
 		abi:      c.options.abi,
+		eh:       c.options.eh,
 	}
 	for _, option := range options {
 		option.applyLineReqOption(&lro)

@@ -18,6 +18,7 @@ type ChipOptions struct {
 	consumer string
 	config   LineConfig
 	abi      int
+	eh       EventHandler
 }
 
 // ConsumerOption defines the consumer label for a line.
@@ -56,6 +57,7 @@ type lineReqOptions struct {
 	lineConfigOptions
 	consumer string
 	abi      int
+	eh       EventHandler
 }
 
 // lineConfigOptions contains the configuration options for a Line(s) reconfigure.
@@ -64,7 +66,6 @@ type lineConfigOptions struct {
 	values  []int
 	defCfg  LineConfig
 	lineCfg map[int]LineConfig
-	eh      EventHandler
 }
 
 // EventHandler is a receiver for line events.
@@ -238,6 +239,10 @@ var WithPullUp = BiasOption{LineBiasPullUp}
 // EventHandlerOption provides the handler for events on requested lines.
 type EventHandlerOption struct {
 	eh EventHandler
+}
+
+func (o EventHandlerOption) applyChipOption(c *ChipOptions) {
+	c.eh = o.eh
 }
 
 func (o EventHandlerOption) applyLineReqOption(lro *lineReqOptions) {

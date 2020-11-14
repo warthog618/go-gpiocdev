@@ -307,8 +307,8 @@ cannot be used with *NewChip* or *Line.Reconfigure*.
 <sup>3</sup> The AsOutput and Drive options can only be provided to either
 *Chip.RequestLine(s)* or *Line.Reconfigure*, and cannot be used with *NewChip*.
 
-<sup>4</sup> WithEventHandler can only be provided to *Chip.RequestLine(s)*, and
-cannot be used with *NewChip* or *Line.Reconfigure*.
+<sup>4</sup> WithEventHandler can be provided to either *NewChip* or
+*Chip.RequestLine(s)*, and cannot be used with *Line.Reconfigure*.
 
 <sup>5</sup> Edge options can only be provided to either *Chip.RequestLine(s)*
 or *Line.Reconfigure* cannot be used with *NewChip*.
