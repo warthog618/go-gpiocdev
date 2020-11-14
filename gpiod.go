@@ -301,7 +301,7 @@ func (c *Chip) FindLines(names ...string) (oo []int, err error) {
 	return
 }
 
-// LineInfo returns the publically available information on the line.
+// LineInfo returns the publicly available information on the line.
 //
 // This is always available and does not require requesting the line.
 func (c *Chip) LineInfo(offset int) (info LineInfo, err error) {
