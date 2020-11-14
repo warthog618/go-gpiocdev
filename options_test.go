@@ -570,6 +570,20 @@ func TestWithEventHandler(t *testing.T) {
 	platform.TriggerIntr(0)
 	waitEvent(t, ich2, gpiod.LineEventFallingEdge)
 	waitNoEvent(t, ich2)
+
+	r.Close()
+
+	// stub out inherted event handler
+	r, err = c.RequestLine(platform.IntrLine(),
+		gpiod.WithEventHandler(nil))
+	require.Nil(t, err)
+	require.NotNil(t, r)
+	defer r.Close()
+	waitNoEvent(t, ich)
+	platform.TriggerIntr(1)
+	waitNoEvent(t, ich)
+	platform.TriggerIntr(0)
+	waitNoEvent(t, ich)
 }
 
 func TestWithFallingEdge(t *testing.T) {
