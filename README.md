@@ -290,13 +290,14 @@ Option | Category | Description
 *AsPushPull*|Drive<sup>3</sup>|Request output lines drive both high and low (default)
 *AsOpenDrain*|Drive<sup>3</sup>|Request lines as open drain outputs
 *AsOpenSource*|Drive<sup>3</sup>|Request lines as open source outputs
-*WithEventHandler(eh)<sup>4</sup>*|Event|Specifies the handler for edge events detected on requested lines
+*WithEventHandler(eh)<sup>4</sup>*|Event|Send edge events detected on requested lines to the provided handler
 *WithFallingEdge*|Edge<sup>5</sup>|Request lines with falling edge detection
 *WithRisingEdge*|Edge<sup>5</sup>|Request lines with rising edge detection
 *WithBothEdges*|Edge<sup>5</sup>|Request lines with rising and falling edge detection
 *WithBiasDisabled*|Bias<sup>6</sup>|Request the lines have internal bias disabled
 *WithPullDown*|Bias<sup>6</sup>|Request the lines have internal pull-down enabled
 *WithPullUp*|Bias<sup>6</sup>|Request the lines have internal pull-up enabled
+*WithDebounce(period)*|Debounce<sup>7</sup>|Request the lines be debounced with the provided period
 
 <sup>1</sup> WithConsumer can be provided to either *NewChip* or
 *Chip.RequestLine(s)*, and cannot be used with *Line.Reconfigure*.
@@ -314,6 +315,8 @@ cannot be used with *NewChip* or *Line.Reconfigure*.
 or *Line.Reconfigure* cannot be used with *NewChip*.
 
 <sup>6</sup> Bias options require Linux v5.5 or later.
+
+<sup>7</sup> Debounce options require Linux v5.10 or later.
 
 ## Tools
 
