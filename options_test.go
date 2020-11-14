@@ -515,6 +515,63 @@ func TestWithPullUp(t *testing.T) {
 	testLineBiasReconfigure(t, gpiod.WithPullDown, gpiod.WithPullUp, bias, 1)
 }
 
+func TestWithEventHandler(t *testing.T) {
+	platform.TriggerIntr(0)
+
+	// via chip options
+	ich := make(chan gpiod.LineEvent, 3)
+	eh := func(evt gpiod.LineEvent) {
+		ich <- evt
+	}
+	chipOpts := []gpiod.ChipOption{gpiod.WithEventHandler(eh)}
+	if kernelAbiVersion != 0 {
+		chipOpts = append(chipOpts, gpiod.ABIVersionOption(kernelAbiVersion))
+	}
+	c, err := gpiod.NewChip(platform.Devpath(), chipOpts...)
+	require.Nil(t, err)
+	require.NotNil(t, c)
+	defer c.Close()
+
+	r, err := c.RequestLine(platform.IntrLine(), gpiod.WithBothEdges)
+	require.Nil(t, err)
+	require.NotNil(t, r)
+	defer r.Close()
+	waitNoEvent(t, ich)
+	platform.TriggerIntr(1)
+	waitEvent(t, ich, gpiod.LineEventRisingEdge)
+	platform.TriggerIntr(0)
+	waitEvent(t, ich, gpiod.LineEventFallingEdge)
+	platform.TriggerIntr(1)
+	waitEvent(t, ich, gpiod.LineEventRisingEdge)
+	platform.TriggerIntr(0)
+	waitEvent(t, ich, gpiod.LineEventFallingEdge)
+	waitNoEvent(t, ich)
+
+	r.Close()
+
+	// via line options
+	ich2 := make(chan gpiod.LineEvent, 3)
+	eh2 := func(evt gpiod.LineEvent) {
+		ich2 <- evt
+	}
+	r, err = c.RequestLine(platform.IntrLine(),
+		gpiod.WithBothEdges,
+		gpiod.WithEventHandler(eh2))
+	require.Nil(t, err)
+	require.NotNil(t, r)
+	defer r.Close()
+	waitNoEvent(t, ich2)
+	platform.TriggerIntr(1)
+	waitEvent(t, ich2, gpiod.LineEventRisingEdge)
+	platform.TriggerIntr(0)
+	waitEvent(t, ich2, gpiod.LineEventFallingEdge)
+	platform.TriggerIntr(1)
+	waitEvent(t, ich2, gpiod.LineEventRisingEdge)
+	platform.TriggerIntr(0)
+	waitEvent(t, ich2, gpiod.LineEventFallingEdge)
+	waitNoEvent(t, ich2)
+}
+
 func TestWithFallingEdge(t *testing.T) {
 	platform.TriggerIntr(1)
 	c := getChip(t)
