@@ -14,6 +14,19 @@ import (
 	"github.com/warthog618/gpiod/device/rpi"
 )
 
+func eventHandler(evt gpiod.LineEvent) {
+	t := time.Now()
+	edge := "rising"
+	if evt.Type == gpiod.LineEventFallingEdge {
+		edge = "falling"
+	}
+	fmt.Printf("event:%3d %-7s %s (%s)\n",
+		evt.Offset,
+		edge,
+		t.Format(time.RFC3339Nano),
+		evt.Timestamp)
+}
+
 // Watches GPIO 4 (Raspberry Pi J8-7) and reports when it changes state.
 func main() {
 	c, err := gpiod.NewChip("gpiochip0")
@@ -25,18 +38,8 @@ func main() {
 	offset := rpi.J8p7
 	l, err := c.RequestLine(offset,
 		gpiod.WithPullUp,
-		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
-			t := time.Now()
-			edge := "rising"
-			if evt.Type == gpiod.LineEventFallingEdge {
-				edge = "falling"
-			}
-			fmt.Printf("event:%3d %-7s %s (%s)\n",
-				evt.Offset,
-				edge,
-				t.Format(time.RFC3339Nano),
-				evt.Timestamp)
-		}))
+		gpiod.WithBothEdges,
+		gpiod.WithEventHandler(eventHandler))
 	if err != nil {
 		fmt.Printf("RequestLine returned error: %s\n", err)
 		if err == syscall.Errno(22) {

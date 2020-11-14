@@ -235,16 +235,36 @@ var WithPullDown = BiasOption{LineBiasPullDown}
 // Requires Linux v5.5 or later.
 var WithPullUp = BiasOption{LineBiasPullUp}
 
+// EventHandlerOption provides the handler for events on requested lines.
+type EventHandlerOption struct {
+	eh EventHandler
+}
+
+func (o EventHandlerOption) applyLineReqOption(lro *lineReqOptions) {
+	lro.eh = o.eh
+}
+
+// WithEventHandler indicates that a line will generate events when its active
+// state transitions from high to low.
+//
+// Events are forwarded to the provided handler function.
+func WithEventHandler(e func(LineEvent)) EventHandlerOption {
+	return EventHandlerOption{e}
+}
+
 // EdgeOption indicates that a line will generate events when edges are detected.
 type EdgeOption struct {
-	eh   EventHandler
 	edge LineEdge
 }
 
-func (o EdgeOption) applyLineReqOption(l *lineReqOptions) {
-	l.defCfg.EdgeDetection = o.edge
-	l.defCfg.Direction = LineDirectionInput
-	l.eh = o.eh
+func (o EdgeOption) applyLineReqOption(lro *lineReqOptions) {
+	lro.defCfg.EdgeDetection = o.edge
+	lro.defCfg.Direction = LineDirectionInput
+}
+
+func (o EdgeOption) applyLineConfigOption(lco *lineConfigOptions) {
+	lco.defCfg.EdgeDetection = o.edge
+	lco.defCfg.Direction = LineDirectionInput
 }
 
 // WithFallingEdge indicates that a line will generate events when its active
@@ -254,9 +274,7 @@ func (o EdgeOption) applyLineReqOption(l *lineReqOptions) {
 //
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
-func WithFallingEdge(e func(LineEvent)) EdgeOption {
-	return EdgeOption{EventHandler(e), LineEdgeFalling}
-}
+var WithFallingEdge = EdgeOption{LineEdgeFalling}
 
 // WithRisingEdge indicates that a line will generate events when its active
 // state transitions from low to high.
@@ -265,9 +283,7 @@ func WithFallingEdge(e func(LineEvent)) EdgeOption {
 //
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
-func WithRisingEdge(e func(LineEvent)) EdgeOption {
-	return EdgeOption{EventHandler(e), LineEdgeRising}
-}
+var WithRisingEdge = EdgeOption{LineEdgeRising}
 
 // WithBothEdges indicates that a line will generate events when its active
 // state transitions from low to high and from high to low.
@@ -276,9 +292,7 @@ func WithRisingEdge(e func(LineEvent)) EdgeOption {
 //
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
-func WithBothEdges(e func(LineEvent)) EdgeOption {
-	return EdgeOption{EventHandler(e), LineEdgeBoth}
-}
+var WithBothEdges = EdgeOption{LineEdgeBoth}
 
 // DebounceOption indicates that a line will be debounced.
 //

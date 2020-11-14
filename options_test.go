@@ -220,7 +220,8 @@ func testChipLevelOption(t *testing.T, option gpiod.ChipOption,
 	platform.TriggerIntr(activeLevel)
 	ich := make(chan gpiod.LineEvent, 3)
 	l, err := c.RequestLine(platform.IntrLine(),
-		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
+		gpiod.WithBothEdges,
+		gpiod.WithEventHandler(func(evt gpiod.LineEvent) {
 			ich <- evt
 		}))
 	assert.Nil(t, err)
@@ -249,7 +250,8 @@ func testLineLevelOptionInput(t *testing.T, option gpiod.LineReqOption,
 	ich := make(chan gpiod.LineEvent, 3)
 	l, err := c.RequestLine(platform.IntrLine(),
 		option,
-		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
+		gpiod.WithBothEdges,
+		gpiod.WithEventHandler(func(evt gpiod.LineEvent) {
 			ich <- evt
 		}))
 	assert.Nil(t, err)
@@ -520,7 +522,8 @@ func TestWithFallingEdge(t *testing.T) {
 
 	ich := make(chan gpiod.LineEvent, 3)
 	r, err := c.RequestLine(platform.IntrLine(),
-		gpiod.WithFallingEdge(func(evt gpiod.LineEvent) {
+		gpiod.WithFallingEdge,
+		gpiod.WithEventHandler(func(evt gpiod.LineEvent) {
 			ich <- evt
 		}))
 	require.Nil(t, err)
@@ -544,7 +547,8 @@ func TestWithRisingEdge(t *testing.T) {
 
 	ich := make(chan gpiod.LineEvent, 3)
 	r, err := c.RequestLine(platform.IntrLine(),
-		gpiod.WithRisingEdge(func(evt gpiod.LineEvent) {
+		gpiod.WithRisingEdge,
+		gpiod.WithEventHandler(func(evt gpiod.LineEvent) {
 			ich <- evt
 		}))
 	require.Nil(t, err)
@@ -569,7 +573,8 @@ func TestWithBothEdges(t *testing.T) {
 	ich := make(chan gpiod.LineEvent, 3)
 	lines := append(platform.FloatingLines(), platform.IntrLine())
 	r, err := c.RequestLines(lines,
-		gpiod.WithBothEdges(func(evt gpiod.LineEvent) {
+		gpiod.WithBothEdges,
+		gpiod.WithEventHandler(func(evt gpiod.LineEvent) {
 			ich <- evt
 		}))
 	require.Nil(t, err)

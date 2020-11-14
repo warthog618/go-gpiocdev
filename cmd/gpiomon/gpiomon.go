@@ -80,7 +80,7 @@ func wait(cfg *config.Config, evtchan <-chan gpiod.LineEvent) {
 }
 
 func makeOpts(cfg *config.Config, eh gpiod.EventHandler) []gpiod.LineReqOption {
-	opts := []gpiod.LineReqOption{}
+	opts := []gpiod.LineReqOption{gpiod.WithEventHandler(eh)}
 	if cfg.MustGet("active-low").Bool() {
 		opts = append(opts, gpiod.AsActiveLow)
 	}
@@ -99,13 +99,13 @@ func makeOpts(cfg *config.Config, eh gpiod.EventHandler) []gpiod.LineReqOption {
 	edge := strings.ToLower(cfg.MustGet("edge").String())
 	switch edge {
 	case "falling":
-		opts = append(opts, gpiod.WithFallingEdge(eh))
+		opts = append(opts, gpiod.WithFallingEdge)
 	case "rising":
-		opts = append(opts, gpiod.WithRisingEdge(eh))
+		opts = append(opts, gpiod.WithRisingEdge)
 	case "both":
 		fallthrough
 	default:
-		opts = append(opts, gpiod.WithBothEdges(eh))
+		opts = append(opts, gpiod.WithBothEdges)
 	}
 	return opts
 }

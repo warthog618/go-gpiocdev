@@ -116,20 +116,20 @@ func monWait(evtchan <-chan gpiod.LineEvent) {
 }
 
 func makeMonOpts(eh gpiod.EventHandler) []gpiod.LineReqOption {
-	opts := []gpiod.LineReqOption{}
+	opts := []gpiod.LineReqOption{gpiod.WithEventHandler(eh)}
 	if monOpts.ActiveLow {
 		opts = append(opts, gpiod.AsActiveLow)
 	}
 	edge := strings.ToLower(monOpts.Edge)
 	switch edge {
 	case "falling":
-		opts = append(opts, gpiod.WithFallingEdge(eh))
+		opts = append(opts, gpiod.WithFallingEdge)
 	case "rising":
-		opts = append(opts, gpiod.WithRisingEdge(eh))
+		opts = append(opts, gpiod.WithRisingEdge)
 	case "both":
 		fallthrough
 	default:
-		opts = append(opts, gpiod.WithBothEdges(eh))
+		opts = append(opts, gpiod.WithBothEdges)
 	}
 	bias := strings.ToLower(monOpts.Bias)
 	switch bias {

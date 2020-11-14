@@ -115,8 +115,7 @@ func TestChipClose(t *testing.T) {
 	// with lines
 	c = getChip(t)
 	require.NotNil(t, c)
-	ll, err := c.RequestLines(platform.FloatingLines(),
-		gpiod.WithBothEdges(func(gpiod.LineEvent) {}))
+	ll, err := c.RequestLines(platform.FloatingLines(), gpiod.WithBothEdges)
 	assert.Nil(t, err)
 	err = c.Close()
 	assert.Nil(t, err)
@@ -127,8 +126,7 @@ func TestChipClose(t *testing.T) {
 	// after lines closed
 	c = getChip(t)
 	require.NotNil(t, c)
-	ll, err = c.RequestLines(platform.FloatingLines(),
-		gpiod.WithBothEdges(func(gpiod.LineEvent) {}))
+	ll, err = c.RequestLines(platform.FloatingLines(), gpiod.WithBothEdges)
 	assert.Nil(t, err)
 	require.NotNil(t, ll)
 	err = ll.Close()
@@ -239,8 +237,7 @@ func TestChipRequestLine(t *testing.T) {
 	require.Nil(t, l2)
 
 	// already requested output as event
-	l2, err = c.RequestLine(platform.FloatingLines()[0],
-		gpiod.WithBothEdges(func(gpiod.LineEvent) {}))
+	l2, err = c.RequestLine(platform.FloatingLines()[0], gpiod.WithBothEdges)
 	assert.Equal(t, unix.EBUSY, err)
 	require.Nil(t, l2)
 
@@ -278,8 +275,7 @@ func TestChipRequestLines(t *testing.T) {
 	require.Nil(t, ll2)
 
 	// already requested output as event
-	ll2, err = c.RequestLines(platform.FloatingLines(),
-		gpiod.WithBothEdges(func(gpiod.LineEvent) {}))
+	ll2, err = c.RequestLines(platform.FloatingLines(), gpiod.WithBothEdges)
 	assert.Equal(t, unix.EBUSY, err)
 	require.Nil(t, ll2)
 
@@ -402,8 +398,7 @@ func TestLineClose(t *testing.T) {
 func TestLineInfo(t *testing.T) {
 	c := getChip(t)
 	defer c.Close()
-	l, err := c.RequestLine(platform.IntrLine(),
-		gpiod.WithBothEdges(func(gpiod.LineEvent) {}))
+	l, err := c.RequestLine(platform.IntrLine(), gpiod.WithBothEdges)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	cli, err := c.LineInfo(platform.IntrLine())
@@ -457,8 +452,7 @@ func TestLineReconfigure(t *testing.T) {
 	assert.Equal(t, gpiod.ErrClosed, err)
 
 	// event request
-	l, err = c.RequestLine(platform.IntrLine(),
-		gpiod.WithBothEdges(func(gpiod.LineEvent) {}))
+	l, err = c.RequestLine(platform.IntrLine(), gpiod.WithBothEdges)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	err = l.Reconfigure(gpiod.AsActiveLow)

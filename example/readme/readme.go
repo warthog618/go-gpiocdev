@@ -58,10 +58,10 @@ func main() {
 
 	// Bias
 	l, _ = c.RequestLine(4, gpiod.WithPullUp) // during request
-	l.Reconfigure(gpiod.WithBiasDisabled)      // once requested
+	l.Reconfigure(gpiod.WithBiasDisabled)     // once requested
 
 	// Watches
-	l, _ = c.RequestLine(rpi.J8p7, gpiod.WithBothEdges(handler))
+	l, _ = c.RequestLine(rpi.J8p7, gpiod.WithEventHandler(handler), gpiod.WithBothEdges)
 
 	// Line Requests (2)
 	l.Close()

@@ -192,7 +192,7 @@ method:
 ll.SetValues([]int{0, 1, 0, 1}) // Set a collection of lines
 ```
 
-### Watches
+### Edge Watches
 
 The state of an input line can be watched and trigger calls to handler
 functions.
@@ -209,10 +209,10 @@ func handler(evt gpiod.LineEvent) {
   // handle change in line state
 }
 
-l, _ := c.RequestLine(rpi.J8p7, gpiod.WithBothEdges(handler)))
+l, _ = c.RequestLine(rpi.J8p7, gpiod.WithEventHandler(handler), gpiod.WithBothEdges)
 ```
 
-A watch can be removed by closing the line:
+An edge watch can be removed by closing the line:
 
 ```go
 l.Close()
@@ -253,7 +253,7 @@ line:
 
 ```go
 l,_ := c.RequestLine(4,gpiod.WithPullUp)  // during request
-l.Reconfigure(gpiod.WithBiasDisable)      // once requested
+l.Reconfigure(gpiod.WithBiasDisabled)      // once requested
 ```
 
 Note that bias options require Linux v5.5 or later.
@@ -290,12 +290,13 @@ Option | Category | Description
 *AsPushPull*|Drive<sup>3</sup>|Request output lines drive both high and low (default)
 *AsOpenDrain*|Drive<sup>3</sup>|Request lines as open drain outputs
 *AsOpenSource*|Drive<sup>3</sup>|Request lines as open source outputs
-*WithFallingEdge(eh)*|Edge<sup>4</sup>|Request lines with falling edge detection, with events passed to the provided event handler
-*WithRisingEdge(eh)*|Edge<sup>4</sup>|Request lines with rising edge detection, with events passed to the provided event handler
-*WithBothEdges(eh)*|Edge<sup>4</sup>|Request lines with rising and falling edge detection, with events passed to the provided event handler
-*WithBiasDisable*|Bias<sup>5</sup>|Request the lines have internal bias disabled
-*WithPullDown*|Bias<sup>5</sup>|Request the lines have internal pull-down enabled
-*WithPullUp*|Bias<sup>5</sup>|Request the lines have internal pull-up enabled
+*WithEventHandler(eh)<sup>4</sup>*|Event|Specifies the handler for edge events detected on requested lines
+*WithFallingEdge*|Edge<sup>5</sup>|Request lines with falling edge detection
+*WithRisingEdge*|Edge<sup>5</sup>|Request lines with rising edge detection
+*WithBothEdges*|Edge<sup>5</sup>|Request lines with rising and falling edge detection
+*WithBiasDisabled*|Bias<sup>6</sup>|Request the lines have internal bias disabled
+*WithPullDown*|Bias<sup>6</sup>|Request the lines have internal pull-down enabled
+*WithPullUp*|Bias<sup>6</sup>|Request the lines have internal pull-up enabled
 
 <sup>1</sup> WithConsumer can be provided to either *NewChip* or
 *Chip.RequestLine(s)*, and cannot be used with *Line.Reconfigure*.
@@ -306,10 +307,13 @@ cannot be used with *NewChip* or *Line.Reconfigure*.
 <sup>3</sup> The AsOutput and Drive options can only be provided to either
 *Chip.RequestLine(s)* or *Line.Reconfigure*, and cannot be used with *NewChip*.
 
-<sup>4</sup> Edge options can only be provided to *Chip.RequestLine(s)*, and
+<sup>4</sup> WithEventHandler can only be provided to *Chip.RequestLine(s)*, and
 cannot be used with *NewChip* or *Line.Reconfigure*.
 
-<sup>5</sup> Bias options require Linux v5.5 or later.
+<sup>5</sup> Edge options can only be provided to either *Chip.RequestLine(s)*
+or *Line.Reconfigure* cannot be used with *NewChip*.
+
+<sup>6</sup> Bias options require Linux v5.5 or later.
 
 ## Tools
 
