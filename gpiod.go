@@ -587,7 +587,7 @@ func (c *Chip) getLine(offsets []int, lro lineReqOptions) (uintptr, io.Closer, e
 		return 0, nil, err
 	}
 	var w io.Closer
-	if lro.defCfg.EdgeDetection != LineEdgeNone {
+	if lro.eh != nil {
 		w, err = newWatcher(lr.Fd, lro.eh)
 		if err != nil {
 			unix.Close(int(lr.Fd))
