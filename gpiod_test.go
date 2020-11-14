@@ -452,7 +452,9 @@ func TestLineReconfigure(t *testing.T) {
 	assert.Equal(t, gpiod.ErrClosed, err)
 
 	// event request
-	l, err = c.RequestLine(platform.IntrLine(), gpiod.WithBothEdges)
+	l, err = c.RequestLine(platform.IntrLine(),
+		gpiod.WithBothEdges,
+		gpiod.WithEventHandler(func(gpiod.LineEvent) {}))
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	err = l.Reconfigure(gpiod.AsActiveLow)
