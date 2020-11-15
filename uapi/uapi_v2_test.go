@@ -27,7 +27,7 @@ var (
 )
 
 type AttributeEncoder interface {
-	Encode(*uapi.LineAttribute)
+	Encode() uapi.LineAttribute
 }
 
 func TestGetLineInfoV2(t *testing.T) {
@@ -1917,7 +1917,7 @@ func TestSetLineConfigV2(t *testing.T) {
 			p.lr.Config.NumAttrs = uint32(len(p.ra))
 			for i, a := range p.ra {
 				p.lr.Config.Attrs[i].Mask = 7 // for 3 lines
-				a.Encode(&p.lr.Config.Attrs[i].Attr)
+				p.lr.Config.Attrs[i].Attr = a.Encode()
 			}
 			err = uapi.GetLine(f.Fd(), &p.lr)
 			require.Nil(t, err)
@@ -1926,7 +1926,7 @@ func TestSetLineConfigV2(t *testing.T) {
 			p.config.NumAttrs = uint32(len(p.ca))
 			for i, a := range p.ca {
 				p.config.Attrs[i].Mask = 7 // for 3 lines
-				a.Encode(&p.config.Attrs[i].Attr)
+				p.config.Attrs[i].Attr = a.Encode()
 			}
 			err = uapi.SetLineConfigV2(uintptr(p.lr.Fd), &p.config)
 			require.Equal(t, p.err, err)
@@ -2376,11 +2376,31 @@ func TestLineAttribute(t *testing.T) {
 	assert.Equal(t, uint64(200000000000), la.Value64())
 }
 
+func TestLineFlagV2(t *testing.T) {
+	var f uapi.LineFlagV2
+
+	la := f.Encode()
+	assert.Equal(t, uapi.LineAttributeIDFlags, la.ID)
+	assert.Zero(t, la.Padding)
+	assert.Equal(t, uint64(0), la.Value64())
+	la.Encode64(uapi.LineAttributeIDFlags, 42000)
+	f.Decode(la)
+	assert.Equal(t, uapi.LineFlagV2(42000), f)
+
+	f = uapi.LineFlagV2(1234567)
+	la = f.Encode()
+	assert.Equal(t, uapi.LineAttributeIDFlags, la.ID)
+	assert.Zero(t, la.Padding)
+	assert.Equal(t, uint64(1234567), la.Value64())
+	f = 0
+	f.Decode(la)
+	assert.Equal(t, uapi.LineFlagV2(1234567), f)
+}
+
 func TestDebouncePeriod(t *testing.T) {
-	var la uapi.LineAttribute
 	var dp uapi.DebouncePeriod
 
-	dp.Encode(&la)
+	la := dp.Encode()
 	assert.Equal(t, uapi.LineAttributeIDDebounce, la.ID)
 	assert.Zero(t, la.Padding)
 	assert.Equal(t, uint32(0), la.Value32())
@@ -2389,7 +2409,7 @@ func TestDebouncePeriod(t *testing.T) {
 	assert.Equal(t, uapi.DebouncePeriod(42*time.Millisecond), dp)
 
 	dp = uapi.DebouncePeriod(1234567 * time.Nanosecond)
-	dp.Encode(&la)
+	la = dp.Encode()
 	assert.Equal(t, uapi.LineAttributeIDDebounce, la.ID)
 	assert.Zero(t, la.Padding)
 	assert.Equal(t, uint32(1234), la.Value32())
@@ -2399,10 +2419,9 @@ func TestDebouncePeriod(t *testing.T) {
 }
 
 func TestOutputValues(t *testing.T) {
-	var la uapi.LineAttribute
 	var bits uapi.OutputValues
 
-	bits.Encode(&la)
+	la := bits.Encode()
 	assert.Equal(t, uapi.LineAttributeIDOutputValues, la.ID)
 	assert.Zero(t, la.Padding)
 	assert.Equal(t, uint64(0), la.Value64())
@@ -2411,13 +2430,121 @@ func TestOutputValues(t *testing.T) {
 	assert.Equal(t, uapi.OutputValues(42234), bits)
 
 	bits = uapi.OutputValues(0x123456789)
-	bits.Encode(&la)
+	la = bits.Encode()
 	assert.Equal(t, uapi.LineAttributeIDOutputValues, la.ID)
 	assert.Zero(t, la.Padding)
 	assert.Equal(t, uint64(0x123456789), la.Value64())
 	bits = 0
 	bits.Decode(la)
 	assert.Equal(t, uapi.OutputValues(0x123456789), bits)
+}
+
+func TestNewLineBits(t *testing.T) {
+	patterns := []struct {
+		name string
+		bits []int
+		mask uapi.LineBitmap
+	}{
+		{
+			"zero",
+			[]int{0},
+			1,
+		},
+		{
+			"one",
+			[]int{1},
+			2,
+		},
+		{
+			"three",
+			[]int{3},
+			8,
+		},
+		{
+			"seven",
+			[]int{0, 1, 2},
+			7,
+		},
+		{
+			"top",
+			[]int{63},
+			0x8000000000000000,
+		},
+		{
+			"ends",
+			[]int{0, 63},
+			0x8000000000000001,
+		},
+		{
+			"overflow",
+			[]int{64},
+			0,
+		},
+	}
+	for _, p := range patterns {
+		tf := func(t *testing.T) {
+			mask := uapi.NewLineBits(p.bits...)
+			assert.Equal(t, p.mask, mask)
+		}
+		t.Run(p.name, tf)
+	}
+}
+
+func TestNewLineBitmap(t *testing.T) {
+	patterns := []struct {
+		name string
+		bits []int
+		mask uapi.LineBitmap
+	}{
+		{
+			"zero",
+			[]int{0},
+			0,
+		},
+		{
+			"one",
+			[]int{1},
+			1,
+		},
+		{
+			"three",
+			[]int{1, 1},
+			3,
+		},
+		{
+			"seven",
+			[]int{1, 1, 1},
+			7,
+		},
+		{
+			"max",
+			[]int{
+				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+			},
+			0xffffffffffffffff,
+		},
+		{
+			"overflow",
+			[]int{
+				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+			},
+			0xffffffffffffffff,
+		},
+	}
+	for _, p := range patterns {
+		tf := func(t *testing.T) {
+			mask := uapi.NewLineBitmap(p.bits...)
+			assert.Equal(t, p.mask, mask)
+		}
+		t.Run(p.name, tf)
+	}
 }
 
 func TestNewLineBitMask(t *testing.T) {
@@ -2470,25 +2597,25 @@ func TestLineBitmap(t *testing.T) {
 	lb := uapi.LineBitmap(0)
 
 	assert.Zero(t, lb.Get(0))
-	lb.Set(2, 1)
+	lb = lb.Set(2, 1)
 	assert.Equal(t, uapi.LineBitmap(4), lb)
 	assert.Equal(t, 0, lb.Get(0))
 	assert.Equal(t, 0, lb.Get(1))
 	assert.Equal(t, 1, lb.Get(2))
 
-	lb.Set(0, 1)
+	lb = lb.Set(0, 1)
 	assert.Equal(t, uapi.LineBitmap(5), lb)
 	assert.Equal(t, 1, lb.Get(0))
 	assert.Equal(t, 0, lb.Get(1))
 	assert.Equal(t, 1, lb.Get(2))
 
-	lb.Set(0, 0)
+	lb = lb.Set(0, 0)
 	assert.Equal(t, uapi.LineBitmap(4), lb)
 	assert.Equal(t, 0, lb.Get(0))
 	assert.Equal(t, 0, lb.Get(1))
 	assert.Equal(t, 1, lb.Get(2))
 
-	lb.Set(2, 0)
+	lb = lb.Set(2, 0)
 	assert.Zero(t, lb.Get(0))
 }
 
@@ -2562,7 +2689,7 @@ func TestDebounce(t *testing.T) {
 		},
 	}
 	lr.Config.Attrs[0].Mask = 1
-	uapi.DebouncePeriod(debouncePeriod).Encode(&lr.Config.Attrs[0].Attr)
+	lr.Config.Attrs[0].Attr = uapi.DebouncePeriod(debouncePeriod).Encode()
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 

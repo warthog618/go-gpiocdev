@@ -15,10 +15,7 @@ import (
 
 func TestWithConsumer(t *testing.T) {
 	// default from chip
-	c, err := gpiod.NewChip(platform.Devpath(),
-		gpiod.WithConsumer("gpiod-test-chip"))
-	assert.Nil(t, err)
-	require.NotNil(t, c)
+	c := getChip(t, gpiod.WithConsumer("gpiod-test-chip"))
 	defer c.Close()
 	l, err := c.RequestLine(platform.IntrLine())
 	assert.Nil(t, err)
@@ -180,13 +177,9 @@ func testEdgeEventPolarity(t *testing.T, l *gpiod.Line,
 }
 
 func testChipAsInputOption(t *testing.T) {
-
 	t.Helper()
 
-	c, err := gpiod.NewChip(platform.Devpath(), gpiod.AsInput)
-
-	assert.Nil(t, err)
-	require.NotNil(t, c)
+	c := getChip(t, gpiod.AsInput)
 	defer c.Close()
 
 	// force line to output
@@ -211,10 +204,7 @@ func testChipLevelOption(t *testing.T, option gpiod.ChipOption,
 
 	t.Helper()
 
-	c, err := gpiod.NewChip(platform.Devpath(), option)
-
-	assert.Nil(t, err)
-	require.NotNil(t, c)
+	c := getChip(t, option)
 	defer c.Close()
 
 	platform.TriggerIntr(activeLevel)
@@ -272,8 +262,7 @@ func testLineLevelOptionOutput(t *testing.T, option gpiod.LineReqOption,
 	c := getChip(t)
 	defer c.Close()
 
-	l, err := c.RequestLine(platform.OutLine(),
-		option, gpiod.AsOutput(1))
+	l, err := c.RequestLine(platform.OutLine(), option, gpiod.AsOutput(1))
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	inf, err := c.LineInfo(platform.OutLine())
@@ -417,9 +406,7 @@ func testChipBiasOption(t *testing.T, option gpiod.ChipOption,
 	tf := func(t *testing.T) {
 		requireKernel(t, biasKernel)
 
-		c, err := gpiod.NewChip(platform.Devpath(), option)
-		assert.Nil(t, err)
-		require.NotNil(t, c)
+		c := getChip(t, option)
 		defer c.Close()
 
 		l, err := c.RequestLine(platform.FloatingLines()[0],
@@ -527,9 +514,7 @@ func TestWithEventHandler(t *testing.T) {
 	if kernelAbiVersion != 0 {
 		chipOpts = append(chipOpts, gpiod.ABIVersionOption(kernelAbiVersion))
 	}
-	c, err := gpiod.NewChip(platform.Devpath(), chipOpts...)
-	require.Nil(t, err)
-	require.NotNil(t, c)
+	c := getChip(t, chipOpts...)
 	defer c.Close()
 
 	r, err := c.RequestLine(platform.IntrLine(), gpiod.WithBothEdges)
@@ -712,4 +697,220 @@ func TestWithDebounce(t *testing.T) {
 	assert.Equal(t, gpiod.LineDirectionInput, inf.Config.Direction)
 	assert.True(t, inf.Config.Debounced)
 	assert.Equal(t, 10*time.Microsecond, inf.Config.DebouncePeriod)
+}
+
+func TestWithLines(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
+	c := getChip(t, gpiod.WithConsumer("TestWithLines"))
+	defer c.Close()
+	requireABI(t, c, 2)
+
+	ll := platform.FloatingLines()
+	require.GreaterOrEqual(t, len(ll), 5)
+
+	patterns := []struct {
+		name       string
+		reqOptions []gpiod.LineReqOption
+		info       map[int]gpiod.LineInfo
+	}{
+		{"in+out",
+			[]gpiod.LineReqOption{
+				gpiod.AsInput,
+				gpiod.WithPullDown,
+				gpiod.WithLines(
+					[]int{ll[2], ll[4]},
+					gpiod.AsOutput(1, 1),
+					gpiod.AsActiveLow,
+					gpiod.WithPullUp,
+					gpiod.AsOpenDrain,
+				),
+			},
+			map[int]gpiod.LineInfo{
+				ll[0]: {
+					Config: gpiod.LineConfig{
+						Bias:      gpiod.LineBiasPullDown,
+						Direction: gpiod.LineDirectionInput,
+					},
+				},
+				ll[2]: {
+					Config: gpiod.LineConfig{
+						ActiveLow: true,
+						Bias:      gpiod.LineBiasPullUp,
+						Direction: gpiod.LineDirectionOutput,
+						Drive:     gpiod.LineDriveOpenDrain,
+					},
+				},
+			},
+		},
+		{"in+debounced",
+			[]gpiod.LineReqOption{
+				gpiod.AsInput,
+				gpiod.AsActiveLow,
+				gpiod.WithLines(
+					[]int{ll[2], ll[4]},
+					gpiod.WithDebounce(1234*time.Microsecond),
+				),
+			},
+			map[int]gpiod.LineInfo{
+				ll[1]: {
+					Config: gpiod.LineConfig{
+						ActiveLow: true,
+						Direction: gpiod.LineDirectionInput,
+					},
+				},
+				ll[4]: {
+					Config: gpiod.LineConfig{
+						Debounced:      true,
+						DebouncePeriod: 1234 * time.Microsecond,
+						Direction:      gpiod.LineDirectionInput,
+					},
+				},
+			},
+		},
+		{"out+debounced",
+			[]gpiod.LineReqOption{
+				gpiod.AsOutput(1, 0, 1, 1),
+				gpiod.WithLines(
+					[]int{ll[2], ll[4]},
+					gpiod.WithDebounce(1432*time.Microsecond),
+				),
+			},
+			map[int]gpiod.LineInfo{
+				ll[3]: {
+					Config: gpiod.LineConfig{
+						Direction: gpiod.LineDirectionOutput,
+					},
+				},
+				ll[4]: {
+					Config: gpiod.LineConfig{
+						Debounced:      true,
+						DebouncePeriod: 1432 * time.Microsecond,
+						Direction:      gpiod.LineDirectionInput,
+					},
+				},
+			},
+		},
+		{"debounced+debounced",
+			[]gpiod.LineReqOption{
+				gpiod.WithDebounce(1234 * time.Microsecond),
+				gpiod.WithLines(
+					[]int{ll[2], ll[1]},
+					gpiod.WithDebounce(1432*time.Microsecond),
+				),
+			},
+			map[int]gpiod.LineInfo{
+				ll[0]: {
+					Config: gpiod.LineConfig{
+						Debounced:      true,
+						DebouncePeriod: 1234 * time.Microsecond,
+						Direction:      gpiod.LineDirectionInput,
+					},
+				},
+				ll[1]: {
+					Config: gpiod.LineConfig{
+						Debounced:      true,
+						DebouncePeriod: 1432 * time.Microsecond,
+						Direction:      gpiod.LineDirectionInput,
+					},
+				},
+			},
+		},
+		{"in+out+debounced",
+			[]gpiod.LineReqOption{
+				gpiod.AsInput,
+				gpiod.WithPullDown,
+				gpiod.WithLines(
+					[]int{ll[2], ll[4]},
+					gpiod.AsOutput(1, 1),
+					gpiod.AsActiveLow,
+					gpiod.WithPullUp,
+					gpiod.AsOpenDrain,
+				),
+				gpiod.WithLines(
+					[]int{ll[3], ll[4]},
+					gpiod.WithDebounce(1432*time.Microsecond),
+				),
+			},
+			map[int]gpiod.LineInfo{
+				ll[0]: {
+					Config: gpiod.LineConfig{
+						Bias:      gpiod.LineBiasPullDown,
+						Direction: gpiod.LineDirectionInput,
+					},
+				},
+				ll[2]: {
+					Config: gpiod.LineConfig{
+						ActiveLow: true,
+						Bias:      gpiod.LineBiasPullUp,
+						Direction: gpiod.LineDirectionOutput,
+						Drive:     gpiod.LineDriveOpenDrain,
+					},
+				},
+				ll[3]: {
+					Config: gpiod.LineConfig{
+						Debounced:      true,
+						DebouncePeriod: 1432 * time.Microsecond,
+						Direction:      gpiod.LineDirectionInput,
+					},
+				},
+				ll[4]: {
+					Config: gpiod.LineConfig{
+						ActiveLow:      true,
+						Bias:           gpiod.LineBiasPullUp,
+						Debounced:      true,
+						DebouncePeriod: 1432 * time.Microsecond,
+						Direction:      gpiod.LineDirectionInput,
+					},
+				},
+			},
+		},
+	}
+
+	for _, p := range patterns {
+		tf := func(t *testing.T) {
+			l, err := c.RequestLines(ll, p.reqOptions...)
+			assert.Nil(t, err)
+			require.NotNil(t, l)
+			for offset, xinf := range p.info {
+				inf, err := c.LineInfo(offset)
+				xinf.Consumer = "TestWithLines"
+				xinf.Used = true
+				xinf.Offset = offset
+				inf.Name = "" // don't care about line name
+				assert.Nil(t, err)
+				assert.Equal(t, xinf, inf, offset)
+			}
+			l.Close()
+		}
+		t.Run(p.name, tf)
+	}
+
+	for _, p := range patterns {
+		tf := func(t *testing.T) {
+			l, err := c.RequestLines(ll)
+			assert.Nil(t, err)
+			require.NotNil(t, l)
+			reconfigOpts := []gpiod.LineConfigOption(nil)
+			for _, opt := range p.reqOptions {
+				// look away - hideous casting in progress
+				lco, ok := interface{}(opt).(gpiod.LineConfigOption)
+				if ok {
+					reconfigOpts = append(reconfigOpts, lco)
+				}
+			}
+			err = l.Reconfigure(reconfigOpts...)
+			assert.Nil(t, err)
+			for offset, xinf := range p.info {
+				inf, err := c.LineInfo(offset)
+				xinf.Consumer = "TestWithLines"
+				xinf.Used = true
+				xinf.Offset = offset
+				inf.Name = "" // don't care about line name
+				assert.Nil(t, err)
+				assert.Equal(t, xinf, inf, offset)
+			}
+			l.Close()
+		}
+		t.Run("reconfig-"+p.name, tf)
+	}
 }

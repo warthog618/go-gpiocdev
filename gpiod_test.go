@@ -49,30 +49,29 @@ var (
 )
 
 func TestNewChip(t *testing.T) {
+	var chipOpts []gpiod.ChipOption
+	if kernelAbiVersion != 0 {
+		chipOpts = append(chipOpts, gpiod.ABIVersionOption(kernelAbiVersion))
+	}
 	// non-existent
-	c, err := gpiod.NewChip(platform.Devpath() + "not")
+	c, err := gpiod.NewChip(platform.Devpath()+"not", chipOpts...)
 	assert.NotNil(t, err)
 	assert.Nil(t, c)
 
 	// success
-	c, err = gpiod.NewChip(platform.Devpath())
-	assert.Nil(t, err)
-	require.NotNil(t, c)
+	c = getChip(t)
 	err = c.Close()
 	assert.Nil(t, err)
 
 	// name
-	c, err = gpiod.NewChip(platform.Name())
+	c, err = gpiod.NewChip(platform.Name(), chipOpts...)
 	assert.Nil(t, err)
 	require.NotNil(t, c)
 	err = c.Close()
 	assert.Nil(t, err)
 
 	// option
-	c, err = gpiod.NewChip(platform.Devpath(),
-		gpiod.WithConsumer("gpiod_test"))
-	assert.Nil(t, err)
-	require.NotNil(t, c)
+	c = getChip(t, gpiod.WithConsumer("gpiod_test"))
 	assert.Equal(t, platform.Name(), c.Name)
 	assert.Equal(t, platform.Label(), c.Label)
 	err = c.Close()
@@ -211,6 +210,8 @@ func TestChipRequestLine(t *testing.T) {
 	c := getChip(t)
 	defer c.Close()
 
+	lo := platform.FloatingLines()[0]
+
 	// negative
 	l, err := c.RequestLine(-1)
 	assert.Equal(t, gpiod.ErrInvalidOffset, err)
@@ -222,22 +223,22 @@ func TestChipRequestLine(t *testing.T) {
 	require.Nil(t, l)
 
 	// success - input
-	l, err = c.RequestLine(platform.FloatingLines()[0])
+	l, err = c.RequestLine(lo)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 
 	// already requested input
-	l2, err := c.RequestLine(platform.FloatingLines()[0])
+	l2, err := c.RequestLine(lo)
 	assert.Equal(t, unix.EBUSY, err)
 	require.Nil(t, l2)
 
 	// already requested output
-	l2, err = c.RequestLine(platform.FloatingLines()[0], gpiod.AsOutput(0))
+	l2, err = c.RequestLine(lo, gpiod.AsOutput(0))
 	assert.Equal(t, unix.EBUSY, err)
 	require.Nil(t, l2)
 
 	// already requested output as event
-	l2, err = c.RequestLine(platform.FloatingLines()[0], gpiod.WithBothEdges)
+	l2, err = c.RequestLine(lo, gpiod.WithBothEdges)
 	assert.Equal(t, unix.EBUSY, err)
 	require.Nil(t, l2)
 
@@ -491,6 +492,8 @@ func TestLineSetValue(t *testing.T) {
 	c := getChip(t)
 	defer c.Close()
 
+	lo := platform.FloatingLines()[0]
+
 	// input
 	l, err := c.RequestLine(platform.IntrLine())
 	assert.Nil(t, err)
@@ -500,7 +503,7 @@ func TestLineSetValue(t *testing.T) {
 	l.Close()
 
 	// output
-	l, err = c.RequestLine(platform.FloatingLines()[0],
+	l, err = c.RequestLine(lo,
 		gpiod.AsOutput(0))
 	assert.Nil(t, err)
 	require.NotNil(t, l)
@@ -692,8 +695,7 @@ func waitNoInfoEvent(t *testing.T, ch <-chan gpiod.LineInfoChangeEvent) {
 	}
 }
 
-func getChip(t *testing.T) *gpiod.Chip {
-	var chipOpts []gpiod.ChipOption
+func getChip(t *testing.T, chipOpts ...gpiod.ChipOption) *gpiod.Chip {
 	if kernelAbiVersion != 0 {
 		chipOpts = append(chipOpts, gpiod.ABIVersionOption(kernelAbiVersion))
 	}
@@ -811,7 +813,7 @@ func newPi(path string) (*RaspberryPi, error) {
 			intro:     rpi.J8p15,
 			introName: "",
 			outo:      rpi.J8p16,
-			ff:        []int{rpi.J8p11, rpi.J8p12},
+			ff:        []int{rpi.J8p11, rpi.J8p12, rpi.J8p7, rpi.J8p13, rpi.J8p22},
 		},
 		chip: ch,
 	}
@@ -918,7 +920,7 @@ func newMockup() (*Mockup, error) {
 			intro:     10,
 			introName: "gpio-mockup-A-10",
 			outo:      9,
-			ff:        []int{11, 12},
+			ff:        []int{11, 12, 15, 16, 9},
 		}, m, c}, nil
 }
 

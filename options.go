@@ -6,6 +6,8 @@ package gpiod
 
 import (
 	"time"
+
+	"github.com/warthog618/gpiod/uapi"
 )
 
 // ChipOption defines the interface required to provide a Chip option.
@@ -46,10 +48,16 @@ type LineReqOption interface {
 	applyLineReqOption(*lineReqOptions)
 }
 
-// LineConfigOption defines the interface required to update an option for Line and
-// Lines.
+// LineConfigOption defines the interface required to update an option for
+// Line and Lines.
 type LineConfigOption interface {
 	applyLineConfigOption(*lineConfigOptions)
+}
+
+// SubsetLineConfigOption defines the interface required to update an option for a
+// subset of requested lines.
+type SubsetLineConfigOption interface {
+	applySubsetLineConfigOption([]int, *lineConfigOptions)
 }
 
 // lineReqOptions contains the options for a Line(s) request.
@@ -63,9 +71,109 @@ type lineReqOptions struct {
 // lineConfigOptions contains the configuration options for a Line(s) reconfigure.
 type lineConfigOptions struct {
 	offsets []int
-	values  []int
+	values  map[int]int
 	defCfg  LineConfig
-	lineCfg map[int]LineConfig
+	lineCfg map[int]*LineConfig
+}
+
+func (lco *lineConfigOptions) lineConfig(offset int) *LineConfig {
+	if lco.lineCfg == nil {
+		lco.lineCfg = map[int]*LineConfig{}
+	}
+	lc := lco.lineCfg[offset]
+	if lc == nil {
+		lc = &LineConfig{}
+		lco.lineCfg[offset] = lc
+	}
+	return lc
+}
+
+func (lco lineConfigOptions) outputValues() uapi.OutputValues {
+	ov := uapi.LineBitmap(0)
+	for idx, val := range lco.offsets {
+		ov = ov.Set(idx, lco.values[val])
+	}
+	return uapi.OutputValues(ov)
+}
+
+type lineConfigAttributes []uapi.LineConfigAttribute
+
+func (lca lineConfigAttributes) append(attr uapi.LineAttribute, mask uapi.LineBitmap) lineConfigAttributes {
+	for idx, cae := range lca {
+		if cae.Attr.ID == attr.ID {
+			lca[idx].Mask &^= mask
+		}
+	}
+	for idx, cae := range lca {
+		if cae.Attr == attr {
+			lca[idx].Mask |= mask
+			return lca
+		}
+	}
+	return append(lca, uapi.LineConfigAttribute{Attr: attr, Mask: mask})
+}
+
+func (lco lineConfigOptions) toULineConfig() (ulc uapi.LineConfig, err error) {
+
+	mask := uapi.NewLineBitMask(len(lco.offsets))
+	cfgAttrs := lineConfigAttributes{
+		// first cfg slot reserved for default flags
+		uapi.LineConfigAttribute{Attr: uapi.LineFlagV2(0).Encode(), Mask: mask},
+	}
+	attrs := lco.defCfg.toLineAttributes()
+	for _, attr := range attrs {
+		if attr.ID == uapi.LineAttributeIDFlags {
+			cfgAttrs[0].Attr = attr
+		} else {
+			cfgAttrs = cfgAttrs.append(attr, mask)
+		}
+	}
+
+	var outputMask uapi.LineBitmap
+	if lco.defCfg.Direction == LineDirectionOutput {
+		outputMask = mask
+	}
+
+	for idx, offset := range lco.offsets {
+		cfg := lco.lineCfg[offset]
+		if cfg == nil {
+			continue
+		}
+		mask = uapi.LineBitmap(1) << uint(idx)
+		attrs = cfg.toLineAttributes()
+		for _, attr := range attrs {
+			cfgAttrs = cfgAttrs.append(attr, mask)
+		}
+		if cfg.Direction == LineDirectionOutput {
+			outputMask |= mask
+		} else {
+			outputMask &^= mask
+		}
+	}
+	var defFlags uapi.LineFlagV2
+	defFlags.Decode(cfgAttrs[0].Attr)
+	// replace default flags in slot 0 with outputValues
+	cfgAttrs[0].Attr = lco.outputValues().Encode()
+	cfgAttrs[0].Mask = outputMask
+
+	// filter mask==0 entries
+	loopAttrs := cfgAttrs
+	cfgAttrs = cfgAttrs[:0]
+	for _, attr := range loopAttrs {
+		if attr.Mask != 0 {
+			cfgAttrs = append(cfgAttrs, attr)
+		}
+	}
+
+	if len(cfgAttrs) > 10 {
+		err = ErrConfigOverflow
+		return
+	}
+
+	ulc.Flags = defFlags
+	ulc.NumAttrs = uint32(len(cfgAttrs))
+	copy(ulc.Attrs[:], cfgAttrs)
+	return
 }
 
 // EventHandler is a receiver for line events.
@@ -105,6 +213,12 @@ func (o InputOption) applyLineConfigOption(l *lineConfigOptions) {
 	l.defCfg.Direction = LineDirectionInput
 }
 
+func (o InputOption) applySubsetLineConfigOption(offsets []int, l *lineConfigOptions) {
+	for _, offset := range offsets {
+		l.lineConfig(offset).Direction = LineDirectionInput
+	}
+}
+
 // OutputOption indicates the line direction should be set to an output.
 type OutputOption struct {
 	values []int
@@ -123,15 +237,29 @@ func AsOutput(values ...int) OutputOption {
 	return OutputOption{vv}
 }
 
-func (o OutputOption) applyLineReqOption(l *lineReqOptions) {
-	o.applyLineConfigOption(&l.lineConfigOptions)
+func (o OutputOption) applyLineReqOption(lro *lineReqOptions) {
+	o.applyLineConfigOption(&lro.lineConfigOptions)
 }
 
-func (o OutputOption) applyLineConfigOption(l *lineConfigOptions) {
-	l.defCfg.Direction = LineDirectionOutput
-	l.values = o.values
-	l.defCfg.Debounced = false
-	l.defCfg.DebouncePeriod = 0
+func (o OutputOption) applyLineConfig(lc *LineConfig) {
+	lc.Direction = LineDirectionOutput
+	lc.Debounced = false
+	lc.DebouncePeriod = 0
+	lc.EdgeDetection = LineEdgeNone
+}
+
+func (o OutputOption) applyLineConfigOption(lco *lineConfigOptions) {
+	o.applyLineConfig(&lco.defCfg)
+	for idx, value := range o.values {
+		lco.values[lco.offsets[idx]] = value
+	}
+}
+
+func (o OutputOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
+	for idx, offset := range offsets {
+		o.applyLineConfig(lco.lineConfig(offset))
+		lco.values[offset] = o.values[idx]
+	}
 }
 
 // LevelOption determines the line level that is considered active.
@@ -143,12 +271,18 @@ func (o LevelOption) applyChipOption(c *ChipOptions) {
 	c.config.ActiveLow = o.activeLow
 }
 
-func (o LevelOption) applyLineReqOption(l *lineReqOptions) {
-	l.defCfg.ActiveLow = o.activeLow
+func (o LevelOption) applyLineReqOption(lro *lineReqOptions) {
+	lro.defCfg.ActiveLow = o.activeLow
 }
 
-func (o LevelOption) applyLineConfigOption(l *lineConfigOptions) {
-	l.defCfg.ActiveLow = o.activeLow
+func (o LevelOption) applyLineConfigOption(lco *lineConfigOptions) {
+	lco.defCfg.ActiveLow = o.activeLow
+}
+
+func (o LevelOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
+	for _, offset := range offsets {
+		lco.lineConfig(offset).ActiveLow = o.activeLow
+	}
 }
 
 // AsActiveLow indicates that a line be considered active when the line level
@@ -166,15 +300,25 @@ type DriveOption struct {
 	drive LineDrive
 }
 
-func (o DriveOption) applyLineReqOption(l *lineReqOptions) {
-	o.applyLineConfigOption(&l.lineConfigOptions)
+func (o DriveOption) applyLineConfig(lc *LineConfig) {
+	lc.Drive = o.drive
+	lc.Direction = LineDirectionOutput
+	lc.Debounced = false
+	lc.DebouncePeriod = 0
 }
 
-func (o DriveOption) applyLineConfigOption(l *lineConfigOptions) {
-	l.defCfg.Drive = o.drive
-	l.defCfg.Direction = LineDirectionOutput
-	l.defCfg.Debounced = false
-	l.defCfg.DebouncePeriod = 0
+func (o DriveOption) applyLineReqOption(lro *lineReqOptions) {
+	o.applyLineConfig(&lro.defCfg)
+}
+
+func (o DriveOption) applyLineConfigOption(lco *lineConfigOptions) {
+	o.applyLineConfig(&lco.defCfg)
+}
+
+func (o DriveOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
+	for _, offset := range offsets {
+		o.applyLineConfig(lco.lineConfig(offset))
+	}
 }
 
 // AsOpenDrain indicates that a line be driven low but left floating for high.
@@ -207,12 +351,18 @@ func (o BiasOption) applyChipOption(c *ChipOptions) {
 	c.config.Bias = o.bias
 }
 
-func (o BiasOption) applyLineReqOption(l *lineReqOptions) {
-	o.applyLineConfigOption(&l.lineConfigOptions)
+func (o BiasOption) applyLineReqOption(lro *lineReqOptions) {
+	lro.defCfg.Bias = o.bias
 }
 
-func (o BiasOption) applyLineConfigOption(l *lineConfigOptions) {
-	l.defCfg.Bias = o.bias
+func (o BiasOption) applyLineConfigOption(lco *lineConfigOptions) {
+	lco.defCfg.Bias = o.bias
+}
+
+func (o BiasOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
+	for _, offset := range offsets {
+		lco.lineConfig(offset).Bias = o.bias
+	}
 }
 
 // WithBiasDisabled indicates that a line have its internal bias disabled.
@@ -262,14 +412,23 @@ type EdgeOption struct {
 	edge LineEdge
 }
 
+func (o EdgeOption) applyLineConfig(lc *LineConfig) {
+	lc.EdgeDetection = o.edge
+	lc.Direction = LineDirectionInput
+}
+
 func (o EdgeOption) applyLineReqOption(lro *lineReqOptions) {
-	lro.defCfg.EdgeDetection = o.edge
-	lro.defCfg.Direction = LineDirectionInput
+	o.applyLineConfig(&lro.defCfg)
 }
 
 func (o EdgeOption) applyLineConfigOption(lco *lineConfigOptions) {
-	lco.defCfg.EdgeDetection = o.edge
-	lco.defCfg.Direction = LineDirectionInput
+	o.applyLineConfig(&lco.defCfg)
+}
+
+func (o EdgeOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
+	for _, offset := range offsets {
+		o.applyLineConfig(lco.lineConfig(offset))
+	}
 }
 
 // WithFallingEdge indicates that a line will generate events when its active
@@ -306,14 +465,24 @@ type DebounceOption struct {
 	period time.Duration
 }
 
-func (o DebounceOption) applyLineReqOption(l *lineReqOptions) {
-	o.applyLineConfigOption(&l.lineConfigOptions)
+func (o DebounceOption) applyLineConfig(lc *LineConfig) {
+	lc.Direction = LineDirectionInput
+	lc.Debounced = true
+	lc.DebouncePeriod = o.period
 }
 
-func (o DebounceOption) applyLineConfigOption(l *lineConfigOptions) {
-	l.defCfg.Direction = LineDirectionInput
-	l.defCfg.Debounced = true
-	l.defCfg.DebouncePeriod = o.period
+func (o DebounceOption) applyLineReqOption(lro *lineReqOptions) {
+	o.applyLineConfig(&lro.defCfg)
+}
+
+func (o DebounceOption) applyLineConfigOption(lco *lineConfigOptions) {
+	o.applyLineConfig(&lco.defCfg)
+}
+
+func (o DebounceOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
+	for _, offset := range offsets {
+		o.applyLineConfig(lco.lineConfig(offset))
+	}
 }
 
 // WithDebounce indicates that a line will be debounced with the specified
@@ -347,4 +516,31 @@ func (o ABIVersionOption) applyLineReqOption(l *lineReqOptions) {
 // ABI version 2 requires Linux v5.10 or later.
 func WithABIVersion(version int) ABIVersionOption {
 	return ABIVersionOption(version)
+}
+
+// LinesOption specifies line options that are to be applied to a subset of
+// the lines in a request.
+type LinesOption struct {
+	offsets []int
+	options []SubsetLineConfigOption
+}
+
+func (o LinesOption) applyLineReqOption(lro *lineReqOptions) {
+	o.applyLineConfigOption(&lro.lineConfigOptions)
+}
+
+func (o LinesOption) applyLineConfigOption(lco *lineConfigOptions) {
+	for _, option := range o.options {
+		option.applySubsetLineConfigOption(o.offsets, lco)
+	}
+}
+
+// WithLines specifies line options to be applied to a subset of the lines in a
+// request.
+//
+// The offsets should be a strict subset of the offsets provided to
+// RequestLines().
+// Any offsets outside that set are ignored.
+func WithLines(offsets []int, options ...SubsetLineConfigOption) LinesOption {
+	return LinesOption{offsets, options}
 }

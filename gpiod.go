@@ -455,6 +455,7 @@ func (c *Chip) RequestLines(offsets []int, options ...LineReqOption) (*Lines, er
 	lro := lineReqOptions{
 		lineConfigOptions: lineConfigOptions{
 			offsets: offsets,
+			values:  map[int]int{},
 			defCfg:  c.options.config,
 		},
 		consumer: c.options.consumer,
@@ -463,9 +464,6 @@ func (c *Chip) RequestLines(offsets []int, options ...LineReqOption) (*Lines, er
 	}
 	for _, option := range options {
 		option.applyLineReqOption(&lro)
-	}
-	if len(lro.values) > len(offsets) {
-		lro.values = lro.values[:len(offsets)]
 	}
 	ll := Lines{
 		baseLine: baseLine{
@@ -573,16 +571,20 @@ func (c *Chip) UnwatchLineInfo(offset int) error {
 
 func (c *Chip) getLine(offsets []int, lro lineReqOptions) (uintptr, io.Closer, error) {
 
+	config, err := lro.toULineConfig()
+	if err != nil {
+		return 0, nil, err
+	}
 	lr := uapi.LineRequest{
 		Lines:  uint32(len(offsets)),
-		Config: lro.toULineConfig(),
+		Config: config,
 	}
 	copy(lr.Consumer[:len(lr.Consumer)-1], lro.consumer)
 	// copy(hr.Offsets[:], offsets) - with cast
 	for i, o := range offsets {
 		lr.Offsets[i] = uint32(o)
 	}
-	err := uapi.GetLine(c.f.Fd(), &lr)
+	err = uapi.GetLine(c.f.Fd(), &lr)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -643,55 +645,49 @@ func (lc LineConfig) toEventFlags() uapi.EventFlag {
 	}
 }
 
-func (lro lineConfigOptions) toULineConfig() uapi.LineConfig {
-	var ulc uapi.LineConfig
-
-	// !!! extend to handle different line configs => attributes....
-
-	ulc.Flags = 0
-
-	if lro.defCfg.ActiveLow {
-		ulc.Flags |= uapi.LineFlagV2ActiveLow
+func (lc LineConfig) toLineFlagV2() (flags uapi.LineFlagV2) {
+	if lc.ActiveLow {
+		flags |= uapi.LineFlagV2ActiveLow
 	}
-
-	numLines := len(lro.offsets)
-	if lro.defCfg.Direction == LineDirectionOutput {
-		ulc.Flags |= uapi.LineFlagV2Output
-		if lro.defCfg.Drive == LineDriveOpenDrain {
-			ulc.Flags |= uapi.LineFlagV2OpenDrain
-		} else if lro.defCfg.Drive == LineDriveOpenSource {
-			ulc.Flags |= uapi.LineFlagV2OpenSource
+	if lc.Direction == LineDirectionOutput {
+		flags |= uapi.LineFlagV2Output
+		if lc.Drive == LineDriveOpenDrain {
+			flags |= uapi.LineFlagV2OpenDrain
+		} else if lc.Drive == LineDriveOpenSource {
+			flags |= uapi.LineFlagV2OpenSource
 		}
-		if len(lro.values) > 0 {
-			lv := uapi.OutputValues(uapi.NewLineBitmap(lro.values...))
-			ulc.Attrs[ulc.NumAttrs].Mask = uapi.NewLineBitMask(numLines)
-			lv.Encode(&ulc.Attrs[ulc.NumAttrs].Attr)
-			ulc.NumAttrs++
+	} else if lc.Direction == LineDirectionInput {
+		flags |= uapi.LineFlagV2Input
+		if lc.EdgeDetection&LineEdgeRising != 0 {
+			flags |= uapi.LineFlagV2EdgeRising
 		}
-	} else if lro.defCfg.Direction == LineDirectionInput {
-		ulc.Flags |= uapi.LineFlagV2Input
-		if lro.defCfg.EdgeDetection&LineEdgeRising != 0 {
-			ulc.Flags |= uapi.LineFlagV2EdgeRising
-		}
-		if lro.defCfg.EdgeDetection&LineEdgeFalling != 0 {
-			ulc.Flags |= uapi.LineFlagV2EdgeFalling
-		}
-		if lro.defCfg.Debounced {
-			ulc.Attrs[ulc.NumAttrs].Mask = uapi.NewLineBitMask(numLines)
-			uapi.DebouncePeriod(lro.defCfg.DebouncePeriod).Encode(&ulc.Attrs[ulc.NumAttrs].Attr)
-			ulc.NumAttrs++
+		if lc.EdgeDetection&LineEdgeFalling != 0 {
+			flags |= uapi.LineFlagV2EdgeFalling
 		}
 	}
 
-	if lro.defCfg.Bias == LineBiasDisabled {
-		ulc.Flags |= uapi.LineFlagV2BiasDisabled
-	} else if lro.defCfg.Bias == LineBiasPullUp {
-		ulc.Flags |= uapi.LineFlagV2BiasPullUp
-	} else if lro.defCfg.Bias == LineBiasPullDown {
-		ulc.Flags |= uapi.LineFlagV2BiasPullDown
+	if lc.Bias == LineBiasDisabled {
+		flags |= uapi.LineFlagV2BiasDisabled
+	} else if lc.Bias == LineBiasPullUp {
+		flags |= uapi.LineFlagV2BiasPullUp
+	} else if lc.Bias == LineBiasPullDown {
+		flags |= uapi.LineFlagV2BiasPullDown
 	}
+	return
+}
 
-	return ulc
+func (lc LineConfig) toLineAttributes() (attrs []uapi.LineAttribute) {
+	flags := lc.toLineFlagV2()
+	attr := uapi.LineAttribute{}
+	if flags != 0 {
+		attr.Encode64(uapi.LineAttributeIDFlags, uint64(flags))
+		attrs = append(attrs, attr)
+	}
+	if lc.Debounced {
+		attr = uapi.DebouncePeriod(lc.DebouncePeriod).Encode()
+		attrs = append(attrs, attr)
+	}
+	return
 }
 
 func (lc LineConfig) v1Validate() error {
@@ -701,16 +697,16 @@ func (lc LineConfig) v1Validate() error {
 	return nil
 }
 
-func (c *Chip) getEventRequest(offsets []int, lo lineReqOptions) (uintptr, io.Closer, error) {
+func (c *Chip) getEventRequest(offsets []int, lro lineReqOptions) (uintptr, io.Closer, error) {
 	var vfd uintptr
 	fds := make(map[int]int)
 	for i, o := range offsets {
 		er := uapi.EventRequest{
 			Offset:      uint32(o),
-			HandleFlags: lo.defCfg.toHandleFlags(),
-			EventFlags:  lo.defCfg.toEventFlags(),
+			HandleFlags: lro.defCfg.toHandleFlags(),
+			EventFlags:  lro.defCfg.toEventFlags(),
 		}
-		copy(er.Consumer[:len(er.Consumer)-1], lo.consumer)
+		copy(er.Consumer[:len(er.Consumer)-1], lro.consumer)
 		err := uapi.GetLineEvent(c.f.Fd(), &er)
 		if err != nil {
 			return 0, nil, err
@@ -721,7 +717,7 @@ func (c *Chip) getEventRequest(offsets []int, lo lineReqOptions) (uintptr, io.Cl
 		}
 		fds[int(fd)] = o
 	}
-	w, err := newWatcherV1(fds, lo.eh)
+	w, err := newWatcherV1(fds, lro.eh)
 	if err != nil {
 		for fd := range fds {
 			unix.Close(fd)
@@ -731,19 +727,18 @@ func (c *Chip) getEventRequest(offsets []int, lo lineReqOptions) (uintptr, io.Cl
 	return vfd, w, nil
 }
 
-func (c *Chip) getHandleRequest(offsets []int, lo lineReqOptions) (uintptr, error) {
+func (c *Chip) getHandleRequest(offsets []int, lro lineReqOptions) (uintptr, error) {
 	hr := uapi.HandleRequest{
 		Lines: uint32(len(offsets)),
-		Flags: lo.defCfg.toHandleFlags(),
+		Flags: lro.defCfg.toHandleFlags(),
 	}
-	copy(hr.Consumer[:len(hr.Consumer)-1], lo.consumer)
+	copy(hr.Consumer[:len(hr.Consumer)-1], lro.consumer)
 	// copy(hr.Offsets[:], offsets) - with cast
 	for i, o := range offsets {
 		hr.Offsets[i] = uint32(o)
 	}
-	// copy(hr.DefaultValues[:], lo.Config.values[:len(offsets)]) -- with cast
-	for i, v := range lo.values {
-		hr.DefaultValues[i] = uint8(v)
+	for idx, offset := range lro.offsets {
+		hr.DefaultValues[idx] = uint8(lro.values[offset])
 	}
 	err := uapi.GetLineHandle(c.f.Fd(), &hr)
 	if err != nil {
@@ -759,7 +754,7 @@ func (c *Chip) UapiAbiVersion() int {
 
 type baseLine struct {
 	offsets []int
-	values  []int
+	values  map[int]int
 	vfd     uintptr
 	isEvent bool
 	chip    string
@@ -828,17 +823,14 @@ func (l *baseLine) Reconfigure(options ...LineConfigOption) error {
 	for _, option := range options {
 		option.applyLineConfigOption(&lro.lineConfigOptions)
 	}
-	if len(lro.values) > len(l.offsets) {
-		lro.values = lro.values[:len(l.offsets)]
-	}
 	if l.abi == 1 {
 		err := lro.defCfg.v1Validate()
 		if err != nil {
 			return err
 		}
 		hc := uapi.HandleConfig{Flags: lro.defCfg.toHandleFlags()}
-		for i, v := range lro.values {
-			hc.DefaultValues[i] = uint8(v)
+		for idx, offset := range lro.offsets {
+			hc.DefaultValues[idx] = uint8(lro.values[offset])
 		}
 		err = uapi.SetLineConfig(l.vfd, &hc)
 		if err == nil {
@@ -846,8 +838,11 @@ func (l *baseLine) Reconfigure(options ...LineConfigOption) error {
 		}
 		return err
 	}
-	config := lro.toULineConfig()
-	err := uapi.SetLineConfigV2(l.vfd, &config)
+	config, err := lro.toULineConfig()
+	if err != nil {
+		return err
+	}
+	err = uapi.SetLineConfigV2(l.vfd, &config)
 	if err == nil {
 		l.config = lro.defCfg
 	}
@@ -876,7 +871,7 @@ func (l *Line) Info() (info LineInfo, err error) {
 		info = *l.info[0]
 		return
 	}
-	c, err := NewChip(l.chip)
+	c, err := NewChip(l.chip, WithABIVersion(l.abi))
 	if err != nil {
 		return
 	}
@@ -924,7 +919,7 @@ func (l *Line) SetValue(value int) error {
 		hd[0] = uint8(value)
 		err := uapi.SetLineValues(l.vfd, hd)
 		if err == nil {
-			l.values = append([]int(nil), value)
+			l.values[l.offsets[0]] = value
 		}
 		return err
 	}
@@ -934,7 +929,7 @@ func (l *Line) SetValue(value int) error {
 	}
 	err := uapi.SetLineValuesV2(l.vfd, lsv)
 	if err == nil {
-		l.values = append([]int(nil), value)
+		l.values[l.offsets[0]] = value
 	}
 	return err
 }
@@ -959,7 +954,7 @@ func (l *Lines) Info() ([]*LineInfo, error) {
 	if l.info != nil {
 		return l.info, nil
 	}
-	c, err := NewChip(l.chip)
+	c, err := NewChip(l.chip, WithABIVersion(l.abi))
 	if err != nil {
 		return nil, err
 	}
@@ -1038,7 +1033,9 @@ func (l *Lines) SetValues(values []int) error {
 		}
 		err := uapi.SetLineValues(l.vfd, hd)
 		if err == nil {
-			l.values = append([]int(nil), values...)
+			for i, v := range values {
+				l.values[l.offsets[i]] = v
+			}
 		}
 		return err
 	}
@@ -1048,7 +1045,9 @@ func (l *Lines) SetValues(values []int) error {
 	}
 	err := uapi.SetLineValuesV2(l.vfd, lv)
 	if err == nil {
-		l.values = values
+		for i, v := range values {
+			l.values[l.offsets[i]] = v
+		}
 	}
 
 	return err
@@ -1206,13 +1205,20 @@ var (
 	// ErrClosed indicates the chip or line has already been closed.
 	ErrClosed = errors.New("already closed")
 
+	// ErrConfigOverflow indicates the provided configuration is too complicated
+	// to be mapped to the kernel uAPI.
+	//
+	// Reduce the number of line options or split the request into multiple
+	// requests for smaller sets of lines.
+	ErrConfigOverflow = errors.New("configuration too complex to map to kernel uAPI")
+
 	// ErrInvalidOffset indicates a line offset is invalid.
 	ErrInvalidOffset = errors.New("invalid offset")
 
 	// ErrNotCharacterDevice indicates the device is not a character device.
 	ErrNotCharacterDevice = errors.New("not a character device")
 
-	// ErrLineNotFound indicates the line was not found.
+	// ErrLineNotFound indicates the named line was not found.
 	ErrLineNotFound = errors.New("line not found")
 
 	// ErrPermissionDenied indicates caller does not have required permissions

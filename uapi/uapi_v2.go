@@ -327,6 +327,17 @@ func (f LineFlagV2) HasRealtimeEventClock() bool {
 	return f&LineFlagV2EventClockRealtime != 0
 }
 
+// Encode creates a LineAttribute with the value from the LineFlagV2.
+func (f LineFlagV2) Encode() (la LineAttribute) {
+	la.Encode64(LineAttributeIDFlags, uint64(f))
+	return
+}
+
+// Decode populates the LineFlagV2 with value from the LineAttribute.
+func (f *LineFlagV2) Decode(la LineAttribute) {
+	*f = LineFlagV2(la.Value64())
+}
+
 const (
 	// LinesMax is the maximum number of lines that can be requested in a single
 	// request.
@@ -389,9 +400,10 @@ const (
 // transition is recognized.
 type DebouncePeriod time.Duration
 
-// Encode populates the LineAttribute with the value from the DebouncePeriod.
-func (d DebouncePeriod) Encode(la *LineAttribute) {
+// Encode creates a LineAttribute with the value from the DebouncePeriod.
+func (d DebouncePeriod) Encode() (la LineAttribute) {
 	la.Encode32(LineAttributeIDDebounce, uint32(d/1000))
+	return
 }
 
 // Decode populates the DebouncePeriod with value from the LineAttribute.
@@ -402,9 +414,10 @@ func (d *DebouncePeriod) Decode(la LineAttribute) {
 // OutputValues specifiy the active level of output lines.
 type OutputValues LineBitmap
 
-// Encode populates the LineAttribute with the values from the OutputValues.
-func (ov OutputValues) Encode(la *LineAttribute) {
+// Encode creates a LineAttribute with the values from the OutputValues.
+func (ov OutputValues) Encode() (la LineAttribute) {
 	la.Encode64(LineAttributeIDOutputValues, uint64(ov))
+	return
 }
 
 // Decode populates the OutputValues with values from the LineAttribute.
@@ -509,7 +522,7 @@ type LineBitmap uint64
 func NewLineBits(vv ...int) LineBitmap {
 	var lb LineBitmap
 	for _, bit := range vv {
-		lb.Set(bit, 1)
+		lb = lb.Set(bit, 1)
 	}
 	return lb
 }
@@ -518,7 +531,7 @@ func NewLineBits(vv ...int) LineBitmap {
 func NewLineBitmap(vv ...int) LineBitmap {
 	var lb LineBitmap
 	for i, v := range vv {
-		lb.Set(i, v)
+		lb = lb.Set(i, v)
 	}
 	return lb
 }
@@ -535,22 +548,21 @@ func NewLineBitMask(n int) LineBitmap {
 }
 
 // Get returns the value of the nth bit.
-func (lb *LineBitmap) Get(n int) int {
+func (lb LineBitmap) Get(n int) int {
 	mask := LineBitmap(1) << uint(n)
-	if *lb&mask != 0 {
+	if lb&mask != 0 {
 		return 1
 	}
 	return 0
 }
 
 // Set sets the value of the nth bit.
-func (lb *LineBitmap) Set(n, v int) {
+func (lb LineBitmap) Set(n, v int) LineBitmap {
 	mask := LineBitmap(1) << uint(n)
 	if v == 0 {
-		*lb &^= mask
-	} else {
-		*lb |= mask
+		return lb &^ mask
 	}
+	return lb | mask
 }
 
 // LineValues contains the output values for a set of lines.
@@ -569,7 +581,7 @@ type LineValues struct {
 }
 
 // Get returns the value of the nth bit.
-func (lv *LineValues) Get(n int) int {
+func (lv LineValues) Get(n int) int {
 	mask := LineBitmap(1) << uint(n)
 	if lv.Bits&mask != 0 {
 		return 1

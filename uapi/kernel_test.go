@@ -607,7 +607,7 @@ func TestSetConfigDebouncedEdges(t *testing.T) {
 			}
 			config.NumAttrs = 1
 			config.Attrs[0].Mask = 1
-			uapi.DebouncePeriod(period).Encode(&config.Attrs[0].Attr)
+			config.Attrs[0].Attr = uapi.DebouncePeriod(period).Encode()
 			err = uapi.SetLineConfigV2(uintptr(lr.Fd), &config)
 			require.Nil(t, err, period)
 		}
@@ -659,7 +659,7 @@ func TestGetLineDebouncedEdges(t *testing.T) {
 	}
 	copy(lr.Consumer[:31], "test-get-line-debounced-edges")
 	lr.Config.Attrs[0].Mask = 1
-	uapi.DebouncePeriod(20).Encode(&lr.Config.Attrs[0].Attr)
+	lr.Config.Attrs[0].Attr = uapi.DebouncePeriod(20).Encode()
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 	defer unix.Close(int(lr.Fd))
