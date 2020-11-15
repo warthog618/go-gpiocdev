@@ -2,6 +2,7 @@
 //
 // Copyright © 2020 Kent Gibson <warthog618@gmail.com>.
 
+// A simple example that toggles an output pin.
 package main
 
 import (

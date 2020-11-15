@@ -4,7 +4,6 @@
 
 // +build linux
 
-// A clone of libgpiod gpioinfo.
 package main
 
 import (

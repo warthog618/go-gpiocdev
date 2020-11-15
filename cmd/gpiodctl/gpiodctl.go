@@ -4,6 +4,7 @@
 
 // +build linux
 
+// A utility to control GPIO lines.
 package main
 
 import (

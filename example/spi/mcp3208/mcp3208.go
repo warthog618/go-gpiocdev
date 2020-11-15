@@ -2,6 +2,7 @@
 //
 // Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
 
+// An example of reading values from a MCP3208 using the bit-bashed SPI driver.
 package main
 
 import (

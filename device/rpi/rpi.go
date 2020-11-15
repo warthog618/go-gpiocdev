@@ -2,6 +2,8 @@
 //
 // Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
 
+// Package rpi provides convenience mappings from Rasperry Pi pin names to
+// offsets.
 package rpi
 
 import (
