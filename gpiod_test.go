@@ -436,16 +436,41 @@ func TestLineOffset(t *testing.T) {
 func TestLineReconfigure(t *testing.T) {
 	requireKernel(t, setConfigKernel)
 
-	c := getChip(t)
+	c := getChip(t, gpiod.WithConsumer("TestLineReconfigure"))
 	defer c.Close()
 
-	l, err := c.RequestLine(platform.IntrLine())
+	offset := platform.IntrLine()
+	xinf := gpiod.LineInfo{
+		Used:     true,
+		Consumer: "TestLineReconfigure",
+		Offset:   offset,
+		Config: gpiod.LineConfig{
+			Direction: gpiod.LineDirectionInput,
+		},
+	}
+	l, err := c.RequestLine(offset, gpiod.AsInput)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
+
+	inf, err := c.LineInfo(offset)
+	assert.Nil(t, err)
+	xinf.Name = inf.Name // don't care about line name
+	assert.Equal(t, xinf, inf)
 
 	// no options
 	err = l.Reconfigure()
 	assert.Nil(t, err)
+	inf, err = c.LineInfo(offset)
+	assert.Nil(t, err)
+	assert.Equal(t, xinf, inf)
+
+	// an option
+	err = l.Reconfigure(gpiod.AsActiveLow)
+	assert.Nil(t, err)
+	inf, err = c.LineInfo(offset)
+	assert.Nil(t, err)
+	xinf.Config.ActiveLow = true
+	assert.Equal(t, xinf, inf)
 
 	// closed
 	l.Close()
@@ -453,19 +478,169 @@ func TestLineReconfigure(t *testing.T) {
 	assert.Equal(t, gpiod.ErrClosed, err)
 
 	// event request
-	l, err = c.RequestLine(platform.IntrLine(),
+	l, err = c.RequestLine(offset,
 		gpiod.WithBothEdges,
 		gpiod.WithEventHandler(func(gpiod.LineEvent) {}))
 	assert.Nil(t, err)
 	require.NotNil(t, l)
+
+	inf, err = c.LineInfo(offset)
+	assert.Nil(t, err)
+	xinf.Config.ActiveLow = false
+	if l.UapiAbiVersion() != 1 {
+		// uAPI v1 does not return edge detection status in info
+		xinf.Config.EdgeDetection = gpiod.LineEdgeBoth
+	}
+	assert.Equal(t, xinf, inf)
+
 	err = l.Reconfigure(gpiod.AsActiveLow)
 	switch l.UapiAbiVersion() {
 	case 1:
 		assert.Equal(t, unix.EINVAL, err)
 	case 2:
 		assert.Nil(t, err)
+		xinf.Config.ActiveLow = true
 	}
+	inf, err = c.LineInfo(offset)
+	assert.Nil(t, err)
+	assert.Equal(t, xinf, inf)
 	l.Close()
+}
+
+func TestLinesReconfigure(t *testing.T) {
+	requireKernel(t, setConfigKernel)
+
+	c := getChip(t, gpiod.WithConsumer("TestLinesReconfigure"))
+	defer c.Close()
+
+	offsets := platform.FloatingLines()
+	offset := offsets[1]
+	ll, err := c.RequestLines(offsets, gpiod.AsInput)
+	assert.Nil(t, err)
+	require.NotNil(t, ll)
+
+	xinf := gpiod.LineInfo{
+		Used:     true,
+		Consumer: "TestLinesReconfigure",
+		Offset:   offset,
+		Config: gpiod.LineConfig{
+			Direction: gpiod.LineDirectionInput,
+		},
+	}
+	inf, err := c.LineInfo(offset)
+	assert.Nil(t, err)
+	xinf.Name = inf.Name // don't care about line name
+	assert.Equal(t, xinf, inf)
+
+	// no options
+	err = ll.Reconfigure()
+	assert.Nil(t, err)
+	inf, err = c.LineInfo(offset)
+	assert.Nil(t, err)
+	assert.Equal(t, xinf, inf)
+
+	// one option
+	err = ll.Reconfigure(gpiod.AsActiveLow)
+	assert.Nil(t, err)
+	inf, err = c.LineInfo(offset)
+	assert.Nil(t, err)
+	xinf.Config.ActiveLow = true
+	assert.Equal(t, xinf, inf)
+
+	if ll.UapiAbiVersion() != 1 {
+		inner := []int{offsets[3], offsets[0]}
+
+		// WithLines
+		err = ll.Reconfigure(
+			gpiod.WithLines(inner, gpiod.WithPullUp),
+			gpiod.AsActiveHigh,
+		)
+		assert.Nil(t, err)
+
+		inf, err = c.LineInfo(offset)
+		assert.Nil(t, err)
+		xinf.Config.ActiveLow = false
+		assert.Equal(t, xinf, inf)
+
+		xinfi := gpiod.LineInfo{
+			Used:     true,
+			Consumer: "TestLinesReconfigure",
+			Offset:   inner[0],
+			Config: gpiod.LineConfig{
+				ActiveLow: true,
+				Bias:      gpiod.LineBiasPullUp,
+				Direction: gpiod.LineDirectionInput,
+			},
+		}
+		inf, err = c.LineInfo(inner[0])
+		assert.Nil(t, err)
+		xinfi.Name = inf.Name // don't care about line name
+		assert.Equal(t, xinfi, inf)
+
+		inf, err = c.LineInfo(inner[1])
+		assert.Nil(t, err)
+		xinfi.Offset = inner[1]
+		xinfi.Name = inf.Name // don't care about line name
+		assert.Equal(t, xinfi, inf)
+
+		// single WithLines -> 3 distinct configs
+		err = ll.Reconfigure(
+			gpiod.WithLines(inner[:1], gpiod.WithPullDown),
+		)
+		assert.Nil(t, err)
+
+		inf, err = c.LineInfo(offset)
+		assert.Nil(t, err)
+		xinf.Config.ActiveLow = false
+		assert.Equal(t, xinf, inf)
+
+		inf, err = c.LineInfo(inner[1])
+		assert.Nil(t, err)
+		xinfi.Offset = inner[1]
+		xinfi.Name = inf.Name // don't care about line name
+		assert.Equal(t, xinfi, inf)
+
+		inf, err = c.LineInfo(inner[0])
+		assert.Nil(t, err)
+		xinfi.Offset = inner[0]
+		xinfi.Config.Bias = gpiod.LineBiasPullDown
+		xinfi.Name = inf.Name // don't care about line name
+		assert.Equal(t, xinfi, inf)
+	}
+
+	// closed
+	ll.Close()
+	err = ll.Reconfigure(gpiod.AsActiveLow)
+	assert.Equal(t, gpiod.ErrClosed, err)
+
+	// event request
+	ll, err = c.RequestLines(offsets,
+		gpiod.WithBothEdges,
+		gpiod.WithEventHandler(func(gpiod.LineEvent) {}))
+	assert.Nil(t, err)
+	require.NotNil(t, ll)
+
+	inf, err = c.LineInfo(offset)
+	assert.Nil(t, err)
+	xinf.Config.ActiveLow = false
+	if ll.UapiAbiVersion() != 1 {
+		// uAPI v1 does not return edge detection status in info
+		xinf.Config.EdgeDetection = gpiod.LineEdgeBoth
+	}
+	assert.Equal(t, xinf, inf)
+
+	err = ll.Reconfigure(gpiod.AsActiveLow)
+	switch ll.UapiAbiVersion() {
+	case 1:
+		assert.Equal(t, unix.EINVAL, err)
+	case 2:
+		assert.Nil(t, err)
+		xinf.Config.ActiveLow = true
+	}
+	inf, err = c.LineInfo(offset)
+	assert.Nil(t, err)
+	assert.Equal(t, xinf, inf)
+	ll.Close()
 }
 
 func TestLineValue(t *testing.T) {

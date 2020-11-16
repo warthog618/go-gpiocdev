@@ -437,7 +437,7 @@ func (c *Chip) RequestLine(offset int, options ...LineReqOption) (*Line, error) 
 			isEvent: ll.isEvent,
 			chip:    ll.chip,
 			abi:     ll.abi,
-			config:  ll.config,
+			defCfg:  ll.defCfg,
 			watcher: ll.watcher,
 		},
 	}
@@ -471,7 +471,7 @@ func (c *Chip) RequestLines(offsets []int, options ...LineReqOption) (*Lines, er
 			values:  lro.values,
 			chip:    c.Name,
 			abi:     lro.abi,
-			config:  lro.defCfg,
+			defCfg:  lro.defCfg,
 		},
 	}
 	var err error
@@ -754,14 +754,15 @@ func (c *Chip) UapiAbiVersion() int {
 
 type baseLine struct {
 	offsets []int
-	values  map[int]int
 	vfd     uintptr
 	isEvent bool
 	chip    string
 	abi     int
 	// mu covers all that follow - those above are immutable
 	mu      sync.Mutex
-	config  LineConfig
+	values  map[int]int
+	defCfg  LineConfig
+	lineCfg map[int]*LineConfig
 	info    []*LineInfo
 	closed  bool
 	watcher io.Closer
@@ -817,7 +818,8 @@ func (l *baseLine) Reconfigure(options ...LineConfigOption) error {
 		lineConfigOptions: lineConfigOptions{
 			offsets: l.offsets,
 			values:  l.values,
-			defCfg:  l.config,
+			defCfg:  l.defCfg,
+			lineCfg: l.lineCfg,
 		},
 	}
 	for _, option := range options {
@@ -834,7 +836,7 @@ func (l *baseLine) Reconfigure(options ...LineConfigOption) error {
 		}
 		err = uapi.SetLineConfig(l.vfd, &hc)
 		if err == nil {
-			l.config = lro.defCfg
+			l.defCfg = lro.defCfg
 		}
 		return err
 	}
@@ -844,7 +846,8 @@ func (l *baseLine) Reconfigure(options ...LineConfigOption) error {
 	}
 	err = uapi.SetLineConfigV2(l.vfd, &config)
 	if err == nil {
-		l.config = lro.defCfg
+		l.defCfg = lro.defCfg
+		l.lineCfg = lro.lineCfg
 	}
 	return err
 }
@@ -908,7 +911,7 @@ func (l *Line) Value() (int, error) {
 func (l *Line) SetValue(value int) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.config.Direction != LineDirectionOutput {
+	if l.defCfg.Direction != LineDirectionOutput {
 		return ErrPermissionDenied
 	}
 	if l.closed {
@@ -1017,7 +1020,7 @@ func (l *Lines) Values(values []int) error {
 func (l *Lines) SetValues(values []int) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.config.Direction != LineDirectionOutput {
+	if l.defCfg.Direction != LineDirectionOutput {
 		return ErrPermissionDenied
 	}
 	if l.closed {
