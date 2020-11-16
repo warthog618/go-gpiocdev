@@ -366,6 +366,15 @@ func (o BiasOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigOp
 	}
 }
 
+// WithBiasAsIs indicates that a line have its internal bias left unchanged.
+//
+// This option corresponds to the default bias configuration and its only useful
+// application is to clear any previous bias option in a chain of LineOptions,
+// before that configuration is applied.
+//
+// Requires Linux v5.5 or later.
+var WithBiasAsIs = BiasOption{LineBiasUnknown}
+
 // WithBiasDisabled indicates that a line have its internal bias disabled.
 //
 // This option overrides and clears any previous bias options.

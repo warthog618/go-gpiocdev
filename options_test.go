@@ -481,12 +481,56 @@ func testLineBiasReconfigure(t *testing.T, createOption gpiod.LineReqOption,
 	t.Run("Reconfigure", tf)
 }
 
-func TestWithBiasDisable(t *testing.T) {
+func TestWithBiasDisabled(t *testing.T) {
 	bias := gpiod.LineBiasDisabled
 	// can't test value - is indeterminate without external bias.
 	testChipBiasOption(t, gpiod.WithBiasDisabled, bias, -1)
 	testLineBiasOption(t, gpiod.WithBiasDisabled, bias, -1)
 	testLineBiasReconfigure(t, gpiod.WithPullDown, gpiod.WithBiasDisabled, bias, -1)
+}
+
+func TestWithBiasAsIs(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
+	c := getChip(t, gpiod.WithConsumer("TestWithBiasAsIs"))
+	defer c.Close()
+	requireABI(t, c, 2)
+
+	ll := platform.FloatingLines()
+	require.GreaterOrEqual(t, len(ll), 5)
+
+	l, err := c.RequestLines(ll,
+		gpiod.AsInput,
+		gpiod.WithPullDown,
+		gpiod.WithLines(
+			[]int{ll[2], ll[4]},
+			gpiod.WithBiasAsIs,
+		),
+	)
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+
+	xinf := gpiod.LineInfo{
+		Used:     true,
+		Consumer: "TestWithBiasAsIs",
+		Offset:   ll[0],
+		Config: gpiod.LineConfig{
+			Bias:      gpiod.LineBiasPullDown,
+			Direction: gpiod.LineDirectionInput,
+		},
+	}
+	inf, err := c.LineInfo(ll[0])
+	assert.Nil(t, err)
+	xinf.Name = inf.Name // don't care about line name
+	assert.Equal(t, xinf, inf)
+
+	inf, err = c.LineInfo(ll[2])
+	assert.Nil(t, err)
+	xinf.Offset = ll[2]
+	xinf.Config.Bias = gpiod.LineBiasUnknown
+	xinf.Name = inf.Name // don't care about line name
+	assert.Equal(t, xinf, inf)
+
+	l.Close()
 }
 
 func TestWithPullDown(t *testing.T) {
