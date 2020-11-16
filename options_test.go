@@ -745,11 +745,11 @@ func TestWithLines(t *testing.T) {
 		{"in+debounced",
 			[]gpiod.LineReqOption{
 				gpiod.AsInput,
-				gpiod.AsActiveLow,
 				gpiod.WithLines(
 					[]int{ll[2], ll[4]},
 					gpiod.WithDebounce(1234*time.Microsecond),
 				),
+				gpiod.AsActiveLow,
 			},
 			map[int]gpiod.LineInfo{
 				ll[1]: {
@@ -818,7 +818,6 @@ func TestWithLines(t *testing.T) {
 		{"in+out+debounced",
 			[]gpiod.LineReqOption{
 				gpiod.AsInput,
-				gpiod.WithPullDown,
 				gpiod.WithLines(
 					[]int{ll[2], ll[4]},
 					gpiod.AsOutput(1, 1),
@@ -830,6 +829,7 @@ func TestWithLines(t *testing.T) {
 					[]int{ll[3], ll[4]},
 					gpiod.WithDebounce(1432*time.Microsecond),
 				),
+				gpiod.WithPullDown,
 			},
 			map[int]gpiod.LineInfo{
 				ll[0]: {

@@ -82,7 +82,8 @@ func (lco *lineConfigOptions) lineConfig(offset int) *LineConfig {
 	}
 	lc := lco.lineCfg[offset]
 	if lc == nil {
-		lc = &LineConfig{}
+		tlc := lco.defCfg
+		lc = &tlc
 		lco.lineCfg[offset] = lc
 	}
 	return lc
