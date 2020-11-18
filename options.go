@@ -63,9 +63,10 @@ type SubsetLineConfigOption interface {
 // lineReqOptions contains the options for a Line(s) request.
 type lineReqOptions struct {
 	lineConfigOptions
-	consumer string
-	abi      int
-	eh       EventHandler
+	consumer        string
+	abi             int
+	eh              EventHandler
+	eventBufferSize int
 }
 
 // lineConfigOptions contains the configuration options for a Line(s) reconfigure.
@@ -592,3 +593,29 @@ func (o DefaultedOption) applySubsetLineConfigOption(offsets []int, lco *lineCon
 // request itself to default values but leaves any configuration set within
 // WithLines() unchanged.
 var Defaulted = DefaultedOption{}
+
+// EventBufferSizeOption provides a suggested minimum number of events the
+// kernel will buffer for the line request.
+//
+// The EventBufferSizeOption requires Linux v5.10 or later.
+type EventBufferSizeOption struct {
+	size int
+}
+
+func (o EventBufferSizeOption) applyLineReqOption(lro *lineReqOptions) {
+	lro.eventBufferSize = o.size
+}
+
+// WithEventBufferSize suggests a minimum number of events the kernel will
+// buffer for the line request.
+//
+// Note that the value is only a suggestion, and the kernel may set higher
+// values or place a cap on the buffer size.
+//
+// A zero value (the default) indicates that the kernel should use its default
+// buffer size (the number of requested lines * 16).
+//
+// Requires Linux v5.10 or later.
+func WithEventBufferSize(size int) EventBufferSizeOption {
+	return EventBufferSizeOption{size}
+}

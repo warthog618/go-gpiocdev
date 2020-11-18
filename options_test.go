@@ -1156,3 +1156,61 @@ func TestDefaulted(t *testing.T) {
 		t.Run("reconfig-"+p.name, tf)
 	}
 }
+
+func TestWithEventBufferSize(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
+	c := getChip(t)
+	defer c.Close()
+	requireABI(t, c, 2)
+
+	ll := platform.FloatingLines()
+
+	patterns := []struct {
+		name     string
+		size     int
+		numLines int
+	}{
+		{"one smaller",
+			5,
+			1,
+		},
+		{"one larger",
+			25,
+			1,
+		},
+		{"one default",
+			0,
+			1,
+		},
+		{"two smaller",
+			5,
+			1,
+		},
+		{"two larger",
+			35,
+			1,
+		},
+		{"two default",
+			0,
+			1,
+		},
+	}
+
+	for _, p := range patterns {
+		if p.numLines == 1 {
+			t.Run(p.name, func(t *testing.T) {
+				l, err := c.RequestLine(ll[0], gpiod.WithEventBufferSize(p.size))
+				assert.Nil(t, err)
+				require.NotNil(t, l)
+				l.Close()
+			})
+		} else {
+			t.Run(p.name, func(t *testing.T) {
+				l, err := c.RequestLines(ll[:p.numLines], gpiod.WithEventBufferSize(p.size))
+				assert.Nil(t, err)
+				require.NotNil(t, l)
+				l.Close()
+			})
+		}
+	}
+}
