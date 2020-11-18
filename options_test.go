@@ -958,3 +958,201 @@ func TestWithLines(t *testing.T) {
 		t.Run("reconfig-"+p.name, tf)
 	}
 }
+
+func TestDefaulted(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
+	c := getChip(t, gpiod.WithConsumer("TestDefaulted"))
+	defer c.Close()
+
+	ll := platform.FloatingLines()
+	require.GreaterOrEqual(t, len(ll), 5)
+
+	patterns := []struct {
+		name       string
+		reqOptions []gpiod.LineReqOption
+		info       map[int]gpiod.LineInfo
+		abi        int
+	}{
+		{"top level",
+			[]gpiod.LineReqOption{
+				gpiod.AsActiveLow,
+				gpiod.WithPullDown,
+				gpiod.Defaulted,
+				gpiod.AsInput,
+			},
+			map[int]gpiod.LineInfo{
+				ll[0]: {
+					Config: gpiod.LineConfig{
+						Direction: gpiod.LineDirectionInput,
+					},
+				},
+				ll[2]: {
+					Config: gpiod.LineConfig{
+						Direction: gpiod.LineDirectionInput,
+					},
+				},
+			},
+			1,
+		},
+		{"WithLines",
+			[]gpiod.LineReqOption{
+				gpiod.AsInput,
+				gpiod.WithLines(
+					[]int{ll[2], ll[4]},
+					gpiod.WithDebounce(1234*time.Microsecond),
+				),
+				gpiod.WithLines(
+					[]int{ll[2]},
+					gpiod.Defaulted,
+				),
+				gpiod.AsActiveLow,
+			},
+			map[int]gpiod.LineInfo{
+				ll[1]: {
+					Config: gpiod.LineConfig{
+						ActiveLow: true,
+						Direction: gpiod.LineDirectionInput,
+					},
+				},
+				ll[2]: {
+					Config: gpiod.LineConfig{
+						ActiveLow: true,
+						Direction: gpiod.LineDirectionInput,
+					},
+				},
+				ll[4]: {
+					Config: gpiod.LineConfig{
+						Debounced:      true,
+						DebouncePeriod: 1234 * time.Microsecond,
+						Direction:      gpiod.LineDirectionInput,
+					},
+				},
+			},
+			2,
+		},
+		{"WithLines nil",
+			[]gpiod.LineReqOption{
+				gpiod.AsInput,
+				gpiod.WithLines(
+					[]int{ll[2], ll[4]},
+					gpiod.WithDebounce(1234*time.Microsecond),
+				),
+				gpiod.WithLines(
+					[]int(nil),
+					gpiod.Defaulted,
+				),
+				gpiod.AsActiveLow,
+			},
+			map[int]gpiod.LineInfo{
+				ll[1]: {
+					Config: gpiod.LineConfig{
+						ActiveLow: true,
+						Direction: gpiod.LineDirectionInput,
+					},
+				},
+				ll[2]: {
+					Config: gpiod.LineConfig{
+						ActiveLow: true,
+						Direction: gpiod.LineDirectionInput,
+					},
+				},
+				ll[4]: {
+					Config: gpiod.LineConfig{
+						ActiveLow: true,
+						Direction: gpiod.LineDirectionInput,
+					},
+				},
+			},
+			2,
+		},
+		{"WithLines empty",
+			[]gpiod.LineReqOption{
+				gpiod.AsInput,
+				gpiod.WithLines(
+					[]int{ll[2], ll[4]},
+					gpiod.WithDebounce(1234*time.Microsecond),
+				),
+				gpiod.WithLines(
+					[]int{},
+					gpiod.Defaulted,
+				),
+				gpiod.AsActiveLow,
+			},
+			map[int]gpiod.LineInfo{
+				ll[1]: {
+					Config: gpiod.LineConfig{
+						ActiveLow: true,
+						Direction: gpiod.LineDirectionInput,
+					},
+				},
+				ll[2]: {
+					Config: gpiod.LineConfig{
+						ActiveLow: true,
+						Direction: gpiod.LineDirectionInput,
+					},
+				},
+				ll[4]: {
+					Config: gpiod.LineConfig{
+						ActiveLow: true,
+						Direction: gpiod.LineDirectionInput,
+					},
+				},
+			},
+			2,
+		},
+	}
+
+	for _, p := range patterns {
+		tf := func(t *testing.T) {
+			if c.UapiAbiVersion() < p.abi {
+				t.Skip(ErrorBadABIVersion{p.abi, c.UapiAbiVersion()})
+			}
+			l, err := c.RequestLines(ll, p.reqOptions...)
+			assert.Nil(t, err)
+			require.NotNil(t, l)
+			for offset, xinf := range p.info {
+				inf, err := c.LineInfo(offset)
+				xinf.Consumer = "TestDefaulted"
+				xinf.Used = true
+				xinf.Offset = offset
+				inf.Name = "" // don't care about line name
+				assert.Nil(t, err)
+				assert.Equal(t, xinf, inf, offset)
+			}
+			l.Close()
+		}
+		t.Run(p.name, tf)
+	}
+
+	for _, p := range patterns {
+		tf := func(t *testing.T) {
+			if c.UapiAbiVersion() < p.abi {
+				t.Skip(ErrorBadABIVersion{p.abi, c.UapiAbiVersion()})
+			}
+			l, err := c.RequestLines(ll)
+			assert.Nil(t, err)
+			require.NotNil(t, l)
+			reconfigOpts := []gpiod.LineConfigOption(nil)
+			for _, opt := range p.reqOptions {
+				// look away - hideous casting in progress
+				lco, ok := interface{}(opt).(gpiod.LineConfigOption)
+				if ok {
+					reconfigOpts = append(reconfigOpts, lco)
+				}
+			}
+			err = l.Reconfigure(reconfigOpts...)
+			assert.Nil(t, err)
+			for offset, xinf := range p.info {
+				inf, err := c.LineInfo(offset)
+				xinf.Consumer = "TestDefaulted"
+				xinf.Used = true
+				xinf.Offset = offset
+				inf.Name = "" // don't care about line name
+				assert.Nil(t, err)
+				assert.Equal(t, xinf, inf, offset)
+			}
+			l.Close()
+		}
+		t.Run("reconfig-"+p.name, tf)
+	}
+}

@@ -554,3 +554,41 @@ func (o LinesOption) applyLineConfigOption(lco *lineConfigOptions) {
 func WithLines(offsets []int, options ...SubsetLineConfigOption) LinesOption {
 	return LinesOption{offsets, options}
 }
+
+// DefaultedOption resets the configuration to default values.
+type DefaultedOption struct{}
+
+func (o DefaultedOption) applyLineReqOption(lro *lineReqOptions) {
+	o.applyLineConfigOption(&lro.lineConfigOptions)
+}
+
+func (o DefaultedOption) applyLineConfigOption(lco *lineConfigOptions) {
+	lco.defCfg = LineConfig{}
+	lco.values = map[int]int{}
+}
+
+func (o DefaultedOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
+	if len(offsets) == 0 {
+		lco.lineCfg = nil
+	}
+	for _, offset := range offsets {
+		delete(lco.values, offset)
+		delete(lco.lineCfg, offset)
+	}
+}
+
+// Defaulted resets all configuration options to default values.
+//
+// This option provides the means to simply reset all configuration options to
+// their default values.  This is rarely necessary but is made available for
+// completeness.
+//
+// When applied within WithLines() it resets the configuration of the lines to
+// the default for the request, effectively clearing all previous WithLines()
+// options for the specified offsets.  If no offsets are specified then the
+// configurarion for all offsets is reset to the request default.
+//
+// When applied outside WithLines() it resets the default configuration for the
+// request itself to default values but leaves any configuration set within
+// WithLines() unchanged.
+var Defaulted = DefaultedOption{}
