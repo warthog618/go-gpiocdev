@@ -692,6 +692,35 @@ func TestWithBothEdges(t *testing.T) {
 	waitNoEvent(t, ich)
 }
 
+func TestWithoutEdges(t *testing.T) {
+	platform.TriggerIntr(0)
+	c := getChip(t)
+	defer c.Close()
+
+	ich := make(chan gpiod.LineEvent, 3)
+	lines := append(platform.FloatingLines(), platform.IntrLine())
+	r, err := c.RequestLines(lines,
+		gpiod.WithBothEdges,
+		gpiod.WithEventHandler(func(evt gpiod.LineEvent) {
+			ich <- evt
+		}))
+	require.Nil(t, err)
+	require.NotNil(t, r)
+	defer r.Close()
+	waitNoEvent(t, ich)
+	platform.TriggerIntr(1)
+	waitEvent(t, ich, gpiod.LineEventRisingEdge)
+	platform.TriggerIntr(0)
+	waitEvent(t, ich, gpiod.LineEventFallingEdge)
+
+	r.Reconfigure(gpiod.WithoutEdges)
+	waitNoEvent(t, ich)
+	platform.TriggerIntr(1)
+	waitNoEvent(t, ich)
+	platform.TriggerIntr(0)
+	waitNoEvent(t, ich)
+}
+
 func waitEvent(t *testing.T, ch <-chan gpiod.LineEvent, etype gpiod.LineEventType) {
 	t.Helper()
 	select {

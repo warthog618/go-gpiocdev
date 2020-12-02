@@ -469,6 +469,18 @@ var WithRisingEdge = EdgeOption{LineEdgeRising}
 // Output, OpenDrain, or OpenSource options.
 var WithBothEdges = EdgeOption{LineEdgeBoth}
 
+// WithoutEdges indicates that a line will not generate events due to active
+// state transitions.
+//
+// This is the default for line requests, but allows the removal of edge
+// detection by reconfigure.
+//
+// This option sets the Input option and overrides and clears any previous
+// Output, OpenDrain, or OpenSource options.
+//
+// The WithoutEdges option requires Linux v5.10 or later.
+var WithoutEdges = EdgeOption{LineEdgeNone}
+
 // DebounceOption indicates that a line will be debounced.
 //
 // The DebounceOption requires Linux v5.10 or later.
