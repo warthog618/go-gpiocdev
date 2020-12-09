@@ -101,6 +101,9 @@ type LineConfig struct {
 
 	// The line debounce period.
 	DebouncePeriod time.Duration
+
+	// The source clock for events on the line.
+	EventClock LineEventClock
 }
 
 // LineDirection indicates the direction of a line.
@@ -164,6 +167,17 @@ const (
 	// LineEdgeBoth indicates the line has both rising and falling edge
 	// detection enabled.
 	LineEdgeBoth = LineEdgeRising | LineEdgeFalling
+)
+
+// LineEventClock indicates the source clock used to timestamp edge events.
+type LineEventClock int
+
+const (
+	// LineEventClockMonotonic indicates the source clock is CLOCK_MONOTONIC.
+	LineEventClockMonotonic LineEventClock = iota
+
+	// LineEventClockRealtime indicates the source clock is CLOCK_REALTIME.
+	LineEventClockRealtime
 )
 
 // LineInfo contains a summary of publicly available information about the
@@ -664,6 +678,9 @@ func (lc LineConfig) toLineFlagV2() (flags uapi.LineFlagV2) {
 		if lc.EdgeDetection&LineEdgeFalling != 0 {
 			flags |= uapi.LineFlagV2EdgeFalling
 		}
+		if lc.EventClock == LineEventClockRealtime {
+			flags |= uapi.LineFlagV2EventClockRealtime
+		}
 	}
 
 	if lc.Bias == LineBiasDisabled {
@@ -693,6 +710,9 @@ func (lc LineConfig) toLineAttributes() (attrs []uapi.LineAttribute) {
 func (lc LineConfig) v1Validate() error {
 	if lc.Debounced {
 		return ErrUapiIncompatibility{"debounce", 1}
+	}
+	if lc.EventClock != LineEventClockMonotonic {
+		return ErrUapiIncompatibility{"event clock", 1}
 	}
 	return nil
 }

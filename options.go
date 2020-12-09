@@ -481,6 +481,43 @@ var WithBothEdges = EdgeOption{LineEdgeBoth}
 // The WithoutEdges option requires Linux v5.10 or later.
 var WithoutEdges = EdgeOption{LineEdgeNone}
 
+// EventClockOption specifies the source of the clock for edge event timestamps.
+type EventClockOption struct {
+	clock LineEventClock
+}
+
+func (o EventClockOption) applyChipOption(c *ChipOptions) {
+	c.config.EventClock = o.clock
+}
+
+func (o EventClockOption) applyLineReqOption(lro *lineReqOptions) {
+	lro.defCfg.EventClock = o.clock
+}
+
+func (o EventClockOption) applyLineConfigOption(lco *lineConfigOptions) {
+	lco.defCfg.EventClock = o.clock
+}
+
+func (o EventClockOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
+	for _, offset := range offsets {
+		lco.lineConfig(offset).EventClock = o.clock
+	}
+}
+
+// WithMonotonicEventClock specifies that the edge event timestamps are sourced
+// from CLOCK_MONOTONIC.
+//
+// This option corresponds to the default event clock configuration and its only
+// useful application is to clear any previous event clock option in a chain of
+// LineOptions, before that configuration is applied.
+var WithMonotonicEventClock = EventClockOption{LineEventClockMonotonic}
+
+// WithRealtimeEventClock specifies that the edge event timestamps are sourced
+// from CLOCK_REALTIME.
+//
+// Requires Linux v5.11 or later.
+var WithRealtimeEventClock = EventClockOption{LineEventClockRealtime}
+
 // DebounceOption indicates that a line will be debounced.
 //
 // The DebounceOption requires Linux v5.10 or later.

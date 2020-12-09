@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/warthog618/gpiod"
+	"github.com/warthog618/gpiod/mockup"
+	"golang.org/x/sys/unix"
 )
 
 func TestWithConsumer(t *testing.T) {
@@ -719,6 +721,63 @@ func TestWithoutEdges(t *testing.T) {
 	waitNoEvent(t, ich)
 	platform.TriggerIntr(0)
 	waitNoEvent(t, ich)
+}
+
+func TestWithRealtimeEventClock(t *testing.T) {
+	platform.TriggerIntr(0)
+	c := getChip(t)
+	defer c.Close()
+
+	var evtTimestamp time.Duration
+	ich := make(chan gpiod.LineEvent, 3)
+	lines := append(platform.FloatingLines(), platform.IntrLine())
+	r, err := c.RequestLines(lines,
+		gpiod.WithBothEdges,
+		gpiod.WithRealtimeEventClock,
+		gpiod.WithEventHandler(func(evt gpiod.LineEvent) {
+			evtTimestamp = evt.Timestamp
+			ich <- evt
+		}))
+	if c.UapiAbiVersion() == 1 {
+		// uapi v2 required for event clock option
+		assert.Equal(t, gpiod.ErrUapiIncompatibility{Feature: "event clock", AbiVersion: 1}, err)
+		assert.Nil(t, r)
+		return
+	}
+	if mockup.CheckKernelVersion(eventClockRealtimeKernel) != nil {
+		// old kernels should reject the realtime request
+		assert.Equal(t, unix.EINVAL, err)
+		assert.Nil(t, r)
+		if r != nil {
+			r.Close()
+		}
+		return
+	}
+	require.Nil(t, err)
+	require.NotNil(t, r)
+	defer r.Close()
+	waitNoEvent(t, ich)
+	start := time.Now()
+	platform.TriggerIntr(1)
+	waitEvent(t, ich, gpiod.LineEventRisingEdge)
+	end := time.Now()
+	// with time converted to nanoseconds duration
+	assert.LessOrEqual(t, start.UnixNano(), evtTimestamp.Nanoseconds())
+	assert.GreaterOrEqual(t, end.UnixNano(), evtTimestamp.Nanoseconds())
+	// with timestamp converted to time
+	evtTime := time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC).Add(evtTimestamp)
+	assert.False(t, evtTime.Before(start))
+	assert.False(t, evtTime.After(end))
+
+	start = time.Now()
+	platform.TriggerIntr(0)
+	waitEvent(t, ich, gpiod.LineEventFallingEdge)
+	end = time.Now()
+	assert.LessOrEqual(t, start.UnixNano(), evtTimestamp.Nanoseconds())
+	assert.GreaterOrEqual(t, end.UnixNano(), evtTimestamp.Nanoseconds())
+	evtTime = time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC).Add(evtTimestamp)
+	assert.False(t, evtTime.Before(start))
+	assert.False(t, evtTime.After(end))
 }
 
 func waitEvent(t *testing.T, ch <-chan gpiod.LineEvent, etype gpiod.LineEventType) {

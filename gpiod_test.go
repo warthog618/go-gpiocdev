@@ -45,7 +45,7 @@ var (
 	setConfigKernel          = mockup.Semver{5, 5}  // setLineConfig ioctl added
 	infoWatchKernel          = mockup.Semver{5, 7}  // watchLineInfo ioctl added
 	uapiV2Kernel             = mockup.Semver{5, 10} // uapi v2 added
-	eventRealtimeClockKernel = mockup.Semver{5, 11} // realtime event clock option added
+	eventClockRealtimeKernel = mockup.Semver{5, 11} // realtime event clock option added
 )
 
 func TestNewChip(t *testing.T) {
