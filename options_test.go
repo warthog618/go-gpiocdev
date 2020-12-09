@@ -327,6 +327,30 @@ func TestAsActiveHigh(t *testing.T) {
 	testLineLevelReconfigure(t, gpiod.AsActiveLow, gpiod.AsActiveHigh, false, 1)
 }
 
+func testChipDriveOption(t *testing.T, option gpiod.ChipOption,
+	drive gpiod.LineDrive, values ...int) {
+
+	t.Helper()
+
+	c := getChip(t, option)
+	defer c.Close()
+
+	l, err := c.RequestLine(platform.OutLine(),
+		gpiod.AsOutput(1))
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	inf, err := c.LineInfo(platform.OutLine())
+	assert.Nil(t, err)
+	assert.Equal(t, drive, inf.Config.Drive)
+	for _, sv := range values {
+		err = l.SetValue(sv)
+		assert.Nil(t, err)
+		v := platform.ReadOut()
+		assert.Equal(t, sv, v)
+	}
+}
+
 func testLineDriveOption(t *testing.T, option gpiod.LineReqOption,
 	drive gpiod.LineDrive, values ...int) {
 
@@ -384,6 +408,7 @@ func TestAsOpenDrain(t *testing.T) {
 	drive := gpiod.LineDriveOpenDrain
 	// Testing float high requires specific hardware, so assume that is
 	// covered by the kernel anyway...
+	testChipDriveOption(t, gpiod.AsOpenDrain, drive, 0)
 	testLineDriveOption(t, gpiod.AsOpenDrain, drive, 0)
 	testLineDriveReconfigure(t, gpiod.AsOpenSource, gpiod.AsOpenDrain, drive, 0)
 }
@@ -392,12 +417,14 @@ func TestAsOpenSource(t *testing.T) {
 	drive := gpiod.LineDriveOpenSource
 	// Testing float low requires specific hardware, so assume that is
 	// covered by the kernel anyway.
+	testChipDriveOption(t, gpiod.AsOpenSource, drive, 1)
 	testLineDriveOption(t, gpiod.AsOpenSource, drive, 1)
 	testLineDriveReconfigure(t, gpiod.AsOpenDrain, gpiod.AsOpenSource, drive, 1)
 }
 
 func TestAsPushPull(t *testing.T) {
 	drive := gpiod.LineDrivePushPull
+	testChipDriveOption(t, gpiod.AsPushPull, drive, 0, 1)
 	testLineDriveOption(t, gpiod.AsPushPull, drive, 0, 1)
 	testLineDriveReconfigure(t, gpiod.AsOpenDrain, gpiod.AsPushPull, drive, 0, 1)
 }

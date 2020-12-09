@@ -307,6 +307,11 @@ func (o DriveOption) applyLineConfig(lc *LineConfig) {
 	lc.Direction = LineDirectionOutput
 	lc.Debounced = false
 	lc.DebouncePeriod = 0
+	lc.EdgeDetection = LineEdgeNone
+}
+
+func (o DriveOption) applyChipOption(c *ChipOptions) {
+	o.applyLineConfig(&c.config)
 }
 
 func (o DriveOption) applyLineReqOption(lro *lineReqOptions) {
