@@ -203,21 +203,26 @@ type InputOption struct{}
 // OpenSource options.
 var AsInput = InputOption{}
 
+func (o InputOption) applyLineConfig(lc *LineConfig) {
+	lc.Direction = LineDirectionInput
+	lc.Drive = LineDrivePushPull
+}
+
 func (o InputOption) applyChipOption(c *ChipOptions) {
 	c.config.Direction = LineDirectionInput
 }
 
-func (o InputOption) applyLineReqOption(l *lineReqOptions) {
-	l.defCfg.Direction = LineDirectionInput
+func (o InputOption) applyLineReqOption(lro *lineReqOptions) {
+	o.applyLineConfigOption(&lro.lineConfigOptions)
 }
 
-func (o InputOption) applyLineConfigOption(l *lineConfigOptions) {
-	l.defCfg.Direction = LineDirectionInput
+func (o InputOption) applyLineConfigOption(lco *lineConfigOptions) {
+	o.applyLineConfig(&lco.defCfg)
 }
 
 func (o InputOption) applySubsetLineConfigOption(offsets []int, l *lineConfigOptions) {
 	for _, offset := range offsets {
-		l.lineConfig(offset).Direction = LineDirectionInput
+		o.applyLineConfig(l.lineConfig(offset))
 	}
 }
 
