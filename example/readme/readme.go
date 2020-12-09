@@ -9,14 +9,23 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/warthog618/gpiod"
 	"github.com/warthog618/gpiod/device/rpi"
 )
 
 func main() {
+
 	// Chip Initialisation
 	c, _ := gpiod.NewChip("gpiochip0", gpiod.WithConsumer("myapp"))
+
+	// Quick Start
+	in, _ := c.RequestLine(2, gpiod.AsInput)
+	val, _ := in.Value()
+	out, _ := c.RequestLine(3, gpiod.AsOutput(val))
+	in.Close()
+	out.Close()
 
 	// Line Requests
 	l, _ := c.RequestLine(4)
@@ -35,13 +44,17 @@ func main() {
 	fmt.Printf("name: %s\n", inf.Name)
 	fmt.Printf("name: %s\n", infs[0].Name)
 
+	// Info Watch
+	inf, _ = c.WatchLineInfo(4, infoChangeHandler)
+	c.UnwatchLineInfo(4)
+
 	// Active Level
 	l, _ = c.RequestLine(4, gpiod.AsActiveLow) // during request
 	l.Reconfigure(gpiod.AsActiveHigh)          // once requested
 
 	// Direction
-	l.Reconfigure(gpiod.AsInput)     // Set direction to Input
-	l.Reconfigure(gpiod.AsOutput(0)) // Set direction to Output (and value to inactive)
+	l.Reconfigure(gpiod.AsInput)        // Set direction to Input
+	l.Reconfigure(gpiod.AsOutput(1, 0)) // Set direction to Output (and values to active and inactive)
 
 	// Input
 	r, _ := l.Value() // Read state from line (active/inactive)
@@ -60,8 +73,21 @@ func main() {
 	l, _ = c.RequestLine(4, gpiod.WithPullUp) // during request
 	l.Reconfigure(gpiod.WithBiasDisabled)     // once requested
 
-	// Watches
+	// Debounce
+	period := 10 * time.Millisecond
+	l, _ = c.RequestLine(4, gpiod.WithDebounce(period)) // during request
+	l.Reconfigure(gpiod.WithDebounce(period))           // once requested
+
+	// Edge Watches
 	l, _ = c.RequestLine(rpi.J8p7, gpiod.WithEventHandler(handler), gpiod.WithBothEdges)
+	l.Reconfigure(gpiod.WithoutEdges)
+
+	// Options
+	ll, _ = c.RequestLines([]int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1),
+		gpiod.WithLines([]int{0, 3}, gpiod.AsActiveLow),
+		gpiod.AsOpenDrain)
+	ll.Reconfigure(gpiod.WithLines([]int{0}, gpiod.AsActiveHigh))
+	ll.Reconfigure(gpiod.WithLines([]int{3}, gpiod.Defaulted))
 
 	// Line Requests (2)
 	l.Close()
@@ -81,4 +107,8 @@ func find() *gpiod.Line {
 
 func handler(evt gpiod.LineEvent) {
 	// handle change in line state
+}
+
+func infoChangeHandler(evt gpiod.LineInfoChangeEvent) {
+	// handle change in line info
 }
