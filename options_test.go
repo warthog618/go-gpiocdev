@@ -715,7 +715,13 @@ func TestWithoutEdges(t *testing.T) {
 	platform.TriggerIntr(0)
 	waitEvent(t, ich, gpiod.LineEventFallingEdge)
 
-	r.Reconfigure(gpiod.WithoutEdges)
+	err = r.Reconfigure(gpiod.WithoutEdges)
+	if c.UapiAbiVersion() == 1 {
+		// uapi v2 required for edge reconfiguration
+		assert.Equal(t, unix.EINVAL, err)
+		return
+	}
+	require.Nil(t, err)
 	waitNoEvent(t, ich)
 	platform.TriggerIntr(1)
 	waitNoEvent(t, ich)
