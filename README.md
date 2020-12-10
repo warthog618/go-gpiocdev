@@ -425,9 +425,9 @@ The event clock source used by the kernel has changed over time as follows:
 
 Kernel Version | Clock source
 --- | ---
-< v5.7 | CLOCK_REALTIME
+pre-v5.7 | CLOCK_REALTIME
 v5.7 - v5.10 | CLOCK_MONOTONIC
-> v5.10 | configurable
+v5.11 and later | configurable
 
 Determining which clock the edge event timestamps contain is currently left as
 an exercise for the user.
