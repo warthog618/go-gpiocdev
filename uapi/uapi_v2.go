@@ -182,7 +182,7 @@ type LineInfoChangedV2 struct {
 	// The updated info.
 	Info LineInfoV2
 
-	// The time the change occured.
+	// The time the change occurred.
 	Timestamp uint64
 
 	// The type of change.
@@ -411,7 +411,7 @@ func (d *DebouncePeriod) Decode(la LineAttribute) {
 	*d = DebouncePeriod(la.Value32() * 1000)
 }
 
-// OutputValues specifiy the active level of output lines.
+// OutputValues specify the active level of output lines.
 type OutputValues LineBitmap
 
 // Encode creates a LineAttribute with the values from the OutputValues.
