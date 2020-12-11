@@ -22,23 +22,23 @@ the [release notes](#release-notes) if updating from an older version.
 
 Supports the following functionality per line and for collections of lines:
 
-- direction (input/output)<sup>1</sup>
+- direction (input/output)<sup>**1**</sup>
 - write (active/inactive)
 - read (active/inactive)
 - active high/low (defaults to high)
 - output mode (push-pull/open-drain/open-source)
-- pull up/down<sup>2</sup>
+- pull up/down<sup>**2**</sup>
 - watches and edge detection (rising/falling/both)
 - chip and line labels
-- debouncing input lines<sup>3</sup>
-- different configurations for lines within a collection<sup>3</sup>
+- debouncing input lines<sup>**3**</sup>
+- different configurations for lines within a collection<sup>**3**</sup>
 
-<sup>1</sup> Dynamically changing line direction without releasing the line
+<sup>**1**</sup> Dynamically changing line direction without releasing the line
 requires Linux v5.5 or later.
 
-<sup>2</sup> Requires Linux v5.5 or later.
+<sup>**2**</sup> Requires Linux v5.5 or later.
 
-<sup>3</sup> Requires Linux v5.10 or later.
+<sup>**3**</sup> Requires Linux v5.10 or later.
 
 All library functions are safe to call from different goroutines.
 
@@ -60,7 +60,7 @@ out, _ := c.RequestLine(3, gpiod.AsOutput(val))
 ...
 ```
 
-Error handling omitted for brevity.
+Error handling and releasing of resources omitted for brevity.
 
 ## Usage
 
@@ -83,6 +83,12 @@ c, _ := gpiod.NewChip("gpiochip0")
 
 The parameter is the chip name, which corresponds to the name of the device in
 the **/dev** directory, so in this example **/dev/gpiochip0**.
+
+The list of currently available GPIO chips is returned by the *Chips* function:
+
+```go
+cc := gpiod.Chips()
+```
 
 Default attributes for Lines requested from the Chip can be set via
 [configuration options](#configuration-options) to
@@ -137,9 +143,9 @@ func infoChangeHandler( evt gpiod.LineInfoChangeEvent) {
 inf, _ := c.WatchLineInfo(4, infoChangeHandler)
 ```
 
-Note that the info watch does not monitor the line state (active or inactive)
+Note that the info watch does not monitor the line value (active or inactive)
 only its configuration.  Refer to [Edge Watches](#edge-watches) for monitoring
-line active state.
+line value.
 
 An info watch can be cancelled by unwatching:
 
@@ -151,7 +157,7 @@ or by closing the chip.
 
 ### Line Requests
 
-To read or alter the state of a
+To read or alter the value of a
 [line](https://pkg.go.dev/github.com/warthog618/gpiod#Line) it must first be
 requested from the Chip, using
 [*Chip.RequestLine*](https://pkg.go.dev/github.com/warthog618/gpiod#Chip.RequestLine):
@@ -193,11 +199,12 @@ ll.Close()
 
 ### Line Values
 
-Lines must be requsted using [*Chip.RequestLines*](#line-requests) before their values can be accessed.
+Lines must be requsted using [*Chip.RequestLines*](#line-requests) before their
+values can be accessed.
 
 #### Read Input
 
-The current line level can be read with the
+The current line value can be read with the
 [*Value*](https://pkg.go.dev/github.com/warthog618/gpiod#Line.Value)
 method:
 
@@ -216,7 +223,7 @@ ll.Values(rr)           // Read the state of a collection of lines
 
 #### Write Output
 
-The current line level can be set with the
+The current line value can be set with the
 [*SetValue*](https://pkg.go.dev/github.com/warthog618/gpiod#Line.SetValue)
 method:
 
@@ -237,7 +244,7 @@ ll.SetValues([]int{0, 1, 0, 1}) // Set a collection of lines
 
 #### Edge Watches
 
-The state of an input line can be watched and trigger calls to handler
+The value of an input line can be watched and trigger calls to handler
 functions.
 
 The watch can be on rising or falling edges, or both.
@@ -348,7 +355,7 @@ category are applied then all but the last are ignored.
 ##### Active Level
 
 The values used throughout the API for line values are the logical value, which
-is 0 for inactive and 1 for active. The physical level considered active can be
+is 0 for inactive and 1 for active. The physical value considered active can be
 controlled using the *AsActiveHigh* and *AsActiveLow* options:
 
 ```go
@@ -403,7 +410,7 @@ l, _ = c.RequestLine(4, gpiod.WithDebounce(period))// during request
 l.Reconfigure(gpiod.WithDebounce(period))         // once requested
 ```
 
-The debounce options require Linux v5.10 or later.
+The WithDebounce option requires Linux v5.10 or later.
 
 ##### Edge Detection
 
@@ -438,56 +445,47 @@ The available configuration options are:
 
 Option | Category | Description
 ---|---|---
-*WithConsumer*<sup>1</sup> | Info | Set the consumer label for the lines
-*AsActiveLow* | Level | Treat a low physical line level as active
-*AsActiveHigh* | Level | Treat a high physical line level as active (default)
+*WithConsumer*<sup>**1**</sup> | Info | Set the consumer label for the lines
+*AsActiveLow* | Level | Treat a low physical line value as active
+*AsActiveHigh* | Level | Treat a high physical line value as active (**default**)
 *AsInput* | Direction | Request lines as input
-*AsIs*<sup>2</sup> | Direction | Request lines in their current input/output state (default)
-*AsOutput(\<values\>...)*<sup>3</sup> | Direction | Request lines as output with the provided values
-*AsPushPull* | Drive | Request output lines drive both high and low (default)
+*AsIs*<sup>**2**</sup> | Direction | Request lines in their current input/output state (**default**)
+*AsOutput(\<values\>...)*<sup>**3**</sup> | Direction | Request lines as output with the provided values
+*AsPushPull* | Drive | Request output lines drive both high and low (**default**)
 *AsOpenDrain* | Drive | Request lines as open drain outputs
 *AsOpenSource* | Drive | Request lines as open source outputs
-*WithEventHandler(eh)<sup>1</sup>* |  | Send edge events detected on requested lines to the provided handler
-*WithEventBufferSize(num)<sup>1,5</sup>* |  | Suggest the minimum number of events that can be stored in the kernel event buffer for the requested lines
-*WithFallingEdge* | Edge Detection<sup>3</sup> | Request lines with falling edge detection
-*WithRisingEdge* | Edge Detection<sup>3</sup> | Request lines with rising edge detection
-*WithBothEdges* | Edge Detection<sup>3</sup> | Request lines with rising and falling edge detection
-*WithoutEdges*<sup>5</sup> | Edge Detection<sup>3</sup> | Request lines wwith edge detection disabled
-*WithBiasDisabled* | Bias<sup>4</sup> | Request the lines have internal bias disabled
-*WithPullDown* | Bias<sup>4</sup> | Request the lines have internal pull-down enabled
-*WithPullUp* | Bias<sup>4</sup> | Request the lines have internal pull-up enabled
-*WithDebounce(period)*<sup>5</sup> | Debounce | Request the lines be debounced with the provided period
-*WithMonotonicEventClock* | Event Clock | Request the timestamp in edge events use the monotonic clock (default)
-*WithRealtimeEventClock*<sup>6</sup> | Event Clock | Request the timestamp in edge events use the realtime clock
+*WithEventHandler(eh)<sup>**1**</sup>* |  | Send edge events detected on requested lines to the provided handler
+*WithEventBufferSize(num)<sup>**1**,**5**</sup>* |  | Suggest the minimum number of events that can be stored in the kernel event buffer for the requested lines
+*WithFallingEdge* | Edge Detection<sup>**3**</sup> | Request lines with falling edge detection
+*WithRisingEdge* | Edge Detection<sup>**3**</sup> | Request lines with rising edge detection
+*WithBothEdges* | Edge Detection<sup>**3**</sup> | Request lines with rising and falling edge detection
+*WithoutEdges*<sup>**5**</sup> | Edge Detection<sup>**3**</sup> | Request lines with edge detection disabled (**default**)
+*WithBiasAsIs* | Bias<sup>**4**</sup> | Request the lines have their bias setting left unaltered (**default**)
+*WithBiasDisabled* | Bias<sup>**4**</sup> | Request the lines have internal bias disabled
+*WithPullDown* | Bias<sup>**4**</sup> | Request the lines have internal pull-down enabled
+*WithPullUp* | Bias<sup>**4**</sup> | Request the lines have internal pull-up enabled
+*WithDebounce(period)*<sup>**5**</sup> | Debounce | Request the lines be debounced with the provided period
+*WithMonotonicEventClock* | Event Clock | Request the timestamp in edge events use the monotonic clock (**default**)
+*WithRealtimeEventClock*<sup>**6**</sup> | Event Clock | Request the timestamp in edge events use the realtime clock
 *WithLines(offsets, options...)*<sup>3,5</sup> |  | Specify configuration options for a subset of lines in a request
-*Defaulted*<sup>5</sup> |  | Reset the configuration for a request to the default configuration, or the configuration of a particular line in a request to the default for that request
+*Defaulted*<sup>**5**</sup> |  | Reset the configuration for a request to the default configuration, or the configuration of a particular line in a request to the default for that request
 
-<sup>1</sup> Can be applied to either *NewChip* or *Chip.RequestLine*, but
+The options described as **default** are generally not required, except to override other options earlier in a chain of configuration options.
+
+<sup>**1**</sup> Can be applied to either *NewChip* or *Chip.RequestLine*, but
 cannot be used with *Line.Reconfigure*.
 
-<sup>2</sup> Can be applied to *Chip.RequestLine*, but cannot be used
+<sup>**2**</sup> Can be applied to *Chip.RequestLine*, but cannot be used
 with *NewChip* or *Line.Reconfigure*.
 
-<sup>3</sup> Can be applied to either *Chip.RequestLine* or
+<sup>**3**</sup> Can be applied to either *Chip.RequestLine* or
 *Line.Reconfigure*, but cannot be used with *NewChip*.
 
-<sup>4</sup> Requires Linux v5.5 or later.
+<sup>**4**</sup> Requires Linux v5.5 or later.
 
-<sup>5</sup> Requires Linux v5.10 or later.
+<sup>**5**</sup> Requires Linux v5.10 or later.
 
-<sup>6</sup> Requires Linux v5.11 or later.
-
-### Find
-
-Lines can be found by the GPIO label name as returned in line info and set by
-device-tree using the
-[*FindLine*](https://pkg.go.dev/github.com/warthog618/gpiod#FindLine) function:
-
-```go
-chipname, offset, _ := gpiod.FindLine("LED A")
-c, _ := gpiod.NewChip(chipname, gpiod.WithConsumer("myapp"))
-l, _ := c.RequestLine(offset)
-```
+<sup>**6**</sup> Requires Linux v5.11 or later.
 
 ## Tools
 
@@ -549,7 +547,7 @@ The test user must have access to the **/dev/gpiochip0** character device.
 
 The tests can be run on either of two platforms:
 
-- gpio-mockup (default)
+- gpio-mockup (**default**)
 - Raspberry Pi
 
 #### gpio-mockup
@@ -565,7 +563,9 @@ not interact with physical hardware and so is always safe to run.
 
 On Raspberry Pi, the tests are intended to be run on a board with J8 pins 11 and
 12 floating and with pins 15 and 16 tied together, possibly using a jumper
-across the header.  The tests set J8 pins 11, 12 and 16 to outputs so **DO NOT**
+across the header.
+
+:warning: The tests set J8 pins 11, 12 and 16 to outputs so **DO NOT**
 run them on hardware where any of those pins is being externally driven.
 
 The Raspberry Pi platform is selected by specifying the platform parameter on
@@ -644,7 +644,7 @@ Breaking API changes:
    which is supported in Linux v5.10.
 
    Old edge options should be replaced with the *WithEventHandler* option and
-   the now parameterless edge option, i.e:
+   the now parameterless edge option, e.g.:
 
    ```sed
    s/gpiod\.WithBothEdges(/gpiod.WithBothEdges, gpiod.WithEventHandler(/g
@@ -653,3 +653,10 @@ Breaking API changes:
 2. *WithBiasDisable* is renamed *WithBiasDisabled*.  This option is probably
    rarely used and the renaming is trivial, so no backward compatibility is
    provided.
+
+3. *FindLine* has been dropped as line names are not guaranteed to be unique.
+   Iterating over the available chips and lines to search for line by name can
+   be easily done - the *Chips* function provides the list of available chips as
+   a starting point.
+
+   Refer the *find* command in **gpiodctl** for example code.
