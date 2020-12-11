@@ -210,18 +210,6 @@ func Chips() []string {
 	return cc
 }
 
-// FindLine finds the chip and offset of the named line.
-//
-// Returns an error if the line cannot be found.
-func FindLine(lname string) (string, int, error) {
-	c, o, err := findLine(lname)
-	if err != nil {
-		return "", 0, err
-	}
-	c.Close()
-	return c.Name, o, nil
-}
-
 // NewChip opens a GPIO character device.
 func NewChip(name string, options ...ChipOption) (*Chip, error) {
 	path := nameToPath(name)
@@ -283,36 +271,6 @@ func (c *Chip) Close() error {
 		c.iw.close()
 	}
 	return c.f.Close()
-}
-
-// FindLine returns the offset of the named line, or an error if not found.
-func (c *Chip) FindLine(name string) (int, error) {
-	for o := 0; o < c.lines; o++ {
-		inf, err := c.LineInfo(o)
-		if err != nil {
-			return 0, err
-		}
-		if inf.Name == name {
-			return o, nil
-		}
-	}
-	return 0, ErrLineNotFound
-}
-
-// FindLines returns the offsets of the named lines, or an error unless all are
-// found.
-func (c *Chip) FindLines(names ...string) (oo []int, err error) {
-	ioo := make([]int, len(names))
-	for i, name := range names {
-		var o int
-		o, err = c.FindLine(name)
-		if err != nil {
-			return
-		}
-		ioo[i] = o
-	}
-	oo = ioo
-	return
 }
 
 // LineInfo returns the publicly available information on the line.
@@ -1200,23 +1158,6 @@ func chipNames() []string {
 	return cc
 }
 
-// helper that finds the chip and offset corresponding to a named line.
-//
-// If found returns the chip and offset, else an error.
-func findLine(lname string) (*Chip, int, error) {
-	for _, name := range chipNames() {
-		c, err := NewChip(name)
-		if err != nil {
-			continue
-		}
-		o, err := c.FindLine(lname)
-		if err == nil {
-			return c, o, nil
-		}
-	}
-	return nil, 0, ErrLineNotFound
-}
-
 func nameToPath(name string) string {
 	if strings.HasPrefix(name, "/dev/") {
 		return name
@@ -1240,9 +1181,6 @@ var (
 
 	// ErrNotCharacterDevice indicates the device is not a character device.
 	ErrNotCharacterDevice = errors.New("not a character device")
-
-	// ErrLineNotFound indicates the named line was not found.
-	ErrLineNotFound = errors.New("line not found")
 
 	// ErrPermissionDenied indicates caller does not have required permissions
 	// for the operation.

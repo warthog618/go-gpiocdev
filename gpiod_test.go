@@ -84,23 +84,6 @@ func TestChips(t *testing.T) {
 	assert.Contains(t, cc, platform.Name())
 }
 
-func TestFindLine(t *testing.T) {
-	cname, n, err := gpiod.FindLine(platform.IntrName())
-	assert.Nil(t, err)
-	intr := platform.IntrLine()
-	// hacky workaround for unnamed lines on RPi
-	if len(platform.IntrName()) == 0 {
-		intr = 0
-	}
-	assert.Equal(t, intr, n)
-	assert.Equal(t, platform.Name(), cname)
-
-	cname, n, err = gpiod.FindLine("nonexistent")
-	assert.Equal(t, gpiod.ErrLineNotFound, err)
-	assert.Equal(t, 0, n)
-	assert.Equal(t, 0, len(cname))
-}
-
 func TestChipClose(t *testing.T) {
 	// without lines
 	c := getChip(t)
@@ -132,43 +115,6 @@ func TestChipClose(t *testing.T) {
 	assert.Nil(t, err)
 	err = c.Close()
 	assert.Nil(t, err)
-}
-
-func TestChipFindLine(t *testing.T) {
-	c := getChip(t)
-	n, err := c.FindLine(platform.IntrName())
-	assert.Nil(t, err)
-	intr := platform.IntrLine()
-	// hacky workaround for unnamed lines on RPi
-	if len(platform.IntrName()) == 0 {
-		intr = 0
-	}
-	assert.Equal(t, intr, n)
-
-	n, err = c.FindLine("nonexistent")
-	assert.Equal(t, gpiod.ErrLineNotFound, err)
-	assert.Equal(t, 0, n)
-
-	c.Close()
-	n, err = c.FindLine("closed")
-	assert.Equal(t, gpiod.ErrClosed, err)
-	assert.Equal(t, 0, n)
-}
-
-func TestChipFindLines(t *testing.T) {
-	c := getChip(t)
-	nn, err := c.FindLines(platform.IntrName(), platform.IntrName())
-	assert.Nil(t, err)
-	intr := platform.IntrLine()
-	// hacky workaround for unnamed lines on RPi
-	if len(platform.IntrName()) == 0 {
-		intr = 0
-	}
-	assert.Equal(t, []int{intr, intr}, nn)
-
-	nn, err = c.FindLines(platform.IntrName(), "nonexistent")
-	assert.Equal(t, gpiod.ErrLineNotFound, err)
-	assert.Equal(t, []int(nil), nn)
 }
 
 func TestChipLineInfo(t *testing.T) {
