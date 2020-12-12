@@ -592,18 +592,22 @@ Later Pis can also use ARM7 (GOARM=7).
 The tests include benchmarks on reads, writes, bulk reads and writes,  and
 interrupt latency.
 
-These are the results from a Raspberry Pi Zero W built with Go 1.13:
+These are the results from a Raspberry Pi Zero W running Linux v5.10 and built
+with go1.15.6:
 
 ```
 $ ./gpiod.test -platform=rpi -test.bench=.*
 goos: linux
 goarch: arm
-pkg: gpiod
-BenchmarkLineValue             157851          7160 ns/op
-BenchmarkLinesValues           152865          7599 ns/op
-BenchmarkLineSetValue          171585          6782 ns/op
-BenchmarkLinesSetValues        155041          7995 ns/op
-BenchmarkInterruptLatency        2041        581938 ns/op
+pkg: github.com/warthog618/gpiod
+BenchmarkChipNewClose              265       3949958 ns/op
+BenchmarkLineInfo                28420         40192 ns/op
+BenchmarkLineReconfigure         26079         46121 ns/op
+BenchmarkLineValue              114961         10176 ns/op
+BenchmarkLinesValues             66969         17367 ns/op
+BenchmarkLineSetValue            92529         12531 ns/op
+BenchmarkLinesSetValues          65965         17309 ns/op
+BenchmarkInterruptLatency         1827        638202 ns/op
 PASS
 ```
 
@@ -659,4 +663,4 @@ Breaking API changes:
    be easily done - the *Chips* function provides the list of available chips as
    a starting point.
 
-   Refer the *find* command in **gpiodctl** for example code.
+   Refer to the *find* command in **gpiodctl** for example code.
