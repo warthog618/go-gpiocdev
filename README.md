@@ -467,7 +467,7 @@ Option | Category | Description
 *WithDebounce(period)*<sup>**5**</sup> | Debounce | Request the lines be debounced with the provided period
 *WithMonotonicEventClock* | Event Clock | Request the timestamp in edge events use the monotonic clock (**default**)
 *WithRealtimeEventClock*<sup>**6**</sup> | Event Clock | Request the timestamp in edge events use the realtime clock
-*WithLines(offsets, options...)*<sup>3,5</sup> |  | Specify configuration options for a subset of lines in a request
+*WithLines(offsets, options...)*<sup>**3**,**5**</sup> |  | Specify configuration options for a subset of lines in a request
 *Defaulted*<sup>**5**</sup> |  | Reset the configuration for a request to the default configuration, or the configuration of a particular line in a request to the default for that request
 
 The options described as **default** are generally not required, except to override other options earlier in a chain of configuration options.
