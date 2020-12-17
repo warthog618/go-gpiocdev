@@ -182,26 +182,26 @@ func (lco lineConfigOptions) toULineConfig() (ulc uapi.LineConfig, err error) {
 type EventHandler func(LineEvent)
 
 // AsIsOption indicates the line direction should be left as is.
-type AsIsOption struct{}
+type AsIsOption int
 
 // AsIs indicates that a line be requested as neither an input or output.
 //
 // That is its direction is left as is. This option overrides and clears any
 // previous Input or Output options.
-var AsIs = AsIsOption{}
+const AsIs = AsIsOption(0)
 
 func (o AsIsOption) applyLineReqOption(l *lineReqOptions) {
 	l.defCfg.Direction = LineDirectionUnknown
 }
 
 // InputOption indicates the line direction should be set to an input.
-type InputOption struct{}
+type InputOption int
 
 // AsInput indicates that a line be requested as an input.
 //
 // This option overrides and clears any previous Output, OpenDrain, or
 // OpenSource options.
-var AsInput = InputOption{}
+const AsInput = InputOption(0)
 
 func (o InputOption) applyLineConfig(lc *LineConfig) {
 	lc.Direction = LineDirectionInput
@@ -227,9 +227,7 @@ func (o InputOption) applySubsetLineConfigOption(offsets []int, l *lineConfigOpt
 }
 
 // OutputOption indicates the line direction should be set to an output.
-type OutputOption struct {
-	values []int
-}
+type OutputOption []int
 
 // AsOutput indicates that a line or lines be requested as an output.
 //
@@ -241,7 +239,7 @@ type OutputOption struct {
 // BothEdges, or Debounce options.
 func AsOutput(values ...int) OutputOption {
 	vv := append([]int(nil), values...)
-	return OutputOption{vv}
+	return OutputOption(vv)
 }
 
 func (o OutputOption) applyLineReqOption(lro *lineReqOptions) {
@@ -257,7 +255,7 @@ func (o OutputOption) applyLineConfig(lc *LineConfig) {
 
 func (o OutputOption) applyLineConfigOption(lco *lineConfigOptions) {
 	o.applyLineConfig(&lco.defCfg)
-	for idx, value := range o.values {
+	for idx, value := range o {
 		lco.values[lco.offsets[idx]] = value
 	}
 }
@@ -265,69 +263,62 @@ func (o OutputOption) applyLineConfigOption(lco *lineConfigOptions) {
 func (o OutputOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
 	for idx, offset := range offsets {
 		o.applyLineConfig(lco.lineConfig(offset))
-		lco.values[offset] = o.values[idx]
+		lco.values[offset] = o[idx]
 	}
 }
 
 // LevelOption determines the line level that is considered active.
-type LevelOption struct {
-	activeLow bool
-}
+type LevelOption bool
 
 func (o LevelOption) applyChipOption(c *ChipOptions) {
-	c.config.ActiveLow = o.activeLow
+	c.config.ActiveLow = bool(o)
 }
 
 func (o LevelOption) applyLineReqOption(lro *lineReqOptions) {
-	lro.defCfg.ActiveLow = o.activeLow
+	lro.defCfg.ActiveLow = bool(o)
 }
 
 func (o LevelOption) applyLineConfigOption(lco *lineConfigOptions) {
-	lco.defCfg.ActiveLow = o.activeLow
+	lco.defCfg.ActiveLow = bool(o)
 }
 
 func (o LevelOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
 	for _, offset := range offsets {
-		lco.lineConfig(offset).ActiveLow = o.activeLow
+		lco.lineConfig(offset).ActiveLow = bool(o)
 	}
 }
 
 // AsActiveLow indicates that a line be considered active when the line level
 // is low.
-var AsActiveLow = LevelOption{true}
+const AsActiveLow = LevelOption(true)
 
 // AsActiveHigh indicates that a line be considered active when the line level
 // is high.
 //
 // This is the default active level.
-var AsActiveHigh = LevelOption{}
+const AsActiveHigh = LevelOption(false)
 
-// DriveOption determines if a line is open drain, open source or push-pull.
-type DriveOption struct {
-	drive LineDrive
-}
-
-func (o DriveOption) applyLineConfig(lc *LineConfig) {
-	lc.Drive = o.drive
+func (o LineDrive) applyLineConfig(lc *LineConfig) {
+	lc.Drive = o
 	lc.Direction = LineDirectionOutput
 	lc.Debounced = false
 	lc.DebouncePeriod = 0
 	lc.EdgeDetection = LineEdgeNone
 }
 
-func (o DriveOption) applyChipOption(c *ChipOptions) {
+func (o LineDrive) applyChipOption(c *ChipOptions) {
 	o.applyLineConfig(&c.config)
 }
 
-func (o DriveOption) applyLineReqOption(lro *lineReqOptions) {
+func (o LineDrive) applyLineReqOption(lro *lineReqOptions) {
 	o.applyLineConfig(&lro.defCfg)
 }
 
-func (o DriveOption) applyLineConfigOption(lco *lineConfigOptions) {
+func (o LineDrive) applyLineConfigOption(lco *lineConfigOptions) {
 	o.applyLineConfig(&lco.defCfg)
 }
 
-func (o DriveOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
+func (o LineDrive) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
 	for _, offset := range offsets {
 		o.applyLineConfig(lco.lineConfig(offset))
 	}
@@ -337,43 +328,36 @@ func (o DriveOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigO
 //
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, OpenSource, or Debounce options.
-var AsOpenDrain = DriveOption{LineDriveOpenDrain}
+const AsOpenDrain = LineDriveOpenDrain
 
 // AsOpenSource indicates that a line be driven low but left floating for high.
 //
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, OpenDrain, or Debounce options.
-var AsOpenSource = DriveOption{LineDriveOpenSource}
+const AsOpenSource = LineDriveOpenSource
 
 // AsPushPull indicates that a line be driven both low and high.
 //
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, OpenDrain, OpenSource or Debounce
 // options.
-var AsPushPull = DriveOption{}
+const AsPushPull = LineDrivePushPull
 
-// BiasOption indicates how a line is to be biased.
-//
-// Bias options require Linux v5.5 or later.
-type BiasOption struct {
-	bias LineBias
+func (o LineBias) applyChipOption(c *ChipOptions) {
+	c.config.Bias = o
 }
 
-func (o BiasOption) applyChipOption(c *ChipOptions) {
-	c.config.Bias = o.bias
+func (o LineBias) applyLineReqOption(lro *lineReqOptions) {
+	lro.defCfg.Bias = o
 }
 
-func (o BiasOption) applyLineReqOption(lro *lineReqOptions) {
-	lro.defCfg.Bias = o.bias
+func (o LineBias) applyLineConfigOption(lco *lineConfigOptions) {
+	lco.defCfg.Bias = o
 }
 
-func (o BiasOption) applyLineConfigOption(lco *lineConfigOptions) {
-	lco.defCfg.Bias = o.bias
-}
-
-func (o BiasOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
+func (o LineBias) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
 	for _, offset := range offsets {
-		lco.lineConfig(offset).Bias = o.bias
+		lco.lineConfig(offset).Bias = o
 	}
 }
 
@@ -384,69 +368,59 @@ func (o BiasOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigOp
 // before that configuration is applied.
 //
 // Requires Linux v5.5 or later.
-var WithBiasAsIs = BiasOption{LineBiasUnknown}
+const WithBiasAsIs = LineBiasUnknown
 
 // WithBiasDisabled indicates that a line have its internal bias disabled.
 //
 // This option overrides and clears any previous bias options.
 //
 // Requires Linux v5.5 or later.
-var WithBiasDisabled = BiasOption{LineBiasDisabled}
+const WithBiasDisabled = LineBiasDisabled
 
 // WithPullDown indicates that a line have its internal pull-down enabled.
 //
 // This option overrides and clears any previous bias options.
 //
 // Requires Linux v5.5 or later.
-var WithPullDown = BiasOption{LineBiasPullDown}
+const WithPullDown = LineBiasPullDown
 
 // WithPullUp indicates that a line have its internal pull-up enabled.
 //
 // This option overrides and clears any previous bias options.
 //
 // Requires Linux v5.5 or later.
-var WithPullUp = BiasOption{LineBiasPullUp}
+const WithPullUp = LineBiasPullUp
 
-// EventHandlerOption provides the handler for events on requested lines.
-type EventHandlerOption struct {
-	eh EventHandler
+func (o EventHandler) applyChipOption(c *ChipOptions) {
+	c.eh = o
 }
 
-func (o EventHandlerOption) applyChipOption(c *ChipOptions) {
-	c.eh = o.eh
-}
-
-func (o EventHandlerOption) applyLineReqOption(lro *lineReqOptions) {
-	lro.eh = o.eh
+func (o EventHandler) applyLineReqOption(lro *lineReqOptions) {
+	lro.eh = o
 }
 
 // WithEventHandler indicates that a line will generate events when its active
 // state transitions from high to low.
 //
 // Events are forwarded to the provided handler function.
-func WithEventHandler(e func(LineEvent)) EventHandlerOption {
-	return EventHandlerOption{e}
+func WithEventHandler(e EventHandler) EventHandler {
+	return e
 }
 
-// EdgeOption indicates that a line will generate events when edges are detected.
-type EdgeOption struct {
-	edge LineEdge
-}
-
-func (o EdgeOption) applyLineConfig(lc *LineConfig) {
-	lc.EdgeDetection = o.edge
+func (o LineEdge) applyLineConfig(lc *LineConfig) {
+	lc.EdgeDetection = o
 	lc.Direction = LineDirectionInput
 }
 
-func (o EdgeOption) applyLineReqOption(lro *lineReqOptions) {
+func (o LineEdge) applyLineReqOption(lro *lineReqOptions) {
 	o.applyLineConfig(&lro.defCfg)
 }
 
-func (o EdgeOption) applyLineConfigOption(lco *lineConfigOptions) {
+func (o LineEdge) applyLineConfigOption(lco *lineConfigOptions) {
 	o.applyLineConfig(&lco.defCfg)
 }
 
-func (o EdgeOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
+func (o LineEdge) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
 	for _, offset := range offsets {
 		o.applyLineConfig(lco.lineConfig(offset))
 	}
@@ -459,7 +433,7 @@ func (o EdgeOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigOp
 //
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
-var WithFallingEdge = EdgeOption{LineEdgeFalling}
+const WithFallingEdge = LineEdgeFalling
 
 // WithRisingEdge indicates that a line will generate events when its active
 // state transitions from low to high.
@@ -468,7 +442,7 @@ var WithFallingEdge = EdgeOption{LineEdgeFalling}
 //
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
-var WithRisingEdge = EdgeOption{LineEdgeRising}
+const WithRisingEdge = LineEdgeRising
 
 // WithBothEdges indicates that a line will generate events when its active
 // state transitions from low to high and from high to low.
@@ -477,7 +451,7 @@ var WithRisingEdge = EdgeOption{LineEdgeRising}
 //
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
-var WithBothEdges = EdgeOption{LineEdgeBoth}
+const WithBothEdges = LineEdgeBoth
 
 // WithoutEdges indicates that a line will not generate events due to active
 // state transitions.
@@ -489,28 +463,23 @@ var WithBothEdges = EdgeOption{LineEdgeBoth}
 // Output, OpenDrain, or OpenSource options.
 //
 // The WithoutEdges option requires Linux v5.10 or later.
-var WithoutEdges = EdgeOption{LineEdgeNone}
+const WithoutEdges = LineEdgeNone
 
-// EventClockOption specifies the source of the clock for edge event timestamps.
-type EventClockOption struct {
-	clock LineEventClock
+func (o LineEventClock) applyChipOption(c *ChipOptions) {
+	c.config.EventClock = LineEventClock(o)
 }
 
-func (o EventClockOption) applyChipOption(c *ChipOptions) {
-	c.config.EventClock = o.clock
+func (o LineEventClock) applyLineReqOption(lro *lineReqOptions) {
+	lro.defCfg.EventClock = LineEventClock(o)
 }
 
-func (o EventClockOption) applyLineReqOption(lro *lineReqOptions) {
-	lro.defCfg.EventClock = o.clock
+func (o LineEventClock) applyLineConfigOption(lco *lineConfigOptions) {
+	lco.defCfg.EventClock = LineEventClock(o)
 }
 
-func (o EventClockOption) applyLineConfigOption(lco *lineConfigOptions) {
-	lco.defCfg.EventClock = o.clock
-}
-
-func (o EventClockOption) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
+func (o LineEventClock) applySubsetLineConfigOption(offsets []int, lco *lineConfigOptions) {
 	for _, offset := range offsets {
-		lco.lineConfig(offset).EventClock = o.clock
+		lco.lineConfig(offset).EventClock = LineEventClock(o)
 	}
 }
 
@@ -520,25 +489,23 @@ func (o EventClockOption) applySubsetLineConfigOption(offsets []int, lco *lineCo
 // This option corresponds to the default event clock configuration and its only
 // useful application is to clear any previous event clock option in a chain of
 // LineOptions, before that configuration is applied.
-var WithMonotonicEventClock = EventClockOption{LineEventClockMonotonic}
+const WithMonotonicEventClock = LineEventClockMonotonic
 
 // WithRealtimeEventClock specifies that the edge event timestamps are sourced
 // from CLOCK_REALTIME.
 //
 // Requires Linux v5.11 or later.
-var WithRealtimeEventClock = EventClockOption{LineEventClockRealtime}
+const WithRealtimeEventClock = LineEventClockRealtime
 
 // DebounceOption indicates that a line will be debounced.
 //
 // The DebounceOption requires Linux v5.10 or later.
-type DebounceOption struct {
-	period time.Duration
-}
+type DebounceOption time.Duration
 
 func (o DebounceOption) applyLineConfig(lc *LineConfig) {
 	lc.Direction = LineDirectionInput
 	lc.Debounced = true
-	lc.DebouncePeriod = o.period
+	lc.DebouncePeriod = time.Duration(o)
 }
 
 func (o DebounceOption) applyLineReqOption(lro *lineReqOptions) {
@@ -563,7 +530,7 @@ func (o DebounceOption) applySubsetLineConfigOption(offsets []int, lco *lineConf
 //
 // Requires Linux v5.10 or later.
 func WithDebounce(period time.Duration) DebounceOption {
-	return DebounceOption{period}
+	return DebounceOption(period)
 }
 
 // ABIVersionOption selects the version of the GPIO ioctl commands to use.
@@ -616,7 +583,7 @@ func WithLines(offsets []int, options ...SubsetLineConfigOption) LinesOption {
 }
 
 // DefaultedOption resets the configuration to default values.
-type DefaultedOption struct{}
+type DefaultedOption int
 
 func (o DefaultedOption) applyLineReqOption(lro *lineReqOptions) {
 	o.applyLineConfigOption(&lro.lineConfigOptions)
@@ -651,18 +618,16 @@ func (o DefaultedOption) applySubsetLineConfigOption(offsets []int, lco *lineCon
 // When applied outside WithLines() it resets the default configuration for the
 // request itself to default values but leaves any configuration set within
 // WithLines() unchanged.
-var Defaulted = DefaultedOption{}
+const Defaulted = DefaultedOption(0)
 
 // EventBufferSizeOption provides a suggested minimum number of events the
 // kernel will buffer for the line request.
 //
 // The EventBufferSizeOption requires Linux v5.10 or later.
-type EventBufferSizeOption struct {
-	size int
-}
+type EventBufferSizeOption int
 
 func (o EventBufferSizeOption) applyLineReqOption(lro *lineReqOptions) {
-	lro.eventBufferSize = o.size
+	lro.eventBufferSize = int(o)
 }
 
 // WithEventBufferSize suggests a minimum number of events the kernel will
@@ -676,5 +641,5 @@ func (o EventBufferSizeOption) applyLineReqOption(lro *lineReqOptions) {
 //
 // Requires Linux v5.10 or later.
 func WithEventBufferSize(size int) EventBufferSizeOption {
-	return EventBufferSizeOption{size}
+	return EventBufferSizeOption(size)
 }
