@@ -2701,10 +2701,10 @@ func TestDebounce(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		c.SetValue(1, 1)
 		time.Sleep(clkTick)
-		checkLineValue(t, lr.Fd, 0, 0)
+		checkLineValue(t, lr, 0)
 		c.SetValue(1, 0)
 		time.Sleep(clkTick)
-		checkLineValue(t, lr.Fd, 0, 0)
+		checkLineValue(t, lr, 0)
 	}
 	// but this change will persist and get through...
 	c.SetValue(1, 1)
@@ -2716,7 +2716,7 @@ func TestDebounce(t *testing.T) {
 	assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
 	lastTime := evt.Timestamp
 
-	checkLineValue(t, lr.Fd, 0, 1)
+	checkLineValue(t, lr, 1)
 
 	evt, err = readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
 	assert.Nil(t, err)
@@ -2726,14 +2726,14 @@ func TestDebounce(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		c.SetValue(1, 0)
 		time.Sleep(2 * debouncePeriod)
-		checkLineValue(t, lr.Fd, 0, 0)
+		checkLineValue(t, lr, 0)
 		c.SetValue(1, 1)
 		time.Sleep(2 * debouncePeriod)
-		checkLineValue(t, lr.Fd, 0, 1)
+		checkLineValue(t, lr, 1)
 	}
 	c.SetValue(1, 0)
 	time.Sleep(2 * debouncePeriod)
-	checkLineValue(t, lr.Fd, 0, 0)
+	checkLineValue(t, lr, 0)
 	for i := 0; i < 2; i++ {
 		evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 		assert.Nil(t, err)
@@ -2764,12 +2764,12 @@ func TestDebounce(t *testing.T) {
 	unix.Close(int(lr.Fd))
 }
 
-func checkLineValue(t *testing.T, fd int32, n, v int) {
+func checkLineValue(t *testing.T, lr uapi.LineRequest, v int) {
 	t.Helper()
 	lv := uapi.LineValues{Mask: 1}
-	err := uapi.GetLineValuesV2(uintptr(fd), &lv)
+	err := uapi.GetLineValuesV2(uintptr(lr.Fd), &lv)
 	assert.Nil(t, err)
-	assert.Equal(t, v, lv.Get(n))
+	assert.Equal(t, v, lv.Get(0))
 }
 
 func readLineInfoChangedV2Timeout(fd uintptr,
