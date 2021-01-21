@@ -124,7 +124,7 @@ const (
 type LineDrive int
 
 const (
-	// LineDrivePushPull indicatges the line is driven in both directions.
+	// LineDrivePushPull indicates the line is driven in both directions.
 	LineDrivePushPull LineDrive = iota
 
 	// LineDriveOpenDrain indicates the line is an open drain output.
