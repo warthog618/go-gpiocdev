@@ -1362,6 +1362,15 @@ func TestSetLineValuesV2(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func zeroed(data []byte) bool {
+	for _, d := range data {
+		if d != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func TestSetLineConfigV2(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
 	requireMockup(t)
@@ -1634,7 +1643,7 @@ func TestSetLineConfigV2(t *testing.T) {
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2Input,
 			},
-			[]AttributeEncoder{uapi.DebouncePeriod(20)},
+			[]AttributeEncoder{uapi.DebouncePeriod(20 * time.Microsecond)},
 			nil,
 		},
 		{
@@ -1647,7 +1656,7 @@ func TestSetLineConfigV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
-			[]AttributeEncoder{uapi.DebouncePeriod(20)},
+			[]AttributeEncoder{uapi.DebouncePeriod(20 * time.Microsecond)},
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2Input,
 			},
@@ -1664,11 +1673,11 @@ func TestSetLineConfigV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
-			[]AttributeEncoder{uapi.DebouncePeriod(20)},
+			[]AttributeEncoder{uapi.DebouncePeriod(20 * time.Microsecond)},
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2Input,
 			},
-			[]AttributeEncoder{uapi.DebouncePeriod(30)},
+			[]AttributeEncoder{uapi.DebouncePeriod(20 * time.Microsecond)},
 			nil,
 		},
 		{
@@ -1685,7 +1694,7 @@ func TestSetLineConfigV2(t *testing.T) {
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2Input,
 			},
-			[]AttributeEncoder{uapi.DebouncePeriod(20)},
+			[]AttributeEncoder{uapi.DebouncePeriod(20 * time.Microsecond)},
 			nil,
 		},
 		{
@@ -1698,7 +1707,7 @@ func TestSetLineConfigV2(t *testing.T) {
 				Lines:   3,
 				Offsets: [uapi.LinesMax]uint32{1, 2, 3},
 			},
-			[]AttributeEncoder{uapi.DebouncePeriod(20)},
+			[]AttributeEncoder{uapi.DebouncePeriod(20 * time.Microsecond)},
 			uapi.LineConfig{
 				Flags: uapi.LineFlagV2Output,
 			},
@@ -1948,6 +1957,13 @@ func TestSetLineConfigV2(t *testing.T) {
 				}
 				if xli.Flags&uapi.LineFlagV2DirectionMask == 0 {
 					li.Flags &^= uapi.LineFlagV2DirectionMask
+				}
+				for _, a := range p.ca {
+					enc := a.Encode()
+					if enc.ID == uapi.LineAttributeIDDebounce && !zeroed(enc.Value[:]) {
+						xli.Attrs[xli.NumAttrs] = enc
+						xli.NumAttrs++
+					}
 				}
 				copy(xli.Name[:], li.Name[:]) // don't care about name
 				copy(xli.Consumer[:31], p.name)
