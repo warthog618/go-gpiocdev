@@ -107,23 +107,20 @@ func BenchmarkInterruptLatency(b *testing.B) {
 	require.NotNil(b, c)
 	defer c.Close()
 	platform.TriggerIntr(1)
-	ich := make(chan int)
-	eh := func(evt gpiod.LineEvent) {
-		ich <- 1
-	}
+	ch := make(chan gpiod.LineEvent)
 	r, err := c.RequestLine(platform.IntrLine(),
 		gpiod.WithBothEdges,
-		gpiod.WithEventHandler(eh))
+		gpiod.WithEventHandler(ch))
 	require.Nil(b, err)
 	require.NotNil(b, r)
 	// absorb any pending interrupt
 	select {
-	case <-ich:
+	case <-ch:
 	case <-time.After(time.Millisecond):
 	}
 	for i := 0; i < b.N; i++ {
 		platform.TriggerIntr(i & 1)
-		<-ich
+		<-ch
 	}
 	r.Close()
 }

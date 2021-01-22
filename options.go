@@ -20,7 +20,7 @@ type ChipOptions struct {
 	consumer string
 	config   LineConfig
 	abi      int
-	eh       EventHandler
+	output   chan<- LineEvent
 }
 
 // ConsumerOption defines the consumer label for a line.
@@ -65,7 +65,7 @@ type lineReqOptions struct {
 	lineConfigOptions
 	consumer        string
 	abi             int
-	eh              EventHandler
+	output          chan<- LineEvent
 	eventBufferSize int
 }
 
@@ -178,8 +178,8 @@ func (lco lineConfigOptions) toULineConfig() (ulc uapi.LineConfig, err error) {
 	return
 }
 
-// EventHandler is a receiver for line events.
-type EventHandler func(LineEvent)
+// EventCh is a receiver for line events.
+type EventCh chan<- LineEvent
 
 // AsIsOption indicates the line direction should be left as is.
 type AsIsOption int
@@ -391,19 +391,19 @@ const WithPullDown = LineBiasPullDown
 // Requires Linux v5.5 or later.
 const WithPullUp = LineBiasPullUp
 
-func (o EventHandler) applyChipOption(c *ChipOptions) {
-	c.eh = o
+func (o EventCh) applyChipOption(c *ChipOptions) {
+	c.output = o
 }
 
-func (o EventHandler) applyLineReqOption(lro *lineReqOptions) {
-	lro.eh = o
+func (o EventCh) applyLineReqOption(lro *lineReqOptions) {
+	lro.output = o
 }
 
 // WithEventHandler indicates that a line will generate events when its active
 // state transitions from high to low.
 //
-// Events are forwarded to the provided handler function.
-func WithEventHandler(e EventHandler) EventHandler {
+// Events are forwarded to the provided channel.
+func WithEventHandler(e EventCh) EventCh {
 	return e
 }
 

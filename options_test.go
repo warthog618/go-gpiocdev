@@ -213,9 +213,8 @@ func testChipLevelOption(t *testing.T, option gpiod.ChipOption,
 	ich := make(chan gpiod.LineEvent, 3)
 	l, err := c.RequestLine(platform.IntrLine(),
 		gpiod.WithBothEdges,
-		gpiod.WithEventHandler(func(evt gpiod.LineEvent) {
-			ich <- evt
-		}))
+		gpiod.WithEventHandler(ich),
+	)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	defer l.Close()
@@ -243,9 +242,7 @@ func testLineLevelOptionInput(t *testing.T, option gpiod.LineReqOption,
 	l, err := c.RequestLine(platform.IntrLine(),
 		option,
 		gpiod.WithBothEdges,
-		gpiod.WithEventHandler(func(evt gpiod.LineEvent) {
-			ich <- evt
-		}))
+		gpiod.WithEventHandler(ich))
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	defer l.Close()
@@ -580,10 +577,7 @@ func TestWithEventHandler(t *testing.T) {
 
 	// via chip options
 	ich := make(chan gpiod.LineEvent, 3)
-	eh := func(evt gpiod.LineEvent) {
-		ich <- evt
-	}
-	chipOpts := []gpiod.ChipOption{gpiod.WithEventHandler(eh)}
+	chipOpts := []gpiod.ChipOption{gpiod.WithEventHandler(ich)}
 	if kernelAbiVersion != 0 {
 		chipOpts = append(chipOpts, gpiod.ABIVersionOption(kernelAbiVersion))
 	}
@@ -609,12 +603,9 @@ func TestWithEventHandler(t *testing.T) {
 
 	// via line options
 	ich2 := make(chan gpiod.LineEvent, 3)
-	eh2 := func(evt gpiod.LineEvent) {
-		ich2 <- evt
-	}
 	r, err = c.RequestLine(platform.IntrLine(),
 		gpiod.WithBothEdges,
-		gpiod.WithEventHandler(eh2))
+		gpiod.WithEventHandler(ich2))
 	require.Nil(t, err)
 	require.NotNil(t, r)
 	defer r.Close()
@@ -652,9 +643,7 @@ func TestWithFallingEdge(t *testing.T) {
 	ich := make(chan gpiod.LineEvent, 3)
 	r, err := c.RequestLine(platform.IntrLine(),
 		gpiod.WithFallingEdge,
-		gpiod.WithEventHandler(func(evt gpiod.LineEvent) {
-			ich <- evt
-		}))
+		gpiod.WithEventHandler(ich))
 	require.Nil(t, err)
 	require.NotNil(t, r)
 	defer r.Close()
@@ -677,9 +666,7 @@ func TestWithRisingEdge(t *testing.T) {
 	ich := make(chan gpiod.LineEvent, 3)
 	r, err := c.RequestLine(platform.IntrLine(),
 		gpiod.WithRisingEdge,
-		gpiod.WithEventHandler(func(evt gpiod.LineEvent) {
-			ich <- evt
-		}))
+		gpiod.WithEventHandler(ich))
 	require.Nil(t, err)
 	require.NotNil(t, r)
 	defer r.Close()
@@ -703,9 +690,7 @@ func TestWithBothEdges(t *testing.T) {
 	lines := append(platform.FloatingLines(), platform.IntrLine())
 	r, err := c.RequestLines(lines,
 		gpiod.WithBothEdges,
-		gpiod.WithEventHandler(func(evt gpiod.LineEvent) {
-			ich <- evt
-		}))
+		gpiod.WithEventHandler(ich))
 	require.Nil(t, err)
 	require.NotNil(t, r)
 	defer r.Close()
@@ -730,9 +715,7 @@ func TestWithoutEdges(t *testing.T) {
 	lines := append(platform.FloatingLines(), platform.IntrLine())
 	r, err := c.RequestLines(lines,
 		gpiod.WithBothEdges,
-		gpiod.WithEventHandler(func(evt gpiod.LineEvent) {
-			ich <- evt
-		}))
+		gpiod.WithEventHandler(ich))
 	require.Nil(t, err)
 	require.NotNil(t, r)
 	defer r.Close()
@@ -767,10 +750,7 @@ func TestWithRealtimeEventClock(t *testing.T) {
 	r, err := c.RequestLines(lines,
 		gpiod.WithBothEdges,
 		gpiod.WithRealtimeEventClock,
-		gpiod.WithEventHandler(func(evt gpiod.LineEvent) {
-			evtTimestamp = evt.Timestamp
-			ich <- evt
-		}))
+		gpiod.WithEventHandler(ich))
 	if c.UapiAbiVersion() == 1 {
 		// uapi v2 required for event clock option
 		assert.Equal(t, gpiod.ErrUapiIncompatibility{Feature: "event clock", AbiVersion: 1}, err)
@@ -813,14 +793,16 @@ func TestWithRealtimeEventClock(t *testing.T) {
 	assert.False(t, evtTime.After(end))
 }
 
-func waitEvent(t *testing.T, ch <-chan gpiod.LineEvent, etype gpiod.LineEventType) {
+func waitEvent(t *testing.T, ch <-chan gpiod.LineEvent, etype gpiod.LineEventType) time.Duration {
 	t.Helper()
 	select {
 	case evt := <-ch:
 		assert.Equal(t, etype, evt.Type)
+		return evt.Timestamp
 	case <-time.After(time.Second):
 		assert.Fail(t, "timeout waiting for event")
 	}
+	return 0
 }
 
 func waitNoEvent(t *testing.T, ch <-chan gpiod.LineEvent) {

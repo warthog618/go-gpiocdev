@@ -35,10 +35,7 @@ func main() {
 	defer c.Close()
 	oo := parseOffsets(flags.Args()[1:])
 	evtchan := make(chan gpiod.LineEvent)
-	eh := func(evt gpiod.LineEvent) {
-		evtchan <- evt
-	}
-	opts := makeOpts(cfg, eh)
+	opts := makeOpts(cfg, evtchan)
 	l, err := c.RequestLines(oo, opts...)
 	if err != nil {
 		die("error requesting GPIO lines:" + err.Error())
@@ -79,8 +76,8 @@ func wait(cfg *config.Config, evtchan <-chan gpiod.LineEvent) {
 	}
 }
 
-func makeOpts(cfg *config.Config, eh gpiod.EventHandler) []gpiod.LineReqOption {
-	opts := []gpiod.LineReqOption{gpiod.WithEventHandler(eh)}
+func makeOpts(cfg *config.Config, ch chan<- gpiod.LineEvent) []gpiod.LineReqOption {
+	opts := []gpiod.LineReqOption{gpiod.WithEventHandler(ch)}
 	if cfg.MustGet("active-low").Bool() {
 		opts = append(opts, gpiod.AsActiveLow)
 	}

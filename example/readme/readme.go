@@ -78,7 +78,8 @@ func main() {
 	l.Reconfigure(gpiod.WithDebounce(period))           // once requested
 
 	// Edge Watches
-	l, _ = c.RequestLine(rpi.J8p7, gpiod.WithEventHandler(handler), gpiod.WithBothEdges)
+	ch := make(gpiod.EventCh)
+	l, _ = c.RequestLine(rpi.J8p7, gpiod.WithEventHandler(ch), gpiod.WithBothEdges)
 	l.Reconfigure(gpiod.WithoutEdges)
 
 	// Options
@@ -94,10 +95,6 @@ func main() {
 
 	// Chip Initialisation (2)
 	c.Close()
-}
-
-func handler(evt gpiod.LineEvent) {
-	// handle change in line state
 }
 
 func infoChangeHandler(evt gpiod.LineInfoChangeEvent) {

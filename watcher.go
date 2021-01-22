@@ -15,8 +15,8 @@ import (
 type watcher struct {
 	epfd int
 
-	// the handler for detected events
-	eh EventHandler
+	// the output channel to send detected events
+	output chan<- LineEvent
 
 	// pipe to signal watcher to shutdown
 	donefds []int
@@ -25,7 +25,7 @@ type watcher struct {
 	doneCh chan struct{}
 }
 
-func newWatcher(fd int32, eh EventHandler) (w *watcher, err error) {
+func newWatcher(fd int32, output chan<- LineEvent) (w *watcher, err error) {
 	var epfd int
 	epfd, err = unix.EpollCreate1(unix.EPOLL_CLOEXEC)
 	if err != nil {
@@ -59,7 +59,7 @@ func newWatcher(fd int32, eh EventHandler) (w *watcher, err error) {
 	}
 	w = &watcher{
 		epfd:    epfd,
-		eh:      eh,
+		output:  output,
 		donefds: p,
 		doneCh:  make(chan struct{}),
 	}
@@ -106,7 +106,7 @@ func (w *watcher) watch() {
 				Timestamp: time.Duration(evt.Timestamp),
 				Type:      LineEventType(evt.ID),
 			}
-			w.eh(le)
+			w.output <- le
 		}
 	}
 }
@@ -118,7 +118,7 @@ type watcherV1 struct {
 	evtfds map[int]int
 }
 
-func newWatcherV1(fds map[int]int, eh EventHandler) (w *watcherV1, err error) {
+func newWatcherV1(fds map[int]int, output chan<- LineEvent) (w *watcherV1, err error) {
 	var epfd int
 	epfd, err = unix.EpollCreate1(unix.EPOLL_CLOEXEC)
 	if err != nil {
@@ -155,7 +155,7 @@ func newWatcherV1(fds map[int]int, eh EventHandler) (w *watcherV1, err error) {
 	w = &watcherV1{
 		watcher: watcher{
 			epfd:    epfd,
-			eh:      eh,
+			output:  output,
 			donefds: p,
 			doneCh:  make(chan struct{}),
 		},
@@ -207,7 +207,7 @@ func (w *watcherV1) watch() {
 				Timestamp: time.Duration(evt.Timestamp),
 				Type:      LineEventType(evt.ID),
 			}
-			w.eh(le)
+			w.output <- le
 		}
 	}
 }

@@ -432,7 +432,7 @@ func (c *Chip) RequestLines(offsets []int, options ...LineReqOption) (*Lines, er
 		},
 		consumer: c.options.consumer,
 		abi:      c.options.abi,
-		eh:       c.options.eh,
+		output:   c.options.output,
 	}
 	for _, option := range options {
 		option.applyLineReqOption(&lro)
@@ -454,7 +454,7 @@ func (c *Chip) RequestLines(offsets []int, options ...LineReqOption) (*Lines, er
 		if err != nil {
 			return nil, err
 		}
-		if lro.eh == nil {
+		if lro.output == nil {
 			ll.vfd, err = c.getHandleRequest(ll.offsets, lro)
 		} else {
 			ll.isEvent = true
@@ -561,8 +561,8 @@ func (c *Chip) getLine(offsets []int, lro lineReqOptions) (uintptr, io.Closer, e
 		return 0, nil, err
 	}
 	var w io.Closer
-	if lro.eh != nil {
-		w, err = newWatcher(lr.Fd, lro.eh)
+	if lro.output != nil {
+		w, err = newWatcher(lr.Fd, lro.output)
 		if err != nil {
 			unix.Close(int(lr.Fd))
 			return 0, nil, err
@@ -695,7 +695,7 @@ func (c *Chip) getEventRequest(offsets []int, lro lineReqOptions) (uintptr, io.C
 		}
 		fds[int(fd)] = o
 	}
-	w, err := newWatcherV1(fds, lro.eh)
+	w, err := newWatcherV1(fds, lro.output)
 	if err != nil {
 		for fd := range fds {
 			unix.Close(fd)

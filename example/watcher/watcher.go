@@ -16,16 +16,7 @@ import (
 )
 
 func eventHandler(evt gpiod.LineEvent) {
-	t := time.Now()
-	edge := "rising"
-	if evt.Type == gpiod.LineEventFallingEdge {
-		edge = "falling"
-	}
-	fmt.Printf("event:%3d %-7s %s (%s)\n",
-		evt.Offset,
-		edge,
-		t.Format(time.RFC3339Nano),
-		evt.Timestamp)
+
 }
 
 // Watches GPIO 4 (Raspberry Pi J8-7) and reports when it changes state.
@@ -36,11 +27,12 @@ func main() {
 	}
 	defer c.Close()
 
-	offset := rpi.J8p7
+	offset := rpi.GPIO19
+	ch := make(chan gpiod.LineEvent)
 	l, err := c.RequestLine(offset,
 		gpiod.WithPullUp,
 		gpiod.WithBothEdges,
-		gpiod.WithEventHandler(eventHandler))
+		gpiod.WithEventHandler(ch))
 	if err != nil {
 		fmt.Printf("RequestLine returned error: %s\n", err)
 		if err == syscall.Errno(22) {
@@ -53,6 +45,26 @@ func main() {
 	// In a real application the main thread would do something useful.
 	// But we'll just run for a minute then exit.
 	fmt.Printf("Watching Pin %d...\n", offset)
-	time.Sleep(time.Minute)
+
+	t := time.NewTicker(time.Minute)
+Loop:
+	for {
+		select {
+		case evt := <-ch:
+			t := time.Now()
+			edge := "rising"
+			if evt.Type == gpiod.LineEventFallingEdge {
+				edge = "falling"
+			}
+			fmt.Printf("event:%3d %-7s %s (%s)\n",
+				evt.Offset,
+				edge,
+				t.Format(time.RFC3339Nano),
+				evt.Timestamp)
+		case <-t.C:
+			break Loop
+		}
+
+	}
 	fmt.Println("exiting...")
 }

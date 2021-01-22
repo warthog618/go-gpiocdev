@@ -27,7 +27,7 @@ func main() {
 	defer c.Close()
 
 	values := map[int]string{0: "inactive", 1: "active"}
-	offset := rpi.GPIO4
+	offset := rpi.GPIO6
 	v := 0
 	l, err := c.RequestLine(offset, gpiod.AsOutput(v))
 	if err != nil {

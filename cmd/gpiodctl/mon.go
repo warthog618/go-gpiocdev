@@ -72,10 +72,7 @@ func mon(cmd *cobra.Command, args []string) error {
 	}
 	defer c.Close()
 	evtchan := make(chan gpiod.LineEvent)
-	eh := func(evt gpiod.LineEvent) {
-		evtchan <- evt
-	}
-	opts := makeMonOpts(eh)
+	opts := makeMonOpts(evtchan)
 	l, err := c.RequestLines(oo, opts...)
 	if err != nil {
 		return fmt.Errorf("error requesting GPIO lines: %s", err)
@@ -115,8 +112,8 @@ func monWait(evtchan <-chan gpiod.LineEvent) {
 	}
 }
 
-func makeMonOpts(eh gpiod.EventHandler) []gpiod.LineReqOption {
-	opts := []gpiod.LineReqOption{gpiod.WithEventHandler(eh)}
+func makeMonOpts(ch gpiod.EventCh) []gpiod.LineReqOption {
+	opts := []gpiod.LineReqOption{gpiod.WithEventHandler(ch)}
 	if monOpts.ActiveLow {
 		opts = append(opts, gpiod.AsActiveLow)
 	}

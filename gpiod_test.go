@@ -424,9 +424,11 @@ func TestLineReconfigure(t *testing.T) {
 	assert.Equal(t, gpiod.ErrClosed, err)
 
 	// event request
-	l, err = c.RequestLine(offset,
+	l, err = c.RequestLine(
+		offset,
 		gpiod.WithBothEdges,
-		gpiod.WithEventHandler(func(gpiod.LineEvent) {}))
+		gpiod.WithEventHandler(make(chan<- gpiod.LineEvent)),
+	)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 
@@ -562,7 +564,7 @@ func TestLinesReconfigure(t *testing.T) {
 	// event request
 	ll, err = c.RequestLines(offsets,
 		gpiod.WithBothEdges,
-		gpiod.WithEventHandler(func(gpiod.LineEvent) {}))
+		gpiod.WithEventHandler(make(chan<- gpiod.LineEvent)))
 	assert.Nil(t, err)
 	require.NotNil(t, ll)
 
