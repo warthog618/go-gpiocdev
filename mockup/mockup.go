@@ -104,7 +104,7 @@ func newModprobeMonitor() (ModprobeMonitor, error) {
 		// need udev monitor to determine chip details...
 		return newUdevMonitor()
 	}
-	// only gpiochips are gpio-mockups
+	// all gpiochips are gpio-mockups
 	return &SimpleMonitor{}, nil
 }
 
