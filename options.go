@@ -403,6 +403,15 @@ func (o EventHandler) applyLineReqOption(lro *lineReqOptions) {
 // state transitions from high to low.
 //
 // Events are forwarded to the provided handler function.
+//
+// To maintain event ordering, the event handler is called serially for each
+// event from the requested lines.  To minimize the possiblity of overflowing
+// the queue of events in the kernel, the event handler should handle or
+// hand-off the event and return as soon as possible.
+//
+// Note that calling Close on the requested line from within the event handler
+// will result in deadlock, as the Close waits for the event handler to
+// return.  Therefore the Close must be called from a different goroutine.
 func WithEventHandler(e EventHandler) EventHandler {
 	return e
 }

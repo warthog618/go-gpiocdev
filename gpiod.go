@@ -757,6 +757,10 @@ func (l *baseLine) Chip() string {
 }
 
 // Close releases all resources held by the requested line.
+//
+// Note that this includes waiting for any running event handler to return.
+// As a consequence the Close must not be called from the context of the event
+// handler - the Close should be called from a different goroutine.
 func (l *baseLine) Close() error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
