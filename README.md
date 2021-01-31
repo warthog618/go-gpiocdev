@@ -359,8 +359,8 @@ is 0 for inactive and 1 for active. The physical value considered active can be
 controlled using the *AsActiveHigh* and *AsActiveLow* options:
 
 ```go
-l, _ := c.RequestLine(4,gpiod.AsActiveLow) // during request
-l.Reconfigure(gpiod.AsActiveHigh)          // once requested
+l, _ := c.RequestLine(4, gpiod.AsActiveLow) // during request
+l.Reconfigure(gpiod.AsActiveHigh)           // once requested
 ```
 
 Lines are typically active high by default.
@@ -370,9 +370,9 @@ Lines are typically active high by default.
 The line direction can be controlled using the *AsInput* and *AsOutput* options:
 
 ```go
-l, _ := c.RequestLine(4,gpiod.AsInput) // during request
-l.Reconfigure(gpiod.AsInput)           // set direction to Input
-l.Reconfigure(gpiod.AsOutput(0))       // set direction to Output (and value to inactive)
+l, _ := c.RequestLine(4, gpiod.AsInput) // during request
+l.Reconfigure(gpiod.AsInput)            // set direction to Input
+l.Reconfigure(gpiod.AsOutput(0))        // set direction to Output (and value to inactive)
 ```
 
 ##### Bias
@@ -380,8 +380,8 @@ l.Reconfigure(gpiod.AsOutput(0))       // set direction to Output (and value to 
 The bias options control the pull up/down state of the line:
 
 ```go
-l,_ := c.RequestLine(4,gpiod.WithPullUp)  // during request
-l.Reconfigure(gpiod.WithBiasDisabled)      // once requested
+l, _ = c.RequestLine(4, gpiod.WithPullUp) // during request
+l.Reconfigure(gpiod.WithBiasDisabled)     // once requested
 ```
 
 The bias options require Linux v5.5 or later.
@@ -391,8 +391,8 @@ The bias options require Linux v5.5 or later.
 The drive options control how an output line is driven when active and inactive:
 
 ```go
-l,_ := c.RequestLine(4,gpiod.AsOpenDrain) // during request
-l.Reconfigure(gpiod.AsOpenSource)         // once requested
+l,_ := c.RequestLine(4, gpiod.AsOpenDrain) // during request
+l.Reconfigure(gpiod.AsOpenSource)          // once requested
 ```
 
 The default drive for output lines is push-pull, which actively drives the line
