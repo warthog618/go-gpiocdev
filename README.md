@@ -263,6 +263,11 @@ func handler(evt gpiod.LineEvent) {
 l, _ = c.RequestLine(rpi.J8p7, gpiod.WithEventHandler(handler), gpiod.WithBothEdges)
 ```
 
+To maintain event ordering, the event handler is called serially from a
+goroutine that reads the events from the kernel.  The event handler is expected
+to be short lived, and so should hand off any potentially blocking operations to
+a separate goroutine.
+
 An edge watch can be removed by closing the line:
 
 ```go
@@ -274,6 +279,10 @@ or by reconfiguring the requested lines to disable edge detection:
 ```go
 l.Reconfigure(gpiod.WithoutEdges)
 ```
+
+Note that the *Close* waits for the event handler to return and so must not be
+called from the event handler context - it should be called from a separate
+goroutine.
 
 Also see the [watcher](example/watcher/watcher.go) example.
 
