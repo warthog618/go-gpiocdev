@@ -164,13 +164,14 @@ func testEdgeEventPolarity(t *testing.T, l *gpiod.Line,
 
 	t.Helper()
 
+	evtSeqno = 0
 	platform.TriggerIntr(activeLevel ^ 1)
-	waitEvent(t, ich, gpiod.LineEventFallingEdge)
+	waitEvent(t, ich, nextEvent(l, 0))
 	v, err := l.Value()
 	assert.Nil(t, err)
 	assert.Equal(t, 0, v)
 	platform.TriggerIntr(activeLevel)
-	waitEvent(t, ich, gpiod.LineEventRisingEdge)
+	waitEvent(t, ich, nextEvent(l, 1))
 	v, err = l.Value()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, v)
@@ -575,6 +576,27 @@ func TestWithPullUp(t *testing.T) {
 	testLineBiasReconfigure(t, gpiod.WithPullDown, gpiod.WithPullUp, bias, 1)
 }
 
+var evtSeqno uint32
+
+type AbiVersioner interface {
+	UapiAbiVersion() int
+}
+
+func nextEvent(r AbiVersioner, active int) gpiod.LineEvent {
+	if r.UapiAbiVersion() != 1 {
+		evtSeqno++
+	}
+	typ := gpiod.LineEventFallingEdge
+	if active != 0 {
+		typ = gpiod.LineEventRisingEdge
+	}
+	return gpiod.LineEvent{
+		Type:      typ,
+		Seqno:     evtSeqno,
+		LineSeqno: evtSeqno,
+	}
+}
+
 func TestWithEventHandler(t *testing.T) {
 	platform.TriggerIntr(0)
 
@@ -594,15 +616,16 @@ func TestWithEventHandler(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, r)
 	defer r.Close()
+	evtSeqno = 0
 	waitNoEvent(t, ich)
 	platform.TriggerIntr(1)
-	waitEvent(t, ich, gpiod.LineEventRisingEdge)
+	waitEvent(t, ich, nextEvent(r, 1))
 	platform.TriggerIntr(0)
-	waitEvent(t, ich, gpiod.LineEventFallingEdge)
+	waitEvent(t, ich, nextEvent(r, 0))
 	platform.TriggerIntr(1)
-	waitEvent(t, ich, gpiod.LineEventRisingEdge)
+	waitEvent(t, ich, nextEvent(r, 1))
 	platform.TriggerIntr(0)
-	waitEvent(t, ich, gpiod.LineEventFallingEdge)
+	waitEvent(t, ich, nextEvent(r, 0))
 	waitNoEvent(t, ich)
 
 	r.Close()
@@ -618,15 +641,16 @@ func TestWithEventHandler(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, r)
 	defer r.Close()
+	evtSeqno = 0
 	waitNoEvent(t, ich2)
 	platform.TriggerIntr(1)
-	waitEvent(t, ich2, gpiod.LineEventRisingEdge)
+	waitEvent(t, ich2, nextEvent(r, 1))
 	platform.TriggerIntr(0)
-	waitEvent(t, ich2, gpiod.LineEventFallingEdge)
+	waitEvent(t, ich2, nextEvent(r, 0))
 	platform.TriggerIntr(1)
-	waitEvent(t, ich2, gpiod.LineEventRisingEdge)
+	waitEvent(t, ich2, nextEvent(r, 1))
 	platform.TriggerIntr(0)
-	waitEvent(t, ich2, gpiod.LineEventFallingEdge)
+	waitEvent(t, ich2, nextEvent(r, 0))
 	waitNoEvent(t, ich2)
 
 	r.Close()
@@ -658,13 +682,14 @@ func TestWithFallingEdge(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, r)
 	defer r.Close()
+	evtSeqno = 0
 	waitNoEvent(t, ich)
 	platform.TriggerIntr(0)
-	waitEvent(t, ich, gpiod.LineEventFallingEdge)
+	waitEvent(t, ich, nextEvent(r, 0))
 	platform.TriggerIntr(1)
 	waitNoEvent(t, ich)
 	platform.TriggerIntr(0)
-	waitEvent(t, ich, gpiod.LineEventFallingEdge)
+	waitEvent(t, ich, nextEvent(r, 0))
 	platform.TriggerIntr(1)
 	waitNoEvent(t, ich)
 }
@@ -683,13 +708,14 @@ func TestWithRisingEdge(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, r)
 	defer r.Close()
+	evtSeqno = 0
 	waitNoEvent(t, ich)
 	platform.TriggerIntr(1)
-	waitEvent(t, ich, gpiod.LineEventRisingEdge)
+	waitEvent(t, ich, nextEvent(r, 1))
 	platform.TriggerIntr(0)
 	waitNoEvent(t, ich)
 	platform.TriggerIntr(1)
-	waitEvent(t, ich, gpiod.LineEventRisingEdge)
+	waitEvent(t, ich, nextEvent(r, 1))
 	platform.TriggerIntr(0)
 	waitNoEvent(t, ich)
 }
@@ -709,15 +735,16 @@ func TestWithBothEdges(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, r)
 	defer r.Close()
+	evtSeqno = 0
 	waitNoEvent(t, ich)
 	platform.TriggerIntr(1)
-	waitEvent(t, ich, gpiod.LineEventRisingEdge)
+	waitEvent(t, ich, nextEvent(r, 1))
 	platform.TriggerIntr(0)
-	waitEvent(t, ich, gpiod.LineEventFallingEdge)
+	waitEvent(t, ich, nextEvent(r, 0))
 	platform.TriggerIntr(1)
-	waitEvent(t, ich, gpiod.LineEventRisingEdge)
+	waitEvent(t, ich, nextEvent(r, 1))
 	platform.TriggerIntr(0)
-	waitEvent(t, ich, gpiod.LineEventFallingEdge)
+	waitEvent(t, ich, nextEvent(r, 0))
 	waitNoEvent(t, ich)
 }
 
@@ -736,11 +763,12 @@ func TestWithoutEdges(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, r)
 	defer r.Close()
+	evtSeqno = 0
 	waitNoEvent(t, ich)
 	platform.TriggerIntr(1)
-	waitEvent(t, ich, gpiod.LineEventRisingEdge)
+	waitEvent(t, ich, nextEvent(r, 1))
 	platform.TriggerIntr(0)
-	waitEvent(t, ich, gpiod.LineEventFallingEdge)
+	waitEvent(t, ich, nextEvent(r, 0))
 
 	err = r.Reconfigure(gpiod.WithoutEdges)
 	if c.UapiAbiVersion() == 1 {
@@ -789,10 +817,11 @@ func TestWithRealtimeEventClock(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, r)
 	defer r.Close()
+	evtSeqno = 0
 	waitNoEvent(t, ich)
 	start := time.Now()
 	platform.TriggerIntr(1)
-	waitEvent(t, ich, gpiod.LineEventRisingEdge)
+	waitEvent(t, ich, nextEvent(r, 1))
 	end := time.Now()
 	// with time converted to nanoseconds duration
 	assert.LessOrEqual(t, start.UnixNano(), evtTimestamp.Nanoseconds())
@@ -804,7 +833,7 @@ func TestWithRealtimeEventClock(t *testing.T) {
 
 	start = time.Now()
 	platform.TriggerIntr(0)
-	waitEvent(t, ich, gpiod.LineEventFallingEdge)
+	waitEvent(t, ich, nextEvent(r, 0))
 	end = time.Now()
 	assert.LessOrEqual(t, start.UnixNano(), evtTimestamp.Nanoseconds())
 	assert.GreaterOrEqual(t, end.UnixNano(), evtTimestamp.Nanoseconds())
@@ -813,11 +842,13 @@ func TestWithRealtimeEventClock(t *testing.T) {
 	assert.False(t, evtTime.After(end))
 }
 
-func waitEvent(t *testing.T, ch <-chan gpiod.LineEvent, etype gpiod.LineEventType) {
+func waitEvent(t *testing.T, ch <-chan gpiod.LineEvent, xevt gpiod.LineEvent) {
 	t.Helper()
 	select {
 	case evt := <-ch:
-		assert.Equal(t, etype, evt.Type)
+		assert.Equal(t, xevt.Type, evt.Type)
+		assert.Equal(t, xevt.Seqno, evt.Seqno)
+		assert.Equal(t, xevt.LineSeqno, evt.LineSeqno)
 	case <-time.After(time.Second):
 		assert.Fail(t, "timeout waiting for event")
 	}

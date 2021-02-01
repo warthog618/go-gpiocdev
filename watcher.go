@@ -105,6 +105,8 @@ func (w *watcher) watch() {
 				Offset:    int(evt.Offset),
 				Timestamp: time.Duration(evt.Timestamp),
 				Type:      LineEventType(evt.ID),
+				Seqno:     evt.Seqno,
+				LineSeqno: evt.LineSeqno,
 			}
 			w.eh(le)
 		}

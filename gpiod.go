@@ -1068,6 +1068,16 @@ type LineEvent struct {
 
 	// The type of state change event this structure represents.
 	Type LineEventType
+
+	// The seqno for this event in all events on all lines in this line request.
+	//
+	// Requires uAPI v2.
+	Seqno uint32
+
+	// The seqno for this event in all events in this line.
+	//
+	// Requires uAPI v2.
+	LineSeqno uint32
 }
 
 // LineInfoChangeEvent represents a change in the info a line.
