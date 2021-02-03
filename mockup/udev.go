@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+//
+// SPDX-FileCopyrightText: © 2019 Kent Gibson <warthog618@gmail.com>.
+
 package mockup
 
 import (

@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2020 Kent Gibson <warthog618@gmail.com>
 //
-// Copyright © 2020 Kent Gibson <warthog618@gmail.com>.
+// SPDX-License-Identifier: MIT
 
 // A simple example that toggles an output pin.
 package main

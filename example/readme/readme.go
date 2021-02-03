@@ -1,18 +1,21 @@
-// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2019 Kent Gibson <warthog618@gmail.com>
 //
-// Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
+// SPDX-License-Identifier: MIT
 
 // +build linux
 
-// A collection of code snippets contained in the README.
+// A collection of code snippets contained in the READMEs.
 package main
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/warthog618/gpiod"
 	"github.com/warthog618/gpiod/device/rpi"
+	"github.com/warthog618/gpiod/uapi"
+	"golang.org/x/sys/unix"
 )
 
 func main() {
@@ -102,4 +105,117 @@ func handler(evt gpiod.LineEvent) {
 
 func infoChangeHandler(evt gpiod.LineInfoChangeEvent) {
 	// handle change in line info
+}
+
+func uapiV2() error {
+	offset := 32
+	offsets := []int{1, 2, 3}
+
+	f, _ := os.OpenFile("/dev/gpiochip0", unix.O_CLOEXEC, unix.O_RDONLY)
+
+	// get chip info
+	ci, _ := uapi.GetChipInfo(f.Fd())
+	fmt.Print(ci)
+
+	// get line info
+	li, _ := uapi.GetLineInfo(f.Fd(), offset)
+	fmt.Print(li)
+
+	// request a line
+	lr := uapi.LineRequest{
+		Lines: uint32(len(offsets)),
+		Config: uapi.LineConfig{
+			Flags: uapi.LineFlagV2Output,
+		},
+		// initialise Offsets, DefaultValues and Consumer...
+	}
+	err := uapi.GetLine(f.Fd(), &lr)
+
+	// request a line with events
+	lr = uapi.LineRequest{
+		Lines: uint32(len(offsets)),
+		Config: uapi.LineConfig{
+			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2ActiveLow | uapi.LineFlagV2EdgeBoth,
+		},
+		// initialise Offsets and Consumer...
+	}
+	err = uapi.GetLine(f.Fd(), &lr)
+	if err != nil {
+		// wait on lr.fd for events...
+
+		// read event
+		evt, _ := uapi.ReadLineEvent(uintptr(lr.Fd))
+		fmt.Print(evt)
+	}
+
+	// get values
+	var values uapi.LineValues
+	err = uapi.GetLineValuesV2(uintptr(lr.Fd), &values)
+
+	// set values
+	err = uapi.SetLineValuesV2(uintptr(lr.Fd), values)
+
+	// update line config - change to outputs
+	err = uapi.SetLineConfigV2(uintptr(lr.Fd), &uapi.LineConfig{
+		Flags:    uapi.LineFlagV2Output,
+		NumAttrs: 1,
+		// initialise OutputValues...
+	})
+
+	return err
+}
+
+func uapiV1() error {
+	offset := 32
+	offsets := []int{1, 2, 3}
+	value := 1
+
+	f, _ := os.OpenFile("/dev/gpiochip0", unix.O_CLOEXEC, unix.O_RDONLY)
+
+	// get chip info
+	ci, _ := uapi.GetChipInfo(f.Fd())
+	fmt.Print(ci)
+
+	// get line info
+	li, _ := uapi.GetLineInfo(f.Fd(), offset)
+	fmt.Print(li)
+
+	// request a line
+	hr := uapi.HandleRequest{
+		Lines: uint32(len(offsets)),
+		Flags: uapi.HandleRequestOutput,
+		// initialise Offsets, DefaultValues and Consumer...
+	}
+	err := uapi.GetLineHandle(f.Fd(), &hr)
+
+	// request a line with events
+	er := uapi.EventRequest{
+		Offset:      uint32(offset),
+		HandleFlags: uapi.HandleRequestActiveLow,
+		EventFlags:  uapi.EventRequestBothEdges,
+		// initialise Consumer...
+	}
+	err = uapi.GetLineEvent(f.Fd(), &er)
+	if err != nil {
+		// wait on er.fd for events...
+
+		// read event
+		evt, _ := uapi.ReadEvent(uintptr(er.Fd))
+		fmt.Print(evt)
+	}
+
+	// get values
+	var values uapi.HandleData
+	err = uapi.GetLineValues(uintptr(er.Fd), &values)
+
+	// set values
+	values[0] = uint8(value)
+	err = uapi.SetLineValues(uintptr(hr.Fd), values)
+
+	// update line config - change to active low
+	err = uapi.SetLineConfig(uintptr(hr.Fd), &uapi.HandleConfig{
+		Flags: uapi.HandleRequestInput,
+	})
+
+	return err
 }

@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2019 Kent Gibson <warthog618@gmail.com>
+
+SPDX-License-Identifier: MIT
+-->
+
 # gpiod
 
 [![Build Status](https://travis-ci.org/warthog618/gpiod.svg)](https://travis-ci.org/warthog618/gpiod)

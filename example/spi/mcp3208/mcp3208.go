@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2019 Kent Gibson <warthog618@gmail.com>
 //
-// Copyright © 2019 Kent Gibson <warthog618@gmail.com>.
+// SPDX-License-Identifier: MIT
 
 // An example of reading values from a MCP3208 using the bit-bashed SPI driver.
 package main
