@@ -130,6 +130,9 @@ func uapiV2() error {
 		// initialise Offsets, DefaultValues and Consumer...
 	}
 	err := uapi.GetLine(f.Fd(), &lr)
+	if err != nil {
+		return err
+	}
 
 	// request a line with events
 	lr = uapi.LineRequest{
@@ -151,9 +154,15 @@ func uapiV2() error {
 	// get values
 	var values uapi.LineValues
 	err = uapi.GetLineValuesV2(uintptr(lr.Fd), &values)
+	if err != nil {
+		return err
+	}
 
 	// set values
 	err = uapi.SetLineValuesV2(uintptr(lr.Fd), values)
+	if err != nil {
+		return err
+	}
 
 	// update line config - change to outputs
 	err = uapi.SetLineConfigV2(uintptr(lr.Fd), &uapi.LineConfig{
@@ -187,6 +196,9 @@ func uapiV1() error {
 		// initialise Offsets, DefaultValues and Consumer...
 	}
 	err := uapi.GetLineHandle(f.Fd(), &hr)
+	if err != nil {
+		return err
+	}
 
 	// request a line with events
 	er := uapi.EventRequest{
@@ -207,10 +219,16 @@ func uapiV1() error {
 	// get values
 	var values uapi.HandleData
 	err = uapi.GetLineValues(uintptr(er.Fd), &values)
+	if err != nil {
+		return err
+	}
 
 	// set values
 	values[0] = uint8(value)
 	err = uapi.SetLineValues(uintptr(hr.Fd), values)
+	if err != nil {
+		return err
+	}
 
 	// update line config - change to active low
 	err = uapi.SetLineConfig(uintptr(hr.Fd), &uapi.HandleConfig{
