@@ -1909,7 +1909,7 @@ func TestSetLineConfigV2(t *testing.T) {
 			require.Nil(t, err)
 			// setup mockup for inputs
 			if p.lr.Config.Flags.IsOutput() {
-				for i := 0; i < int(p.lr.Lines); i++ {
+				for i := uint(0); i < uint(p.lr.Lines); i++ {
 					v := p.lr.Config.Attrs[0].Attr.Value64() >> i & 1
 					// read is after config, so use config active state
 					if p.config.Flags.IsActiveLow() {
@@ -1970,7 +1970,7 @@ func TestSetLineConfigV2(t *testing.T) {
 				assert.Equal(t, xli, li)
 				// check values from mock
 				if p.config.Flags.IsOutput() {
-					for i := 0; i < int(p.lr.Lines); i++ {
+					for i := uint(0); i < uint(p.lr.Lines); i++ {
 						v, err := c.Value(int(p.lr.Offsets[i]))
 						assert.Nil(t, err)
 						xv := int(p.config.Attrs[0].Attr.Value64()>>i) & 1
