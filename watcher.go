@@ -15,18 +15,18 @@ import (
 type watcher struct {
 	epfd int
 
+	// eventfd to signal watcher to shutdown
+	donefd int
+
 	// the handler for detected events
 	eh EventHandler
-
-	// pipe to signal watcher to shutdown
-	donefds []int
 
 	// closed once watcher exits
 	doneCh chan struct{}
 }
 
 func newWatcher(fd int32, eh EventHandler) (w *watcher, err error) {
-	var epfd int
+	var epfd, donefd int
 	epfd, err = unix.EpollCreate1(unix.EPOLL_CLOEXEC)
 	if err != nil {
 		return
@@ -36,19 +36,17 @@ func newWatcher(fd int32, eh EventHandler) (w *watcher, err error) {
 			unix.Close(epfd)
 		}
 	}()
-	p := []int{0, 0}
-	err = unix.Pipe2(p, unix.O_CLOEXEC)
+	donefd, err = unix.Eventfd(0, unix.EFD_CLOEXEC)
 	if err != nil {
 		return
 	}
 	defer func() {
 		if err != nil {
-			unix.Close(p[0])
-			unix.Close(p[1])
+			unix.Close(donefd)
 		}
 	}()
-	epv := unix.EpollEvent{Events: unix.EPOLLIN, Fd: int32(p[0])}
-	err = unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, int(p[0]), &epv)
+	epv := unix.EpollEvent{Events: unix.EPOLLIN, Fd: int32(donefd)}
+	err = unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, int(donefd), &epv)
 	if err != nil {
 		return
 	}
@@ -58,20 +56,19 @@ func newWatcher(fd int32, eh EventHandler) (w *watcher, err error) {
 		return
 	}
 	w = &watcher{
-		epfd:    epfd,
-		eh:      eh,
-		donefds: p,
-		doneCh:  make(chan struct{}),
+		epfd:   epfd,
+		donefd: donefd,
+		eh:     eh,
+		doneCh: make(chan struct{}),
 	}
 	go w.watch()
 	return
 }
 
 func (w *watcher) Close() error {
-	unix.Write(w.donefds[1], []byte("bye"))
+	unix.Write(w.donefd, []byte{1, 0, 0, 0, 0, 0, 0, 0})
 	<-w.doneCh
-	unix.Close(w.donefds[0])
-	unix.Close(w.donefds[1])
+	unix.Close(w.donefd)
 	return nil
 }
 
@@ -93,7 +90,7 @@ func (w *watcher) watch() {
 		for i := 0; i < n; i++ {
 			ev := epollEvents[i]
 			fd := ev.Fd
-			if fd == int32(w.donefds[0]) {
+			if fd == int32(w.donefd) {
 				unix.Close(w.epfd)
 				return
 			}
@@ -121,7 +118,7 @@ type watcherV1 struct {
 }
 
 func newWatcherV1(fds map[int]int, eh EventHandler) (w *watcherV1, err error) {
-	var epfd int
+	var epfd, donefd int
 	epfd, err = unix.EpollCreate1(unix.EPOLL_CLOEXEC)
 	if err != nil {
 		return
@@ -131,19 +128,17 @@ func newWatcherV1(fds map[int]int, eh EventHandler) (w *watcherV1, err error) {
 			unix.Close(epfd)
 		}
 	}()
-	p := []int{0, 0}
-	err = unix.Pipe2(p, unix.O_CLOEXEC)
+	donefd, err = unix.Eventfd(0, unix.EFD_CLOEXEC)
 	if err != nil {
 		return
 	}
 	defer func() {
 		if err != nil {
-			unix.Close(p[0])
-			unix.Close(p[1])
+			unix.Close(donefd)
 		}
 	}()
-	epv := unix.EpollEvent{Events: unix.EPOLLIN, Fd: int32(p[0])}
-	err = unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, int(p[0]), &epv)
+	epv := unix.EpollEvent{Events: unix.EPOLLIN, Fd: int32(donefd)}
+	err = unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, int(donefd), &epv)
 	if err != nil {
 		return
 	}
@@ -156,10 +151,10 @@ func newWatcherV1(fds map[int]int, eh EventHandler) (w *watcherV1, err error) {
 	}
 	w = &watcherV1{
 		watcher: watcher{
-			epfd:    epfd,
-			eh:      eh,
-			donefds: p,
-			doneCh:  make(chan struct{}),
+			epfd:   epfd,
+			donefd: donefd,
+			eh:     eh,
+			doneCh: make(chan struct{}),
 		},
 		evtfds: fds,
 	}
@@ -168,13 +163,12 @@ func newWatcherV1(fds map[int]int, eh EventHandler) (w *watcherV1, err error) {
 }
 
 func (w *watcherV1) Close() error {
-	unix.Write(w.donefds[1], []byte("bye"))
+	unix.Write(w.donefd, []byte{1, 0, 0, 0, 0, 0, 0, 0})
 	<-w.doneCh
 	for fd := range w.evtfds {
 		unix.Close(fd)
 	}
-	unix.Close(w.donefds[0])
-	unix.Close(w.donefds[1])
+	unix.Close(w.donefd)
 	return nil
 }
 
@@ -196,7 +190,7 @@ func (w *watcherV1) watch() {
 		for i := 0; i < n; i++ {
 			ev := epollEvents[i]
 			fd := ev.Fd
-			if fd == int32(w.donefds[0]) {
+			if fd == int32(w.donefd) {
 				unix.Close(w.epfd)
 				return
 			}
