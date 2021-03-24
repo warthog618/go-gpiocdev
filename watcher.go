@@ -15,7 +15,7 @@ import (
 type watcher struct {
 	epfd int
 
-	// donefd to signal watcher to shutdown
+	// eventfd to signal watcher to shutdown
 	donefd int
 
 	// the handler for detected events
@@ -36,7 +36,7 @@ func newWatcher(fd int32, eh EventHandler) (w *watcher, err error) {
 			unix.Close(epfd)
 		}
 	}()
-	donefd, err = unix.Eventfd(0, 0)
+	donefd, err = unix.Eventfd(0, unix.EFD_CLOEXEC)
 	if err != nil {
 		return
 	}
@@ -128,7 +128,7 @@ func newWatcherV1(fds map[int]int, eh EventHandler) (w *watcherV1, err error) {
 			unix.Close(epfd)
 		}
 	}()
-	donefd, err = unix.Eventfd(0, 0)
+	donefd, err = unix.Eventfd(0, unix.EFD_CLOEXEC)
 	if err != nil {
 		return
 	}
