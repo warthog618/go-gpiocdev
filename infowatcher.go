@@ -15,11 +15,11 @@ import (
 type infoWatcher struct {
 	epfd int
 
+	// eventfd to signal watcher to shutdown
+	donefd int
+
 	// the handler for detected events
 	ch InfoChangeHandler
-
-	// pipe to signal watcher to shutdown
-	donefds []int
 
 	// closed once watcher exits
 	doneCh chan struct{}
@@ -28,7 +28,7 @@ type infoWatcher struct {
 }
 
 func newInfoWatcher(fd int, ch InfoChangeHandler, abi int) (iw *infoWatcher, err error) {
-	var epfd int
+	var epfd, donefd int
 	epfd, err = unix.EpollCreate1(unix.EPOLL_CLOEXEC)
 	if err != nil {
 		return
@@ -38,19 +38,17 @@ func newInfoWatcher(fd int, ch InfoChangeHandler, abi int) (iw *infoWatcher, err
 			unix.Close(epfd)
 		}
 	}()
-	p := []int{0, 0}
-	err = unix.Pipe2(p, unix.O_CLOEXEC)
+	donefd, err = unix.Eventfd(0, unix.EFD_CLOEXEC)
 	if err != nil {
 		return
 	}
 	defer func() {
 		if err != nil {
-			unix.Close(p[0])
-			unix.Close(p[1])
+			unix.Close(donefd)
 		}
 	}()
-	epv := unix.EpollEvent{Events: unix.EPOLLIN, Fd: int32(p[0])}
-	err = unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, int(p[0]), &epv)
+	epv := unix.EpollEvent{Events: unix.EPOLLIN, Fd: int32(donefd)}
+	err = unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, int(donefd), &epv)
 	if err != nil {
 		return
 	}
@@ -60,21 +58,20 @@ func newInfoWatcher(fd int, ch InfoChangeHandler, abi int) (iw *infoWatcher, err
 		return
 	}
 	iw = &infoWatcher{
-		epfd:    epfd,
-		ch:      ch,
-		donefds: p,
-		doneCh:  make(chan struct{}),
-		abi:     abi,
+		epfd:   epfd,
+		donefd: donefd,
+		ch:     ch,
+		doneCh: make(chan struct{}),
+		abi:    abi,
 	}
 	go iw.watch()
 	return
 }
 
 func (iw *infoWatcher) close() {
-	unix.Write(iw.donefds[1], []byte("bye"))
+	unix.Write(iw.donefd, []byte{1, 0, 0, 0, 0, 0, 0, 0})
 	<-iw.doneCh
-	unix.Close(iw.donefds[0])
-	unix.Close(iw.donefds[1])
+	unix.Close(iw.donefd)
 }
 
 func (iw *infoWatcher) watch() {
@@ -95,7 +92,7 @@ func (iw *infoWatcher) watch() {
 		for i := 0; i < n; i++ {
 			ev := epollEvents[i]
 			fd := ev.Fd
-			if fd == int32(iw.donefds[0]) {
+			if fd == int32(iw.donefd) {
 				unix.Close(iw.epfd)
 				return
 			}
