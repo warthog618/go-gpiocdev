@@ -160,11 +160,11 @@ func TestAsOutput(t *testing.T) {
 }
 
 func testEdgeEventPolarity(t *testing.T, l *gpiod.Line,
-	ich <-chan gpiod.LineEvent, activeLevel int) {
+	ich <-chan gpiod.LineEvent, activeLevel int, seqno uint32) {
 
 	t.Helper()
 
-	evtSeqno = 0
+	evtSeqno = seqno
 	platform.TriggerIntr(activeLevel ^ 1)
 	waitEvent(t, ich, nextEvent(l, 0))
 	v, err := l.Value()
@@ -225,10 +225,10 @@ func testChipLevelOption(t *testing.T, option gpiod.ChipOption,
 	assert.Equal(t, isActiveLow, inf.Config.ActiveLow)
 
 	// can get initial state events on some platforms (e.g. RPi AsActiveHigh)
-	clearEvents(ich)
+	seqno := clearEvents(ich)
 
 	// test correct edge polarity in events
-	testEdgeEventPolarity(t, l, ich, activeLevel)
+	testEdgeEventPolarity(t, l, ich, activeLevel, seqno)
 }
 
 func testLineLevelOptionInput(t *testing.T, option gpiod.LineReqOption,
@@ -254,7 +254,7 @@ func testLineLevelOptionInput(t *testing.T, option gpiod.LineReqOption,
 	assert.Nil(t, err)
 	assert.Equal(t, isActiveLow, inf.Config.ActiveLow)
 
-	testEdgeEventPolarity(t, l, ich, activeLevel)
+	testEdgeEventPolarity(t, l, ich, activeLevel, 0)
 }
 
 func testLineLevelOptionOutput(t *testing.T, option gpiod.LineReqOption,
@@ -863,11 +863,14 @@ func waitNoEvent(t *testing.T, ch <-chan gpiod.LineEvent) {
 	}
 }
 
-func clearEvents(ch <-chan gpiod.LineEvent) {
+func clearEvents(ch <-chan gpiod.LineEvent) uint32 {
+	var seqno uint32
 	select {
-	case <-ch:
+	case evt := <-ch:
+		seqno = evt.Seqno
 	case <-time.After(20 * time.Millisecond):
 	}
+	return seqno
 }
 
 func TestWithDebounce(t *testing.T) {
