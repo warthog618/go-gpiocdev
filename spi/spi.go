@@ -99,18 +99,21 @@ func New(c *gpiod.Chip, sclk, ssz, mosi, miso int, options ...Option) (*SPI, err
 	return &s, nil
 }
 
-// Close releases allocated resources.
+// Close releases allocated resources and reverts all output lines to inputs.
 func (s *SPI) Close() {
 	if s.Sclk != nil {
+		s.Sclk.Reconfigure(gpiod.AsInput)
 		s.Sclk.Close()
 	}
-	if s.Miso != nil {
-		s.Miso.Close()
-	}
-	if s.Mosi != nil && s.Mosi != s.Miso {
+	if s.Mosi != nil {
+		s.Mosi.Reconfigure(gpiod.AsInput)
 		s.Mosi.Close()
 	}
+	if s.Miso != nil && s.Mosi != s.Miso {
+		s.Miso.Close()
+	}
 	if s.Ssz != nil {
+		s.Ssz.Reconfigure(gpiod.AsInput)
 		s.Ssz.Close()
 	}
 }
