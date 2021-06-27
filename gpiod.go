@@ -621,14 +621,16 @@ func (lc LineConfig) toLineFlagV2() (flags uapi.LineFlagV2) {
 	if lc.ActiveLow {
 		flags |= uapi.LineFlagV2ActiveLow
 	}
-	if lc.Direction == LineDirectionOutput {
+	switch lc.Direction {
+	case LineDirectionOutput:
 		flags |= uapi.LineFlagV2Output
-		if lc.Drive == LineDriveOpenDrain {
+		switch lc.Drive {
+		case LineDriveOpenDrain:
 			flags |= uapi.LineFlagV2OpenDrain
-		} else if lc.Drive == LineDriveOpenSource {
+		case LineDriveOpenSource:
 			flags |= uapi.LineFlagV2OpenSource
 		}
-	} else if lc.Direction == LineDirectionInput {
+	case LineDirectionInput:
 		flags |= uapi.LineFlagV2Input
 		if lc.EdgeDetection&LineEdgeRising != 0 {
 			flags |= uapi.LineFlagV2EdgeRising
@@ -641,11 +643,12 @@ func (lc LineConfig) toLineFlagV2() (flags uapi.LineFlagV2) {
 		}
 	}
 
-	if lc.Bias == LineBiasDisabled {
+	switch lc.Bias {
+	case LineBiasDisabled:
 		flags |= uapi.LineFlagV2BiasDisabled
-	} else if lc.Bias == LineBiasPullUp {
+	case LineBiasPullUp:
 		flags |= uapi.LineFlagV2BiasPullUp
-	} else if lc.Bias == LineBiasPullDown {
+	case LineBiasPullDown:
 		flags |= uapi.LineFlagV2BiasPullDown
 	}
 	return
