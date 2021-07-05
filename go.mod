@@ -4,7 +4,7 @@
 
 module github.com/warthog618/gpiod
 
-go 1.12
+go 1.13
 
 require (
 	github.com/pilebones/go-udev v0.0.0-20180820235104-043677e09b13
