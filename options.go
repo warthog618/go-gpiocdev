@@ -330,7 +330,7 @@ func (o LineDrive) applySubsetLineConfigOption(offsets []int, lco *lineConfigOpt
 // Input, RisingEdge, FallingEdge, BothEdges, OpenSource, or Debounce options.
 const AsOpenDrain = LineDriveOpenDrain
 
-// AsOpenSource indicates that a line be driven low but left floating for high.
+// AsOpenSource indicates that a line be driven high but left floating for low.
 //
 // This option sets the Output option and overrides and clears any previous
 // Input, RisingEdge, FallingEdge, BothEdges, OpenDrain, or Debounce options.
