@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 // don't build on platforms with fixed endianness
-// +build !amd64
-// +build !386
+//go:build !amd64 && !386
+// +build !amd64,!386
 
 package uapi
 

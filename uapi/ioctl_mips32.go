@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+//go:build mips || mipsle || mips64 || mips64le || ppc64 || ppc64le || sparc || sparc64
 // +build mips mipsle mips64 mips64le ppc64 ppc64le sparc sparc64
 
 package uapi
