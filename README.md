@@ -502,6 +502,20 @@ with *NewChip* or *Line.Reconfigure*.
 
 <sup>**6**</sup> Requires Linux v5.11 or later.
 
+## Installation
+
+On Linux:
+
+```shell
+go get github.com/warthog618/gpiod
+```
+
+For other platforms, where you intend to cross-compile for Linux, don't attempt to compile the package when it is installed:
+
+```shell
+go get -d github.com/warthog618/gpiod
+```
+
 ## Tools
 
 A command line utility, **gpiodctl**, can be found in the cmd directory and is
@@ -509,7 +523,7 @@ provided to allow manual or scripted manipulation of GPIO lines.  This utility
 combines the Go equivalent of all the **libgpiod** command line tools into a
 single tool.
 
-```
+```shell
 gpiodctl is a utility to control GPIO lines on Linux GPIO character devices
 
 Usage:
@@ -586,7 +600,7 @@ run them on hardware where any of those pins is being externally driven.
 The Raspberry Pi platform is selected by specifying the platform parameter on
 the test command line:
 
-```
+```shell
 go test -platform=rpi
 ```
 
@@ -596,7 +610,7 @@ testing them yet.
 
 The tests can be cross-compiled from other platforms using:
 
-```
+```shell
 GOOS=linux GOARCH=arm GOARM=6 go test -c
 ```
 
@@ -610,7 +624,7 @@ interrupt latency.
 These are the results from a Raspberry Pi Zero W running Linux v5.10 and built
 with go1.15.6:
 
-```
+```shell
 $ ./gpiod.test -platform=rpi -test.bench=.*
 goos: linux
 goarch: arm
