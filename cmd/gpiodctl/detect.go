@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-// +build linux
-
 package main
 
 import (
@@ -35,7 +33,8 @@ func detect(cmd *cobra.Command, args []string) {
 			rc = 1
 			continue
 		}
-		fmt.Printf("%s [%s] (%d lines)\n", c.Name, c.Label, c.Lines())
+		fmt.Printf("%s [%s] (%d lines) using kernel uAPI v%d\n",
+			c.Name, c.Label, c.Lines(), c.UapiAbiVersion())
 		c.Close()
 	}
 	os.Exit(rc)
