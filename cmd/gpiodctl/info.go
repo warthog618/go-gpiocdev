@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-// +build linux
-
 package main
 
 import (
@@ -78,29 +76,33 @@ func printLineInfo(li gpiod.LineInfo) {
 	if li.Config.ActiveLow {
 		active = "active-low"
 	}
-	flags := []string(nil)
+	attrs := []string(nil)
 	if li.Used {
-		flags = append(flags, "used")
+		attrs = append(attrs, "used")
 	}
 	if li.Config.Drive == gpiod.LineDriveOpenDrain {
-		flags = append(flags, "open-drain")
+		attrs = append(attrs, "open-drain")
 	}
 	if li.Config.Drive == gpiod.LineDriveOpenSource {
-		flags = append(flags, "open-source")
+		attrs = append(attrs, "open-source")
 	}
 	if li.Config.Bias == gpiod.LineBiasPullUp {
-		flags = append(flags, "pull-up")
+		attrs = append(attrs, "pull-up")
 	}
 	if li.Config.Bias == gpiod.LineBiasPullDown {
-		flags = append(flags, "pull-down")
+		attrs = append(attrs, "pull-down")
 	}
 	if li.Config.Bias == gpiod.LineBiasDisabled {
-		flags = append(flags, "bias-disabled")
+		attrs = append(attrs, "bias-disabled")
 	}
-	flstr := ""
-	if len(flags) > 0 {
-		flstr = "[" + strings.Join(flags, " ") + "]"
+	if li.Config.DebouncePeriod != 0 {
+		attrs = append(attrs,
+			fmt.Sprintf("debouncePeriod=%s", li.Config.DebouncePeriod))
+	}
+	attrstr := ""
+	if len(attrs) > 0 {
+		attrstr = "[" + strings.Join(attrs, " ") + "]"
 	}
 	fmt.Printf("\tline %3d:%12s%12s%8s%13s%s\n",
-		li.Offset, li.Name, li.Consumer, dirn, active, flstr)
+		li.Offset, li.Name, li.Consumer, dirn, active, attrstr)
 }
