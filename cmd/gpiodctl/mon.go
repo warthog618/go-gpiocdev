@@ -18,8 +18,9 @@ import (
 
 func init() {
 	monCmd.Flags().BoolVarP(&monOpts.ActiveLow, "active-low", "l", false, "treat the line state as active low")
-	monCmd.Flags().StringVarP(&monOpts.Bias, "bias", "b", "as-is", "set the line bias.")
-	monCmd.Flags().StringVarP(&monOpts.Edge, "edge", "e", "both", "select the edge detection.")
+	monCmd.Flags().StringVarP(&monOpts.Bias, "bias", "b", "as-is", "set the line bias")
+	monCmd.Flags().DurationVarP(&monOpts.DebouncePeriod, "debounce-period", "d", 0, "set the line debounce period")
+	monCmd.Flags().StringVarP(&monOpts.Edge, "edge", "e", "both", "select the edge detection")
 	monCmd.Flags().UintVarP(&monOpts.NumEvents, "num-events", "n", 0, "exit after n edges")
 	monCmd.Flags().BoolVarP(&monOpts.Quiet, "quiet", "q", false, "don't display event details")
 	monCmd.SetHelpTemplate(monCmd.HelpTemplate() + extendedMonHelp)
@@ -50,11 +51,12 @@ var (
 		DisableFlagsInUseLine: true,
 	}
 	monOpts = struct {
-		ActiveLow bool
-		Bias      string
-		Edge      string
-		Quiet     bool
-		NumEvents uint
+		ActiveLow      bool
+		Bias           string
+		Edge           string
+		Quiet          bool
+		NumEvents      uint
+		DebouncePeriod time.Duration
 	}{}
 )
 
@@ -97,11 +99,21 @@ func monWait(evtchan <-chan gpiod.LineEvent) {
 				if evt.Type == gpiod.LineEventFallingEdge {
 					edge = "falling"
 				}
-				fmt.Printf("event:%3d %-7s %s (%s)\n",
-					evt.Offset,
-					edge,
-					t.Format(time.RFC3339Nano),
-					evt.Timestamp)
+				if evt.Seqno != 0 {
+					fmt.Printf("event: #%d(%d)%3d %-7s %s (%s)\n",
+						evt.Seqno,
+						evt.LineSeqno,
+						evt.Offset,
+						edge,
+						t.Format(time.RFC3339Nano),
+						evt.Timestamp)
+				} else {
+					fmt.Printf("event:%3d %-7s %s (%s)\n",
+						evt.Offset,
+						edge,
+						t.Format(time.RFC3339Nano),
+						evt.Timestamp)
+				}
 			}
 			count++
 			if monOpts.NumEvents > 0 && count >= monOpts.NumEvents {
@@ -140,6 +152,9 @@ func makeMonOpts(eh gpiod.EventHandler) []gpiod.LineReqOption {
 	case "as-is":
 		fallthrough
 	default:
+	}
+	if monOpts.DebouncePeriod != 0 {
+		opts = append(opts, gpiod.WithDebounce(monOpts.DebouncePeriod))
 	}
 	return opts
 }
