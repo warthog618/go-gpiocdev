@@ -41,7 +41,9 @@ func main() {
 
 	// Line Info
 	inf, _ := c.LineInfo(2)
+	fmt.Printf("name: %s\n", inf.Name) // ineffassign bypass
 	inf, _ = c.LineInfo(rpi.J8p7)
+	fmt.Printf("name: %s\n", inf.Name) // ineffassign bypass
 	inf, _ = l.Info()
 	infs, _ := ll.Info()
 	fmt.Printf("name: %s\n", inf.Name)
