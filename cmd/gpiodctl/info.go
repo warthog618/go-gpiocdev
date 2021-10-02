@@ -68,31 +68,30 @@ func printLineInfo(li gpiod.LineInfo) {
 	} else {
 		li.Consumer = "unused"
 	}
-	dirn := "input"
-	if li.Config.Direction == gpiod.LineDirectionOutput {
-		dirn = "output"
-	}
-	active := "active-high"
-	if li.Config.ActiveLow {
-		active = "active-low"
-	}
 	attrs := []string(nil)
+	if li.Config.Direction == gpiod.LineDirectionOutput {
+		attrs = append(attrs, "output")
+	} else {
+		attrs = append(attrs, "input")
+	}
+	if li.Config.ActiveLow {
+		attrs = append(attrs, "active-low")
+	}
 	if li.Used {
 		attrs = append(attrs, "used")
 	}
-	if li.Config.Drive == gpiod.LineDriveOpenDrain {
+	switch li.Config.Drive {
+	case gpiod.LineDriveOpenDrain:
 		attrs = append(attrs, "open-drain")
-	}
-	if li.Config.Drive == gpiod.LineDriveOpenSource {
+	case gpiod.LineDriveOpenSource:
 		attrs = append(attrs, "open-source")
 	}
-	if li.Config.Bias == gpiod.LineBiasPullUp {
+	switch li.Config.Bias {
+	case gpiod.LineBiasPullUp:
 		attrs = append(attrs, "pull-up")
-	}
-	if li.Config.Bias == gpiod.LineBiasPullDown {
+	case gpiod.LineBiasPullDown:
 		attrs = append(attrs, "pull-down")
-	}
-	if li.Config.Bias == gpiod.LineBiasDisabled {
+	case gpiod.LineBiasDisabled:
 		attrs = append(attrs, "bias-disabled")
 	}
 	if li.Config.DebouncePeriod != 0 {
@@ -101,8 +100,8 @@ func printLineInfo(li gpiod.LineInfo) {
 	}
 	attrstr := ""
 	if len(attrs) > 0 {
-		attrstr = "[" + strings.Join(attrs, " ") + "]"
+		attrstr = "[" + strings.Join(attrs, ",") + "]"
 	}
-	fmt.Printf("\tline %3d:%12s%12s%8s%13s%s\n",
-		li.Offset, li.Name, li.Consumer, dirn, active, attrstr)
+	fmt.Printf("\tline %3d:%12s%12s %s\n",
+		li.Offset, li.Name, li.Consumer, attrstr)
 }
