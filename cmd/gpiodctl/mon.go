@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-// +build linux
-
 package main
 
 import (

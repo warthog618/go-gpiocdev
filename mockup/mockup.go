@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+//go:build linux
 // +build linux
 
 // Package mockup provides GPIO mockups using the Linux gpio-mockup kernel

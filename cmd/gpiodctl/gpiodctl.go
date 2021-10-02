@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+//go:build linux
 // +build linux
 
 // A utility to control GPIO lines.
