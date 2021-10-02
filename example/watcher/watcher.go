@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: MIT
 
+//go:build linux
+// +build linux
+
 // A simple example that watches an input pin and reports edge events.
 package main
 
@@ -21,11 +24,22 @@ func eventHandler(evt gpiod.LineEvent) {
 	if evt.Type == gpiod.LineEventFallingEdge {
 		edge = "falling"
 	}
-	fmt.Printf("event:%3d %-7s %s (%s)\n",
-		evt.Offset,
-		edge,
-		t.Format(time.RFC3339Nano),
-		evt.Timestamp)
+	if evt.Seqno != 0 {
+		// only uAPI v2 populates the sequence numbers
+		fmt.Printf("event: #%d(%d)%3d %-7s %s (%s)\n",
+			evt.Seqno,
+			evt.LineSeqno,
+			evt.Offset,
+			edge,
+			t.Format(time.RFC3339Nano),
+			evt.Timestamp)
+	} else {
+		fmt.Printf("event:%3d %-7s %s (%s)\n",
+			evt.Offset,
+			edge,
+			t.Format(time.RFC3339Nano),
+			evt.Timestamp)
+	}
 }
 
 // Watches GPIO 4 (Raspberry Pi J8-7) and reports when it changes state.
