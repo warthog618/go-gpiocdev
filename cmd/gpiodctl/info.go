@@ -97,7 +97,7 @@ func printLineInfo(li gpiod.LineInfo) {
 	}
 	if li.Config.DebouncePeriod != 0 {
 		attrs = append(attrs,
-			fmt.Sprintf("debouncePeriod=%s", li.Config.DebouncePeriod))
+			fmt.Sprintf("debounce-period=%s", li.Config.DebouncePeriod))
 	}
 	attrstr := ""
 	if len(attrs) > 0 {
