@@ -97,19 +97,18 @@ func printLineInfo(li gpiod.LineInfo) {
 	if li.Used {
 		attrs = append(attrs, "used")
 	}
-	if li.Config.Drive == gpiod.LineDriveOpenDrain {
+	switch li.Config.Drive {
+	case gpiod.LineDriveOpenDrain:
 		attrs = append(attrs, "open-drain")
-	}
-	if li.Config.Drive == gpiod.LineDriveOpenSource {
+	case gpiod.LineDriveOpenSource:
 		attrs = append(attrs, "open-source")
 	}
-	if li.Config.Bias == gpiod.LineBiasPullUp {
+	switch li.Config.Bias {
+	case gpiod.LineBiasPullUp:
 		attrs = append(attrs, "pull-up")
-	}
-	if li.Config.Bias == gpiod.LineBiasPullDown {
+	case gpiod.LineBiasPullDown:
 		attrs = append(attrs, "pull-down")
-	}
-	if li.Config.Bias == gpiod.LineBiasDisabled {
+	case gpiod.LineBiasDisabled:
 		attrs = append(attrs, "bias-disabled")
 	}
 	if li.Config.DebouncePeriod != 0 {
