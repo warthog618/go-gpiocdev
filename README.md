@@ -659,6 +659,24 @@ noted in that section.
 
 ## Release Notes
 
+### v0.7.0
+
+*LineEvent* exposes sequence numbers for uAPI v2 events.
+
+Info tools (**gpiodctl info** and **gpioinfo**) report debounce-period.
+
+**gpiodctl mon** and watcher example report event sequence numbers.
+
+**gpiodctl mon** supports setting debounce period.
+
+**gpiodctl detect** reports kernel uAPI version in use.
+
+Watchers use Eventfd instead of pipes to reduce open file descriptors.
+
+Start migrating to Go 1.17 go:build style build tags.
+
+Make licensing [REUSE](https://reuse.software/) compliant.
+
 ### v0.6.0
 
 *gpiod* now supports both the old GPIO uAPI (v1) and the newer (v2) introduced
