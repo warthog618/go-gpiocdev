@@ -778,8 +778,8 @@ func TestSetConfigEdgeDetectionPolarity(t *testing.T) {
 	}
 }
 
-func TestOutputSets(t *testing.T) {
-	t.Skip("contains known failures as of 5.4-rc1")
+func TestOutputSetGets(t *testing.T) {
+	t.Skip("contains known failures up to v5.15")
 	requireMockup(t)
 	patterns := []struct {
 		name string
@@ -801,10 +801,12 @@ func TestOutputSets(t *testing.T) {
 						final ^= 0x01
 					}
 					flags := p.flag
+					name := p.name
 					if activeLow == 1 {
 						flags |= uapi.HandleRequestActiveLow
+						name += "al"
 					}
-					label := fmt.Sprintf("%s-%d-%d-%d(%d)", p.name, initial^1, initial, final, activeLow)
+					label := fmt.Sprintf("%s-%d-%d-%d", name, initial^1, initial, final)
 					tf := func(t *testing.T) {
 						testLine(t, c, line, flags, initial, toggle)
 					}
