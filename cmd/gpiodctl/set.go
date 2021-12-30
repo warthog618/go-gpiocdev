@@ -120,6 +120,7 @@ func setWait() {
 			time.Sleep(duration)
 			done <- 1
 		}()
+		<-done
 	}
 	if setOpts.Wait {
 		sigdone := make(chan os.Signal, 1)
@@ -130,6 +131,7 @@ func setWait() {
 			<-sigdone
 			done <- 2
 		}()
+		<-done
 	}
 	if setOpts.User {
 		fmt.Println("Press enter to exit...")
@@ -138,8 +140,8 @@ func setWait() {
 			reader.ReadLine()
 			done <- 3
 		}()
+		<-done
 	}
-	<-done
 }
 
 func makeSetOpts(vv []int) []gpiod.LineReqOption {
