@@ -18,6 +18,8 @@ import (
 func init() {
 	watchCmd.Flags().UintVarP(&watchOpts.NumEvents, "num-events", "n", 0, "exit after n events")
 	watchCmd.Flags().BoolVarP(&watchOpts.Verbose, "verbose", "v", false, "display complete line info")
+	watchCmd.Flags().IntVar(&watchOpts.AbiV, "abiv", 0, "use specified ABI version.")
+	watchCmd.Flags().MarkHidden("abiv")
 	rootCmd.AddCommand(watchCmd)
 }
 
@@ -33,6 +35,7 @@ var (
 	watchOpts = struct {
 		Verbose   bool
 		NumEvents uint
+		AbiV      int
 	}{}
 )
 
@@ -42,7 +45,11 @@ func watch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c, err := gpiod.NewChip(name)
+	copts := []gpiod.ChipOption{}
+	if watchOpts.AbiV != 0 {
+		copts = append(copts, gpiod.WithABIVersion(watchOpts.AbiV))
+	}
+	c, err := gpiod.NewChip(name, copts...)
 	if err != nil {
 		return err
 	}

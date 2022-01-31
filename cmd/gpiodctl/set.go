@@ -25,6 +25,8 @@ func init() {
 	setCmd.Flags().BoolVarP(&setOpts.User, "user", "u", false, "wait for the user to press Enter then exit")
 	setCmd.Flags().BoolVarP(&setOpts.Wait, "wait", "w", false, "wait for a SIGINT or SIGTERM to exit")
 	setCmd.Flags().StringVarP(&setOpts.Time, "time", "t", "", "wait for a period of time then exit.")
+	setCmd.Flags().IntVar(&setOpts.AbiV, "abiv", 0, "use specified ABI version.")
+	setCmd.Flags().MarkHidden("abiv")
 	setCmd.SetHelpTemplate(setCmd.HelpTemplate() + extendedSetHelp)
 	rootCmd.AddCommand(setCmd)
 }
@@ -68,6 +70,7 @@ var (
 		Wait      bool
 		User      bool
 		Time      string
+		AbiV      int
 	}{}
 )
 
@@ -170,6 +173,9 @@ func makeSetOpts(vv []int) []gpiod.LineReqOption {
 	case "push-pull":
 		fallthrough
 	default:
+	}
+	if setOpts.AbiV != 0 {
+		opts = append(opts, gpiod.WithABIVersion(setOpts.AbiV))
 	}
 	return opts
 }

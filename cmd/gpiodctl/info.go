@@ -14,16 +14,23 @@ import (
 )
 
 func init() {
+	infoCmd.Flags().IntVar(&infoOpts.AbiV, "abiv", 0, "use specified ABI version.")
+	infoCmd.Flags().MarkHidden("abiv")
 	rootCmd.AddCommand(infoCmd)
 }
 
-var infoCmd = &cobra.Command{
-	Use:                   "info [flags] [chip]...",
-	Short:                 "Info about chip lines",
-	Long:                  `Print information about all lines of the specified GPIO chip(s) (or all gpiochips if none are specified).`,
-	Run:                   info,
-	DisableFlagsInUseLine: true,
-}
+var (
+	infoCmd = &cobra.Command{
+		Use:                   "info [flags] [chip]...",
+		Short:                 "Info about chip lines",
+		Long:                  `Print information about all lines of the specified GPIO chip(s) (or all gpiochips if none are specified).`,
+		Run:                   info,
+		DisableFlagsInUseLine: true,
+	}
+	infoOpts = struct {
+		AbiV int
+	}{}
+)
 
 func info(cmd *cobra.Command, args []string) {
 	rc := 0
@@ -32,8 +39,12 @@ func info(cmd *cobra.Command, args []string) {
 	if len(cc) == 0 {
 		cc = gpiod.Chips()
 	}
+	copts := []gpiod.ChipOption{}
+	if infoOpts.AbiV != 0 {
+		copts = append(copts, gpiod.WithABIVersion(infoOpts.AbiV))
+	}
 	for _, path := range cc {
-		c, err := gpiod.NewChip(path)
+		c, err := gpiod.NewChip(path, copts...)
 		if err != nil {
 			logErr(cmd, err)
 			rc = 1
