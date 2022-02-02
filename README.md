@@ -58,10 +58,9 @@ import "github.com/warthog618/gpiod"
 
 ...
 
-c, _ := gpiod.NewChip("gpiochip0", gpiod.WithConsumer("softwire"))
-in, _ := c.RequestLine(2, gpiod.AsInput)
+in, _ := gpiod.RequestLine("gpiochip0", 2, gpiod.AsInput)
 val, _ := in.Value()
-out, _ := c.RequestLine(3, gpiod.AsOutput(val))
+out, _ := gpiod.RequestLine("gpiochip0", 3, gpiod.AsOutput(val))
 
 ...
 ```
@@ -76,100 +75,21 @@ import "github.com/warthog618/gpiod"
 
 Error handling is omitted from the following examples for brevity.
 
-### Chip Initialization
-
-The Chip object is used to request lines from a GPIO chip.
-
-A Chip object is constructed using the
-[*NewChip*](https://pkg.go.dev/github.com/warthog618/gpiod#NewChip) function.
-
-```go
-c, _ := gpiod.NewChip("gpiochip0")
-```
-
-The parameter is the chip name, which corresponds to the name of the device in
-the **/dev** directory, so in this example **/dev/gpiochip0**.
-
-The list of currently available GPIO chips is returned by the *Chips* function:
-
-```go
-cc := gpiod.Chips()
-```
-
-Default attributes for Lines requested from the Chip can be set via
-[configuration options](#configuration-options) to
-[*NewChip*](https://pkg.go.dev/github.com/warthog618/gpiod#NewChip).
-
-```go
-c, _ := gpiod.NewChip("gpiochip0", gpiod.WithConsumer("myapp"))
-```
-
-In this example the consumer label is defaulted to "myapp".
-
-When no longer required, the chip should be closed to release resources:
-
-```go
-c.Close()
-```
-
-Closing a chip does not close or otherwise alter the state of any lines
-requested from the chip.
-
-### Line Info
-
-[Info](https://pkg.go.dev/github.com/warthog618/gpiod#LineInfo) about a line can
-be read at any time from the chip using the
-[*LineInfo*](https://pkg.go.dev/github.com/warthog618/gpiod#Chip.LineInfo)
-method:
-
-```go
-inf, _ := c.LineInfo(4)
-inf, _ := c.LineInfo(rpi.J8p7) // Using Raspberry Pi J8 mapping
-```
-
-Note that the line info does not include the value.  The line must be requested
-from the chip to access the value.
-
-Once requested, the line info can also be read from the line:
-
-```go
-inf, _ := l.Info()
-infs, _ := ll.Info()
-```
-
-#### Info Watches
-
-Changes to the line info can be monitored by adding an info watch for the line:
-
-```go
-func infoChangeHandler( evt gpiod.LineInfoChangeEvent) {
-    // handle change in line info
-}
-
-inf, _ := c.WatchLineInfo(4, infoChangeHandler)
-```
-
-Note that the info watch does not monitor the line value (active or inactive)
-only its configuration.  Refer to [Edge Watches](#edge-watches) for monitoring
-line value.
-
-An info watch can be cancelled by unwatching:
-
-```go
-c.UnwatchLineInfo(4)
-```
-
-or by closing the chip.
-
 ### Line Requests
 
 To read or alter the value of a
 [line](https://pkg.go.dev/github.com/warthog618/gpiod#Line) it must first be
-requested from the Chip, using
+requested using [*gpiod.RequestLine*](https://pkg.go.dev/github.com/warthog618/gpiod#RequestLine),
+
+```go
+l, _ := gpiod.RequestLine("gpiochip0", 4)   // in its existing state
+```
+
+or from the [*Chip*](#chip-initialization) object using
 [*Chip.RequestLine*](https://pkg.go.dev/github.com/warthog618/gpiod#Chip.RequestLine):
 
 ```go
-l, _ := c.RequestLine(4)                    // in its existing state
+l, _ := c.RequestLine(4)                    // from a Chip object
 ```
 
 The offset parameter identifies the line on the chip, and is specific to the
@@ -185,11 +105,18 @@ The initial configuration of the line can be set by providing line
 example:
 
 ```go
-l, _ := c.RequestLine(4, gpiod.AsOutput(1))  // as an output line
+l, _ := gpiod.RequestLine("gpiochip0", 4, gpiod.AsOutput(1))  // as an output line
 ```
 
 Multiple lines from the same chip may be requested as a collection of
 [lines](https://pkg.go.dev/github.com/warthog618/gpiod#Lines) using
+[*gpiod.RequestLines*](https://pkg.go.dev/github.com/warthog618/gpiod#RequestLines)
+
+```go
+ll, _ := gpiod.RequestLines("gpiodchip0", []int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1))
+```
+
+ or from a Chip object using
 [*Chip.RequestLines*](https://pkg.go.dev/github.com/warthog618/gpiod#Chip.RequestLines):
 
 ```go
@@ -205,7 +132,7 @@ ll.Close()
 
 ### Line Values
 
-Lines must be requsted using [*Chip.RequestLines*](#line-requests) before their
+Lines must be requsted using [*RequestLine*](#line-requests) before their
 values can be accessed.
 
 #### Read Input
@@ -351,6 +278,92 @@ ll.Reconfigure(gpiod.WithLines([]int{3}, gpiod.Defaulted))
 ```
 
 Complex configurations require Linux v5.10 or later.
+
+### Chip Initialization
+
+The Chip object is used to discover details about avaialble lines and can be used
+to request lines from a GPIO chip.
+
+A Chip object is constructed using the
+[*NewChip*](https://pkg.go.dev/github.com/warthog618/gpiod#NewChip) function.
+
+```go
+c, _ := gpiod.NewChip("gpiochip0")
+```
+
+The parameter is the chip name, which corresponds to the name of the device in
+the **/dev** directory, so in this example **/dev/gpiochip0**.
+
+The list of currently available GPIO chips is returned by the *Chips* function:
+
+```go
+cc := gpiod.Chips()
+```
+
+Default attributes for Lines requested from the Chip can be set via
+[configuration options](#configuration-options) to
+[*NewChip*](https://pkg.go.dev/github.com/warthog618/gpiod#NewChip).
+
+```go
+c, _ := gpiod.NewChip("gpiochip0", gpiod.WithConsumer("myapp"))
+```
+
+In this example the consumer label is defaulted to "myapp".
+
+When no longer required, the chip should be closed to release resources:
+
+```go
+c.Close()
+```
+
+Closing a chip does not close or otherwise alter the state of any lines
+requested from the chip.
+
+### Line Info
+
+[Info](https://pkg.go.dev/github.com/warthog618/gpiod#LineInfo) about a line can
+be read at any time from the chip using the
+[*LineInfo*](https://pkg.go.dev/github.com/warthog618/gpiod#Chip.LineInfo)
+method:
+
+```go
+inf, _ := c.LineInfo(4)
+inf, _ := c.LineInfo(rpi.J8p7) // Using Raspberry Pi J8 mapping
+```
+
+Note that the line info does not include the value.  The line must be requested
+from the chip to access the value.
+
+Once requested, the line info can also be read from the line:
+
+```go
+inf, _ := l.Info()
+infs, _ := ll.Info()
+```
+
+#### Info Watches
+
+Changes to the line info can be monitored by adding an info watch for the line:
+
+```go
+func infoChangeHandler( evt gpiod.LineInfoChangeEvent) {
+    // handle change in line info
+}
+
+inf, _ := c.WatchLineInfo(4, infoChangeHandler)
+```
+
+Note that the info watch does not monitor the line value (active or inactive)
+only its configuration.  Refer to [Edge Watches](#edge-watches) for monitoring
+line value.
+
+An info watch can be cancelled by unwatching:
+
+```go
+c.UnwatchLineInfo(4)
+```
+
+or by closing the chip.
 
 #### Categories
 
@@ -658,6 +671,14 @@ The requirements for each [configuration option](#configuration-options) are
 noted in that section.
 
 ## Release Notes
+
+### v0.8.0
+
+  Add top level *RequestLine* and *RequestLines* functions to simplify common use cases.
+
+  **blinker** and **watcher** examples interwork with each other on a Raspberry Pi with a jumper across **J8-15** and **J8-16**.
+
+  Fix deadlock in **gpiodctl set** no-wait.
 
 ### v0.7.0
 

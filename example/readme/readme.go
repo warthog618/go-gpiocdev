@@ -24,20 +24,25 @@ func main() {
 	c, _ := gpiod.NewChip("gpiochip0", gpiod.WithConsumer("myapp"))
 
 	// Quick Start
-	in, _ := c.RequestLine(2, gpiod.AsInput)
+	in, _ := gpiod.RequestLine("gpiochip0", 2, gpiod.AsInput)
 	val, _ := in.Value()
-	out, _ := c.RequestLine(3, gpiod.AsOutput(val))
+	out, _ := gpiod.RequestLine("gpiochip0", 3, gpiod.AsOutput(val))
 	in.Close()
 	out.Close()
 
 	// Line Requests
-	l, _ := c.RequestLine(4)
+	l, _ := gpiod.RequestLine("gpiochip0", 4)
+	l.Close()
+	l, _ = c.RequestLine(4)
 	l.Close()
 	l, _ = c.RequestLine(rpi.J8p7) // Using Raspberry Pi J8 mapping.
 	l.Close()
 	l, _ = c.RequestLine(4, gpiod.AsOutput(1))
 
-	ll, _ := c.RequestLines([]int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1))
+	ll, _ := gpiod.RequestLines("gpiochip0", []int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1))
+	ll.Close()
+
+	ll, _ = c.RequestLines([]int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1))
 
 	// Line Info
 	inf, _ := c.LineInfo(2)
