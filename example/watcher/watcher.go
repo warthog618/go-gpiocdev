@@ -42,9 +42,9 @@ func eventHandler(evt gpiod.LineEvent) {
 	}
 }
 
-// Watches GPIO 4 (Raspberry Pi J8-7) and reports when it changes state.
+// Watches GPIO 23 (Raspberry Pi J8-16) and reports when it changes state.
 func main() {
-	offset := rpi.J8p7
+	offset := rpi.J8p16
 	l, err := gpiod.RequestLine("gpiochip0", offset,
 		gpiod.WithPullUp,
 		gpiod.WithBothEdges,

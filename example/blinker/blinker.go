@@ -19,11 +19,11 @@ import (
 	"github.com/warthog618/gpiod/device/rpi"
 )
 
-// This example drives GPIO 4, which is pin J8-7 on a Raspberry Pi.
+// This example drives GPIO 22, which is pin J8-15 on a Raspberry Pi.
 // The pin is toggled high and low at 1Hz with a 50% duty cycle.
 // Do not run this on a device which has this pin externally driven.
 func main() {
-	offset := rpi.GPIO4
+	offset := rpi.J8p15
 	v := 0
 	l, err := gpiod.RequestLine("gpiochip0", offset, gpiod.AsOutput(v))
 	if err != nil {
