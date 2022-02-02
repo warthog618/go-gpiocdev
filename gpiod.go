@@ -210,6 +210,30 @@ func Chips() []string {
 	return cc
 }
 
+// RequestLine requests control of a single line on a chip.
+//
+// If granted, control is maintained until the Line is closed.
+func RequestLine(chip string, offset int, options ...LineReqOption) (*Line, error) {
+	c, err := NewChip(chip)
+	if err != nil {
+		panic(err)
+	}
+	defer c.Close()
+	return c.RequestLine(offset, options...)
+}
+
+// RequestLines requests control of a collection of lines on a chip.
+//
+// If granted, control is maintained until the Lines are closed.
+func RequestLines(chip string, offsets []int, options ...LineReqOption) (*Lines, error) {
+	c, err := NewChip(chip)
+	if err != nil {
+		panic(err)
+	}
+	defer c.Close()
+	return c.RequestLines(offsets, options...)
+}
+
 // NewChip opens a GPIO character device.
 func NewChip(name string, options ...ChipOption) (*Chip, error) {
 	path := nameToPath(name)
@@ -395,7 +419,7 @@ func (c *Chip) Lines() int {
 
 // RequestLine requests control of a single line on the chip.
 //
-// If granted, control is maintained until either the Line or Chip are closed.
+// If granted, control is maintained until the Line is closed.
 func (c *Chip) RequestLine(offset int, options ...LineReqOption) (*Line, error) {
 	ll, err := c.RequestLines([]int{offset}, options...)
 	if err != nil {
@@ -417,6 +441,8 @@ func (c *Chip) RequestLine(offset int, options ...LineReqOption) (*Line, error) 
 }
 
 // RequestLines requests control of a collection of lines on the chip.
+//
+// If granted, control is maintained until the Lines are closed.
 func (c *Chip) RequestLines(offsets []int, options ...LineReqOption) (*Lines, error) {
 	for _, o := range offsets {
 		if o < 0 || o >= c.lines {

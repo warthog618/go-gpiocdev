@@ -44,14 +44,8 @@ func eventHandler(evt gpiod.LineEvent) {
 
 // Watches GPIO 4 (Raspberry Pi J8-7) and reports when it changes state.
 func main() {
-	c, err := gpiod.NewChip("gpiochip0")
-	if err != nil {
-		panic(err)
-	}
-	defer c.Close()
-
 	offset := rpi.J8p7
-	l, err := c.RequestLine(offset,
+	l, err := gpiod.RequestLine("gpiochip0", offset,
 		gpiod.WithPullUp,
 		gpiod.WithBothEdges,
 		gpiod.WithEventHandler(eventHandler))

@@ -23,16 +23,10 @@ import (
 // The pin is toggled high and low at 1Hz with a 50% duty cycle.
 // Do not run this on a device which has this pin externally driven.
 func main() {
-	c, err := gpiod.NewChip("gpiochip0")
-	if err != nil {
-		panic(err)
-	}
-	defer c.Close()
-
 	values := map[int]string{0: "inactive", 1: "active"}
 	offset := rpi.GPIO4
 	v := 0
-	l, err := c.RequestLine(offset, gpiod.AsOutput(v))
+	l, err := gpiod.RequestLine("gpiochip0", offset, gpiod.AsOutput(v))
 	if err != nil {
 		panic(err)
 	}
