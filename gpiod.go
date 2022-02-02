@@ -20,12 +20,8 @@
 //
 // Example of use:
 //
-//  c, err := gpiod.NewChip("gpiochip0")
-//  if err != nil {
-//  	panic(err)
-//  }
 //  v := 0
-//  l, err := c.RequestLine(4, gpiod.AsOutput(v))
+//  l, err := gpiod.RequestLine("gpiochip0", 4, gpiod.AsOutput(v))
 //  if err != nil {
 //  	panic(err)
 //  }
