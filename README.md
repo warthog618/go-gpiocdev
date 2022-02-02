@@ -113,7 +113,7 @@ Multiple lines from the same chip may be requested as a collection of
 [*gpiod.RequestLines*](https://pkg.go.dev/github.com/warthog618/gpiod#RequestLines)
 
 ```go
-ll, _ := gpiod.RequestLines("gpiodchip0", []int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1))
+ll, _ := gpiod.RequestLines("gpiochip0", []int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1))
 ```
 
  or from a Chip object using
