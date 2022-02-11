@@ -48,6 +48,98 @@ var (
 	eventClockRealtimeKernel = mockup.Semver{5, 11} // realtime event clock option added
 )
 
+func TestRequestLine(t *testing.T) {
+	var opts []gpiod.LineReqOption
+	if kernelAbiVersion != 0 {
+		opts = append(opts, gpiod.ABIVersionOption(kernelAbiVersion))
+	}
+
+	lo := platform.FloatingLines()[0]
+
+	// non-existent
+	l, err := gpiod.RequestLine(platform.Devpath()+"not", -1, opts...)
+	assert.NotNil(t, err)
+	require.Nil(t, l)
+
+	// negative
+	l, err = gpiod.RequestLine(platform.Devpath(), -1, opts...)
+	assert.Equal(t, gpiod.ErrInvalidOffset, err)
+	require.Nil(t, l)
+
+	// out of range
+	l, err = gpiod.RequestLine(platform.Devpath(), platform.Lines())
+	assert.Equal(t, gpiod.ErrInvalidOffset, err)
+	require.Nil(t, l)
+
+	// success - input
+	l, err = gpiod.RequestLine(platform.Devpath(), lo)
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+
+	// already requested input
+	l2, err := gpiod.RequestLine(platform.Devpath(), lo)
+	assert.Equal(t, unix.EBUSY, err)
+	require.Nil(t, l2)
+
+	// already requested output
+	l2, err = gpiod.RequestLine(platform.Devpath(), lo, append(opts, gpiod.AsOutput(0))...)
+	assert.Equal(t, unix.EBUSY, err)
+	require.Nil(t, l2)
+
+	// already requested output as event
+	l2, err = gpiod.RequestLine(platform.Devpath(), lo, append(opts, gpiod.WithBothEdges)...)
+	assert.Equal(t, unix.EBUSY, err)
+	require.Nil(t, l2)
+
+	err = l.Close()
+	assert.Nil(t, err)
+}
+
+func TestRequestLines(t *testing.T) {
+	var opts []gpiod.LineReqOption
+	if kernelAbiVersion != 0 {
+		opts = append(opts, gpiod.ABIVersionOption(kernelAbiVersion))
+	}
+
+	// non-existent
+	ll, err := gpiod.RequestLines(platform.Devpath()+"not", []int{platform.IntrLine(), -1}, opts...)
+	assert.NotNil(t, err)
+	require.Nil(t, ll)
+
+	// negative
+	ll, err = gpiod.RequestLines(platform.Devpath(), []int{platform.IntrLine(), -1}, opts...)
+	assert.Equal(t, gpiod.ErrInvalidOffset, err)
+	require.Nil(t, ll)
+
+	// out of range
+	ll, err = gpiod.RequestLines(platform.Devpath(), []int{platform.IntrLine(), platform.Lines()})
+	assert.Equal(t, gpiod.ErrInvalidOffset, err)
+	require.Nil(t, ll)
+
+	// success - output
+	ll, err = gpiod.RequestLines(platform.Devpath(), platform.FloatingLines(), gpiod.AsOutput())
+	assert.Nil(t, err)
+	require.NotNil(t, ll)
+
+	// already requested input
+	ll2, err := gpiod.RequestLines(platform.Devpath(), platform.FloatingLines())
+	assert.Equal(t, unix.EBUSY, err)
+	require.Nil(t, ll2)
+
+	// already requested output
+	ll2, err = gpiod.RequestLines(platform.Devpath(), platform.FloatingLines(), append(opts, gpiod.AsOutput())...)
+	assert.Equal(t, unix.EBUSY, err)
+	require.Nil(t, ll2)
+
+	// already requested output as event
+	ll2, err = gpiod.RequestLines(platform.Devpath(), platform.FloatingLines(), append(opts, gpiod.WithBothEdges)...)
+	assert.Equal(t, unix.EBUSY, err)
+	require.Nil(t, ll2)
+
+	err = ll.Close()
+	assert.Nil(t, err)
+}
+
 func TestNewChip(t *testing.T) {
 	var chipOpts []gpiod.ChipOption
 	if kernelAbiVersion != 0 {
