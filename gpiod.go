@@ -8,33 +8,31 @@
 // This is a Go equivalent of libgpiod.
 //
 // Supports:
-//  - Line direction (input/output)
-//  - Line write (active/inactive)
-//  - Line read (active/inactive)
-//  - Line bias (pull-up/pull-down/disabled)
-//  - Line drive (push-pull/open-drain/open-source)
-//  - Line level (active-high/active-low)
-//  - Line edge detection (rising/falling/both)
-//  - Line labels
-//  - Collections of lines for near simultaneous reads and writes on multiple lines
+//   - Line direction (input/output)
+//   - Line write (active/inactive)
+//   - Line read (active/inactive)
+//   - Line bias (pull-up/pull-down/disabled)
+//   - Line drive (push-pull/open-drain/open-source)
+//   - Line level (active-high/active-low)
+//   - Line edge detection (rising/falling/both)
+//   - Line labels
+//   - Collections of lines for near simultaneous reads and writes on multiple lines
 //
 // Example of use:
 //
-//  v := 0
-//  l, err := gpiod.RequestLine("gpiochip0", 4, gpiod.AsOutput(v))
-//  if err != nil {
-//  	panic(err)
-//  }
-//  for {
-//  	<-time.After(time.Second)
-//  	v ^= 1
-//  	l.SetValue(v)
-//  }
-//
+//	v := 0
+//	l, err := gpiod.RequestLine("gpiochip0", 4, gpiod.AsOutput(v))
+//	if err != nil {
+//		panic(err)
+//	}
+//	for {
+//		<-time.After(time.Second)
+//		v ^= 1
+//		l.SetValue(v)
+//	}
 package gpiod
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -43,6 +41,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/warthog618/gpiod/uapi"
 	"golang.org/x/sys/unix"
 )
@@ -245,12 +244,12 @@ func NewChip(name string, options ...ChipOption) (*Chip, error) {
 	}
 	f, err := os.OpenFile(path, unix.O_CLOEXEC, unix.O_RDONLY)
 	if err != nil {
-		// only happens if device removed/locked since IsChip call.
+		// Happens if device removed/locked since IsChip call.
 		return nil, err
 	}
 	ci, err := uapi.GetChipInfo(f.Fd())
 	if err != nil {
-		// only occurs if IsChip was wrong?
+		// Occurs if IsChip was wrong?
 		f.Close()
 		return nil, err
 	}
@@ -567,7 +566,7 @@ func (c *Chip) getLine(offsets []int, lro lineReqOptions) (uintptr, io.Closer, e
 
 	config, err := lro.toULineConfig()
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, errors.Wrap(err, "toULineConfig")
 	}
 	lr := uapi.LineRequest{
 		Lines:  uint32(len(offsets)),
@@ -580,14 +579,14 @@ func (c *Chip) getLine(offsets []int, lro lineReqOptions) (uintptr, io.Closer, e
 	}
 	err = uapi.GetLine(c.f.Fd(), &lr)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, errors.Wrap(err, "uapi.GetLine")
 	}
 	var w io.Closer
 	if lro.eh != nil {
 		w, err = newWatcher(lr.Fd, lro.eh)
 		if err != nil {
 			unix.Close(int(lr.Fd))
-			return 0, nil, err
+			return 0, nil, errors.Wrap(err, "newWatcher")
 		}
 	}
 	return uintptr(lr.Fd), w, nil
@@ -745,7 +744,7 @@ func (c *Chip) getHandleRequest(offsets []int, lro lineReqOptions) (uintptr, err
 	}
 	err := uapi.GetLineHandle(c.f.Fd(), &hr)
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, "GetLineHandle")
 	}
 	return uintptr(hr.Fd), nil
 }
