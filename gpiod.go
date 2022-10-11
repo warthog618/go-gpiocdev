@@ -30,7 +30,6 @@
 //		v ^= 1
 //		l.SetValue(v)
 //	}
-\\
 package gpiod
 
 import (
