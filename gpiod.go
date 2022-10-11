@@ -33,6 +33,7 @@
 package gpiod
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -41,7 +42,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/warthog618/gpiod/uapi"
 	"golang.org/x/sys/unix"
 )
@@ -244,12 +244,12 @@ func NewChip(name string, options ...ChipOption) (*Chip, error) {
 	}
 	f, err := os.OpenFile(path, unix.O_CLOEXEC, unix.O_RDONLY)
 	if err != nil {
-		// Happens if device removed/locked since IsChip call.
+		// only happens if device removed/locked since IsChip call.
 		return nil, err
 	}
 	ci, err := uapi.GetChipInfo(f.Fd())
 	if err != nil {
-		// Occurs if IsChip was wrong?
+		// only occurs if IsChip was wrong?
 		f.Close()
 		return nil, err
 	}
@@ -566,7 +566,7 @@ func (c *Chip) getLine(offsets []int, lro lineReqOptions) (uintptr, io.Closer, e
 
 	config, err := lro.toULineConfig()
 	if err != nil {
-		return 0, nil, errors.Wrap(err, "toULineConfig")
+		return 0, nil, err
 	}
 	lr := uapi.LineRequest{
 		Lines:  uint32(len(offsets)),
@@ -579,14 +579,14 @@ func (c *Chip) getLine(offsets []int, lro lineReqOptions) (uintptr, io.Closer, e
 	}
 	err = uapi.GetLine(c.f.Fd(), &lr)
 	if err != nil {
-		return 0, nil, errors.Wrap(err, "uapi.GetLine")
+		return 0, nil, err
 	}
 	var w io.Closer
 	if lro.eh != nil {
 		w, err = newWatcher(lr.Fd, lro.eh)
 		if err != nil {
 			unix.Close(int(lr.Fd))
-			return 0, nil, errors.Wrap(err, "newWatcher")
+			return 0, nil, err
 		}
 	}
 	return uintptr(lr.Fd), w, nil
@@ -744,7 +744,7 @@ func (c *Chip) getHandleRequest(offsets []int, lro lineReqOptions) (uintptr, err
 	}
 	err := uapi.GetLineHandle(c.f.Fd(), &hr)
 	if err != nil {
-		return 0, errors.Wrap(err, "GetLineHandle")
+		return 0, err
 	}
 	return uintptr(hr.Fd), nil
 }
