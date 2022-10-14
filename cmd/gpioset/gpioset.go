@@ -166,9 +166,6 @@ func loadConfig() (*config.Config, *pflag.Getter) {
 	default:
 		die(fmt.Sprintf("invalid mode: %s", mode))
 	}
-	if cfg.MustGet("open-drain").Bool() && cfg.MustGet("open-source").Bool() {
-		die("can't select both open-drain and open-source")
-	}
 	switch flags.NArg() {
 	case 0:
 		die("gpiochip must be specified")
