@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package rpi provides convenience mappings from Rasperry Pi pin names to
+// Package rpi provides convenience mappings from Raspberry Pi pin names to
 // offsets.
 package rpi
 
