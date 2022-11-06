@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package gpiod is a library for accessing GPIO pins/lines on Linux platforms
+// Package gpiocdev is a library for accessing GPIO pins/lines on Linux platforms
 // using the GPIO character device.
 //
 // This is a Go equivalent of libgpiod.
@@ -20,18 +20,17 @@
 //
 // Example of use:
 //
-//  v := 0
-//  l, err := gpiod.RequestLine("gpiochip0", 4, gpiod.AsOutput(v))
-//  if err != nil {
-//  	panic(err)
-//  }
-//  for {
-//  	<-time.After(time.Second)
-//  	v ^= 1
-//  	l.SetValue(v)
-//  }
-//
-package gpiod
+//	v := 0
+//	l, err := gpiocdev.RequestLine("gpiochip0", 4, gpiocdev.AsOutput(v))
+//	if err != nil {
+//		panic(err)
+//	}
+//	for {
+//		<-time.After(time.Second)
+//		v ^= 1
+//		l.SetValue(v)
+//	}
+package gpiocdev
 
 import (
 	"errors"
@@ -43,7 +42,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/warthog618/gpiod/uapi"
+	"github.com/warthog618/go-gpiocdev/uapi"
 	"golang.org/x/sys/unix"
 )
 
@@ -238,7 +237,7 @@ func NewChip(name string, options ...ChipOption) (*Chip, error) {
 		return nil, err
 	}
 	co := ChipOptions{
-		consumer: fmt.Sprintf("gpiod-%d", os.Getpid()),
+		consumer: fmt.Sprintf("gpiocdev-%d", os.Getpid()),
 	}
 	for _, option := range options {
 		option.applyChipOption(&co)
@@ -912,7 +911,7 @@ func (l *Line) Value() (int, error) {
 	return lv.Get(0), err
 }
 
-// SetValue sets the current active state of the line.
+// SetValue sets the current value (active state) of the line.
 //
 // Only valid for output lines.
 func (l *Line) SetValue(value int) error {

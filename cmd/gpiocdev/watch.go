@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/warthog618/gpiod"
+	"github.com/warthog618/go-gpiocdev"
 )
 
 func init() {
@@ -45,17 +45,17 @@ func watch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	copts := []gpiod.ChipOption{}
+	copts := []gpiocdev.ChipOption{}
 	if watchOpts.AbiV != 0 {
-		copts = append(copts, gpiod.WithABIVersion(watchOpts.AbiV))
+		copts = append(copts, gpiocdev.WithABIVersion(watchOpts.AbiV))
 	}
-	c, err := gpiod.NewChip(name, copts...)
+	c, err := gpiocdev.NewChip(name, copts...)
 	if err != nil {
 		return err
 	}
 	defer c.Close()
-	evtchan := make(chan gpiod.LineInfoChangeEvent)
-	eh := func(evt gpiod.LineInfoChangeEvent) {
+	evtchan := make(chan gpiocdev.LineInfoChangeEvent)
+	eh := func(evt gpiocdev.LineInfoChangeEvent) {
 		evtchan <- evt
 	}
 	for _, o := range oo {
@@ -82,15 +82,15 @@ func watch(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func watchWait(evtchan <-chan gpiod.LineInfoChangeEvent) {
+func watchWait(evtchan <-chan gpiocdev.LineInfoChangeEvent) {
 	sigdone := make(chan os.Signal, 1)
 	signal.Notify(sigdone, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sigdone)
 	count := uint(0)
-	etypes := map[gpiod.LineInfoChangeType]string{
-		gpiod.LineRequested:    "requested",
-		gpiod.LineReleased:     "released",
-		gpiod.LineReconfigured: "reconfigured",
+	etypes := map[gpiocdev.LineInfoChangeType]string{
+		gpiocdev.LineRequested:    "requested",
+		gpiocdev.LineReleased:     "released",
+		gpiocdev.LineReconfigured: "reconfigured",
 	}
 	for {
 		select {

@@ -16,9 +16,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "gpiodctl",
-	Short: "gpiodctl is a utility to control GPIO lines",
-	Long:  "gpiodctl is a utility to control GPIO lines on Linux GPIO character devices",
+	Use:   "gpiocdev",
+	Short: "gpiocdev is a utility to control GPIO lines",
+	Long:  "gpiocdev is a utility to control GPIO lines on Linux GPIO character devices",
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
 	},
@@ -32,5 +32,5 @@ func main() {
 }
 
 func logErr(cmd *cobra.Command, err error) {
-	fmt.Fprintf(os.Stderr, "gpiodctl %s: %s\n", cmd.Name(), err)
+	fmt.Fprintf(os.Stderr, "gpiocdev %s: %s\n", cmd.Name(), err)
 }

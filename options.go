@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: MIT
 
-package gpiod
+package gpiocdev
 
 import (
 	"time"
 
-	"github.com/warthog618/gpiod/uapi"
+	"github.com/warthog618/go-gpiocdev/uapi"
 )
 
 // ChipOption defines the interface required to provide a Chip option.

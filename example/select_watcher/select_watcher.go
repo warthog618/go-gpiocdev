@@ -17,14 +17,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/warthog618/gpiod"
-	"github.com/warthog618/gpiod/device/rpi"
+	"github.com/warthog618/go-gpiocdev"
+	"github.com/warthog618/go-gpiocdev/device/rpi"
 )
 
-func printEvent(evt gpiod.LineEvent) {
+func printEvent(evt gpiocdev.LineEvent) {
 	t := time.Now()
 	edge := "rising"
-	if evt.Type == gpiod.LineEventFallingEdge {
+	if evt.Type == gpiocdev.LineEventFallingEdge {
 		edge = "falling"
 	}
 	if evt.Seqno != 0 {
@@ -47,10 +47,10 @@ func printEvent(evt gpiod.LineEvent) {
 
 // Watches GPIO 23 (Raspberry Pi J8-16) and reports when it changes state.
 func main() {
-	echan := make(chan gpiod.LineEvent, 6)
+	echan := make(chan gpiocdev.LineEvent, 6)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	eh := func(evt gpiod.LineEvent) {
+	eh := func(evt gpiocdev.LineEvent) {
 		select {
 		case echan <- evt: // the expected path
 		default:
@@ -62,10 +62,10 @@ func main() {
 	}
 
 	offset := rpi.J8p16
-	l, err := gpiod.RequestLine("gpiochip0", offset,
-		gpiod.WithPullUp,
-		gpiod.WithBothEdges,
-		gpiod.WithEventHandler(eh))
+	l, err := gpiocdev.RequestLine("gpiochip0", offset,
+		gpiocdev.WithPullUp,
+		gpiocdev.WithBothEdges,
+		gpiocdev.WithEventHandler(eh))
 	if err != nil {
 		fmt.Printf("RequestLine returned error: %s\n", err)
 		if err == syscall.Errno(22) {

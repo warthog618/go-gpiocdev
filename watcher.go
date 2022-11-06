@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: MIT
 
-package gpiod
+package gpiocdev
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/warthog618/gpiod/uapi"
+	"github.com/warthog618/go-gpiocdev/uapi"
 	"golang.org/x/sys/unix"
 )
 

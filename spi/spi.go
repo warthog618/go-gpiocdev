@@ -15,7 +15,7 @@ package spi
 import (
 	"time"
 
-	"github.com/warthog618/gpiod"
+	"github.com/warthog618/go-gpiocdev"
 )
 
 // SPI represents a device connected an SPI bus using 4 GPIO lines.
@@ -27,16 +27,16 @@ type SPI struct {
 	Tclk time.Duration
 
 	// Clock line
-	Sclk *gpiod.Line
+	Sclk *gpiocdev.Line
 
 	// Slave select - active low
-	Ssz *gpiod.Line
+	Ssz *gpiocdev.Line
 
 	// Master-out slave-in
-	Mosi *gpiod.Line
+	Mosi *gpiocdev.Line
 
 	// Master-in slave-out
-	Miso *gpiod.Line
+	Miso *gpiocdev.Line
 
 	// Polarity of idle state
 	cpol int
@@ -51,7 +51,7 @@ type SPI struct {
 }
 
 // New creates a SPI.
-func New(c *gpiod.Chip, sclk, ssz, mosi, miso int, options ...Option) (*SPI, error) {
+func New(c *gpiocdev.Chip, sclk, ssz, mosi, miso int, options ...Option) (*SPI, error) {
 	s := SPI{}
 	for _, option := range options {
 		option(&s)
@@ -61,28 +61,28 @@ func New(c *gpiod.Chip, sclk, ssz, mosi, miso int, options ...Option) (*SPI, err
 		s.Tclk = 500 * time.Nanosecond
 	}
 	var err error
-	var l *gpiod.Line
+	var l *gpiocdev.Line
 	defer func() {
 		if err != nil {
 			s.Close()
 		}
 	}()
 	// hold SPI reset until needed...
-	l, err = c.RequestLine(ssz, gpiod.AsOutput(1))
+	l, err = c.RequestLine(ssz, gpiocdev.AsOutput(1))
 	if err != nil {
 		return nil, err
 	}
 	s.Ssz = l
-	clkOpts := []gpiod.LineReqOption{gpiod.AsOutput(0)}
+	clkOpts := []gpiocdev.LineReqOption{gpiocdev.AsOutput(0)}
 	if s.cpol != 0 {
-		clkOpts = append(clkOpts, gpiod.AsActiveLow)
+		clkOpts = append(clkOpts, gpiocdev.AsActiveLow)
 	}
 	l, err = c.RequestLine(sclk, clkOpts...)
 	if err != nil {
 		return nil, err
 	}
 	s.Sclk = l
-	l, err = c.RequestLine(miso, gpiod.AsInput)
+	l, err = c.RequestLine(miso, gpiocdev.AsInput)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func New(c *gpiod.Chip, sclk, ssz, mosi, miso int, options ...Option) (*SPI, err
 	if miso == mosi {
 		s.Mosi = s.Miso
 	} else {
-		l, err := c.RequestLine(mosi, gpiod.AsOutput(0))
+		l, err := c.RequestLine(mosi, gpiocdev.AsOutput(0))
 		if err != nil {
 			return nil, err
 		}
@@ -102,18 +102,18 @@ func New(c *gpiod.Chip, sclk, ssz, mosi, miso int, options ...Option) (*SPI, err
 // Close releases allocated resources and reverts all output lines to inputs.
 func (s *SPI) Close() {
 	if s.Sclk != nil {
-		s.Sclk.Reconfigure(gpiod.AsInput)
+		s.Sclk.Reconfigure(gpiocdev.AsInput)
 		s.Sclk.Close()
 	}
 	if s.Mosi != nil {
-		s.Mosi.Reconfigure(gpiod.AsInput)
+		s.Mosi.Reconfigure(gpiocdev.AsInput)
 		s.Mosi.Close()
 	}
 	if s.Miso != nil && s.Mosi != s.Miso {
 		s.Miso.Close()
 	}
 	if s.Ssz != nil {
-		s.Ssz.Reconfigure(gpiod.AsInput)
+		s.Ssz.Reconfigure(gpiocdev.AsInput)
 		s.Ssz.Close()
 	}
 }

@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/warthog618/gpiod"
+	"github.com/warthog618/go-gpiocdev"
 )
 
 func init() {
@@ -69,17 +69,17 @@ func mon(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	copts := []gpiod.ChipOption{gpiod.WithConsumer("gpiodctl-mon")}
+	copts := []gpiocdev.ChipOption{gpiocdev.WithConsumer("gpiocdevctl-mon")}
 	if monOpts.AbiV != 0 {
-		copts = append(copts, gpiod.WithABIVersion(monOpts.AbiV))
+		copts = append(copts, gpiocdev.WithABIVersion(monOpts.AbiV))
 	}
-	c, err := gpiod.NewChip(name, copts...)
+	c, err := gpiocdev.NewChip(name, copts...)
 	if err != nil {
 		return err
 	}
 	defer c.Close()
-	evtchan := make(chan gpiod.LineEvent)
-	eh := func(evt gpiod.LineEvent) {
+	evtchan := make(chan gpiocdev.LineEvent)
+	eh := func(evt gpiocdev.LineEvent) {
 		evtchan <- evt
 	}
 	opts := makeMonOpts(eh)
@@ -92,7 +92,7 @@ func mon(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func monWait(evtchan <-chan gpiod.LineEvent) {
+func monWait(evtchan <-chan gpiocdev.LineEvent) {
 	sigdone := make(chan os.Signal, 1)
 	signal.Notify(sigdone, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sigdone)
@@ -103,7 +103,7 @@ func monWait(evtchan <-chan gpiod.LineEvent) {
 			if !monOpts.Quiet {
 				t := time.Now()
 				edge := "rising"
-				if evt.Type == gpiod.LineEventFallingEdge {
+				if evt.Type == gpiocdev.LineEventFallingEdge {
 					edge = "falling"
 				}
 				if evt.Seqno != 0 {
@@ -132,36 +132,36 @@ func monWait(evtchan <-chan gpiod.LineEvent) {
 	}
 }
 
-func makeMonOpts(eh gpiod.EventHandler) []gpiod.LineReqOption {
-	opts := []gpiod.LineReqOption{gpiod.WithEventHandler(eh)}
+func makeMonOpts(eh gpiocdev.EventHandler) []gpiocdev.LineReqOption {
+	opts := []gpiocdev.LineReqOption{gpiocdev.WithEventHandler(eh)}
 	if monOpts.ActiveLow {
-		opts = append(opts, gpiod.AsActiveLow)
+		opts = append(opts, gpiocdev.AsActiveLow)
 	}
 	edge := strings.ToLower(monOpts.Edge)
 	switch edge {
 	case "falling":
-		opts = append(opts, gpiod.WithFallingEdge)
+		opts = append(opts, gpiocdev.WithFallingEdge)
 	case "rising":
-		opts = append(opts, gpiod.WithRisingEdge)
+		opts = append(opts, gpiocdev.WithRisingEdge)
 	case "both":
 		fallthrough
 	default:
-		opts = append(opts, gpiod.WithBothEdges)
+		opts = append(opts, gpiocdev.WithBothEdges)
 	}
 	bias := strings.ToLower(monOpts.Bias)
 	switch bias {
 	case "pull-up":
-		opts = append(opts, gpiod.WithPullUp)
+		opts = append(opts, gpiocdev.WithPullUp)
 	case "pull-down":
-		opts = append(opts, gpiod.WithPullDown)
+		opts = append(opts, gpiocdev.WithPullDown)
 	case "disable":
-		opts = append(opts, gpiod.WithBiasDisabled)
+		opts = append(opts, gpiocdev.WithBiasDisabled)
 	case "as-is":
 		fallthrough
 	default:
 	}
 	if monOpts.DebouncePeriod != 0 {
-		opts = append(opts, gpiod.WithDebounce(monOpts.DebouncePeriod))
+		opts = append(opts, gpiocdev.WithDebounce(monOpts.DebouncePeriod))
 	}
 	return opts
 }

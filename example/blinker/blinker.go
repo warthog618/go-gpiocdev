@@ -15,8 +15,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/warthog618/gpiod"
-	"github.com/warthog618/gpiod/device/rpi"
+	"github.com/warthog618/go-gpiocdev"
+	"github.com/warthog618/go-gpiocdev/device/rpi"
 )
 
 // This example drives GPIO 22, which is pin J8-15 on a Raspberry Pi.
@@ -25,13 +25,13 @@ import (
 func main() {
 	offset := rpi.J8p15
 	v := 0
-	l, err := gpiod.RequestLine("gpiochip0", offset, gpiod.AsOutput(v))
+	l, err := gpiocdev.RequestLine("gpiochip0", offset, gpiocdev.AsOutput(v))
 	if err != nil {
 		panic(err)
 	}
 	// revert line to input on the way out.
 	defer func() {
-		l.Reconfigure(gpiod.AsInput)
+		l.Reconfigure(gpiocdev.AsInput)
 		l.Close()
 	}()
 	values := map[int]string{0: "inactive", 1: "active"}

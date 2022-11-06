@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/warthog618/gpiod"
+	"github.com/warthog618/go-gpiocdev"
 )
 
 func init() {
@@ -54,7 +54,7 @@ func get(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c, err := gpiod.NewChip(name, gpiod.WithConsumer("gpiodctl-get"))
+	c, err := gpiocdev.NewChip(name, gpiocdev.WithConsumer("gpiocdevctl-get"))
 	if err != nil {
 		return err
 	}
@@ -78,28 +78,28 @@ func get(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func makeGetOpts() []gpiod.LineReqOption {
-	opts := []gpiod.LineReqOption{}
+func makeGetOpts() []gpiocdev.LineReqOption {
+	opts := []gpiocdev.LineReqOption{}
 	if getOpts.ActiveLow {
-		opts = append(opts, gpiod.AsActiveLow)
+		opts = append(opts, gpiocdev.AsActiveLow)
 	}
 	if !getOpts.AsIs {
-		opts = append(opts, gpiod.AsInput)
+		opts = append(opts, gpiocdev.AsInput)
 	}
 	bias := strings.ToLower(getOpts.Bias)
 	switch bias {
 	case "pull-up":
-		opts = append(opts, gpiod.WithPullUp)
+		opts = append(opts, gpiocdev.WithPullUp)
 	case "pull-down":
-		opts = append(opts, gpiod.WithPullDown)
+		opts = append(opts, gpiocdev.WithPullDown)
 	case "disable":
-		opts = append(opts, gpiod.WithBiasDisabled)
+		opts = append(opts, gpiocdev.WithBiasDisabled)
 	case "as-is":
 		fallthrough
 	default:
 	}
 	if getOpts.AbiV != 0 {
-		opts = append(opts, gpiod.WithABIVersion(getOpts.AbiV))
+		opts = append(opts, gpiocdev.WithABIVersion(getOpts.AbiV))
 	}
 	return opts
 }

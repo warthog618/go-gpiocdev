@@ -8,7 +8,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/warthog618/gpiod"
+	"github.com/warthog618/go-gpiocdev"
 )
 
 func init() {
@@ -32,13 +32,13 @@ var (
 )
 
 func find(cmd *cobra.Command, args []string) {
-	copts := []gpiod.ChipOption{}
+	copts := []gpiocdev.ChipOption{}
 	if findOpts.AbiV != 0 {
-		copts = append(copts, gpiod.WithABIVersion(findOpts.AbiV))
+		copts = append(copts, gpiocdev.WithABIVersion(findOpts.AbiV))
 	}
 	for _, linename := range args {
-		for _, cname := range gpiod.Chips() {
-			c, err := gpiod.NewChip(cname, copts...)
+		for _, cname := range gpiocdev.Chips() {
+			c, err := gpiocdev.NewChip(cname, copts...)
 			if err != nil {
 				continue
 			}

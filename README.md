@@ -4,30 +4,22 @@ SPDX-FileCopyrightText: 2019 Kent Gibson <warthog618@gmail.com>
 SPDX-License-Identifier: MIT
 -->
 
-# gpiod
+# gpiocdev
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/warthog618/gpiod/go.yml?logo=github&branch=master)](https://github.com/warthog618/gpiod/actions/workflows/go.yml)
-[![PkgGoDev](https://pkg.go.dev/badge/github.com/warthog618/gpiod)](https://pkg.go.dev/github.com/warthog618/gpiod)
-[![Go Report Card](https://goreportcard.com/badge/github.com/warthog618/gpiod)](https://goreportcard.com/report/github.com/warthog618/gpiod)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/warthog618/gpiod/blob/master/LICENSE)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/warthog618/go-gpiocdev/go.yml?logo=github&branch=master)](https://github.com/warthog618/go-gpiocdev/actions/workflows/go.yml)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/warthog618/go-gpiocdev)](https://pkg.go.dev/github.com/warthog618/go-gpiocdev)
+[![Go Report Card](https://goreportcard.com/badge/github.com/warthog618/go-gpiocdev)](https://goreportcard.com/report/github.com/warthog618/go-gpiocdev)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/warthog618/go-gpiocdev/blob/master/LICENSE)
 
 A native Go library for Linux GPIO.
 
-**gpiod** is a library for accessing GPIO pins/lines on Linux platforms using
+**gpiocdev** is a library for accessing GPIO pins/lines on Linux platforms using
 the GPIO character device.
 
 The goal of this library is to provide the Go equivalent of the C
 **[libgpiod](https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/)**
 library. The intent is not to mirror the **libgpiod** API but to provide the
 equivalent functionality.
-
-## Roadmap
-
-This library has been renamed to **gpiocdev** to more clearly distinguish it from **libgpiod**, and to highlight that it operates on the GPIO character device.
-
-All future development will occur in the **[go-gpiocdev](https://github.com/warthog618/go-gpiocdev)** repository.
-
-Update your dependencies from `github.com/warthog618/gpiod` to `github.com/warthog618/go-gpiocdev` to switch.
 
 ## Features
 
@@ -59,13 +51,13 @@ A simple piece of wire example that reads the value of an input line (pin 2) and
 writes its value to an output line (pin 3):
 
 ```go
-import "github.com/warthog618/gpiod"
+import "github.com/warthog618/gpiocdev"
 
 ...
 
-in, _ := gpiod.RequestLine("gpiochip0", 2, gpiod.AsInput)
+in, _ := gpiocdev.RequestLine("gpiochip0", 2, gpiocdev.AsInput)
 val, _ := in.Value()
-out, _ := gpiod.RequestLine("gpiochip0", 3, gpiod.AsOutput(val))
+out, _ := gpiocdev.RequestLine("gpiochip0", 3, gpiocdev.AsOutput(val))
 
 ...
 ```
@@ -75,7 +67,7 @@ Error handling and releasing of resources omitted for brevity.
 ## Usage
 
 ```go
-import "github.com/warthog618/gpiod"
+import "github.com/warthog618/gpiocdev"
 ```
 
 Error handling is omitted from the following examples for brevity.
@@ -83,15 +75,15 @@ Error handling is omitted from the following examples for brevity.
 ### Line Requests
 
 To read or alter the value of a
-[line](https://pkg.go.dev/github.com/warthog618/gpiod#Line) it must first be
-requested using [*gpiod.RequestLine*](https://pkg.go.dev/github.com/warthog618/gpiod#RequestLine):
+[line](https://pkg.go.dev/github.com/warthog618/go-gpiocdev#Line) it must first be
+requested using [*gpiocdev.RequestLine*](https://pkg.go.dev/github.com/warthog618/go-gpiocdev#RequestLine):
 
 ```go
-l, _ := gpiod.RequestLine("gpiochip0", 4)   // in its existing state
+l, _ := gpiocdev.RequestLine("gpiochip0", 4)   // in its existing state
 ```
 
 or from the [*Chip*](#chip-initialization) object using
-[*Chip.RequestLine*](https://pkg.go.dev/github.com/warthog618/gpiod#Chip.RequestLine):
+[*Chip.RequestLine*](https://pkg.go.dev/github.com/warthog618/go-gpiocdev#Chip.RequestLine):
 
 ```go
 l, _ := c.RequestLine(4)                    // from a Chip object
@@ -110,22 +102,22 @@ The initial configuration of the line can be set by providing line
 example:
 
 ```go
-l, _ := gpiod.RequestLine("gpiochip0", 4, gpiod.AsOutput(1))  // as an output line
+l, _ := gpiocdev.RequestLine("gpiochip0", 4, gpiocdev.AsOutput(1))  // as an output line
 ```
 
 Multiple lines from the same chip may be requested as a collection of
-[lines](https://pkg.go.dev/github.com/warthog618/gpiod#Lines) using
-[*gpiod.RequestLines*](https://pkg.go.dev/github.com/warthog618/gpiod#RequestLines)
+[lines](https://pkg.go.dev/github.com/warthog618/go-gpiocdev#Lines) using
+[*gpiocdev.RequestLines*](https://pkg.go.dev/github.com/warthog618/go-gpiocdev#RequestLines)
 
 ```go
-ll, _ := gpiod.RequestLines("gpiochip0", []int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1))
+ll, _ := gpiocdev.RequestLines("gpiochip0", []int{0, 1, 2, 3}, gpiocdev.AsOutput(0, 0, 1, 1))
 ```
 
  or from a Chip object using
-[*Chip.RequestLines*](https://pkg.go.dev/github.com/warthog618/gpiod#Chip.RequestLines):
+[*Chip.RequestLines*](https://pkg.go.dev/github.com/warthog618/go-gpiocdev#Chip.RequestLines):
 
 ```go
-ll, _ := c.RequestLines([]int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1))
+ll, _ := c.RequestLines([]int{0, 1, 2, 3}, gpiocdev.AsOutput(0, 0, 1, 1))
 ```
 
 When no longer required, the line(s) should be closed to release resources:
@@ -143,7 +135,7 @@ values can be accessed.
 #### Read Input
 
 The current line value can be read with the
-[*Value*](https://pkg.go.dev/github.com/warthog618/gpiod#Line.Value)
+[*Value*](https://pkg.go.dev/github.com/warthog618/go-gpiocdev#Line.Value)
 method:
 
 ```go
@@ -151,7 +143,7 @@ r, _ := l.Value()  // Read state from line (active / inactive)
 ```
 
 For collections of lines, the level of all lines is read simultaneously using
-the [*Values*](https://pkg.go.dev/github.com/warthog618/gpiod#Lines.SetValues)
+the [*Values*](https://pkg.go.dev/github.com/warthog618/go-gpiocdev#Lines.SetValues)
 method:
 
 ```go
@@ -162,7 +154,7 @@ ll.Values(rr)           // Read the state of a collection of lines
 #### Write Output
 
 The current line value can be set with the
-[*SetValue*](https://pkg.go.dev/github.com/warthog618/gpiod#Line.SetValue)
+[*SetValue*](https://pkg.go.dev/github.com/warthog618/go-gpiocdev#Line.SetValue)
 method:
 
 ```go
@@ -173,7 +165,7 @@ l.SetValue(0)     // Set line inactive
 Also refer to the [blinker](example/blinker/blinker.go) example.
 
 For collections of lines, all lines are set simultaneously using the
-[*SetValues*](https://pkg.go.dev/github.com/warthog618/gpiod#Lines.SetValues)
+[*SetValues*](https://pkg.go.dev/github.com/warthog618/go-gpiocdev#Lines.SetValues)
 method:
 
 ```go
@@ -189,16 +181,16 @@ The watch can be on rising or falling edges, or both.
 
 The events are passed to a handler function provided using the
 *WithEventHandler(eh)* option.  The handler function is passed a
-[*LineEvent*](https://pkg.go.dev/github.com/warthog618/gpiod#LineEvent), which
+[*LineEvent*](https://pkg.go.dev/github.com/warthog618/go-gpiocdev#LineEvent), which
 contains details of the edge event including the offset of the triggering line,
 the time the edge was detected and the type of edge detected:
 
 ```go
-func handler(evt gpiod.LineEvent) {
+func handler(evt gpiocdev.LineEvent) {
   // handle edge event
 }
 
-l, _ = c.RequestLine(rpi.J8p7, gpiod.WithEventHandler(handler), gpiod.WithBothEdges)
+l, _ = c.RequestLine(rpi.J8p7, gpiocdev.WithEventHandler(handler), gpiocdev.WithBothEdges)
 ```
 
 To maintain event ordering, the event handler is called serially from a
@@ -215,7 +207,7 @@ l.Close()
 or by reconfiguring the requested lines to disable edge detection:
 
 ```go
-l.Reconfigure(gpiod.WithoutEdges)
+l.Reconfigure(gpiocdev.WithoutEdges)
 ```
 
 Note that the *Close* waits for the event handler to return and so must not be
@@ -239,8 +231,8 @@ lines using the *WithLines* option.
 Requested lines may be reconfigured using the Reconfigure method:
 
 ```go
-l.Reconfigure(gpiod.AsInput)            // set direction to Input
-ll.Reconfigure(gpiod.AsOutput(1, 0))    // set direction to Output (and values to active and inactive)
+l.Reconfigure(gpiocdev.AsInput)            // set direction to Input
+ll.Reconfigure(gpiocdev.AsOutput(1, 0))    // set direction to Output (and values to active and inactive)
 ```
 
 The *Line.Reconfigure* method accepts differential changes to the configuration
@@ -259,9 +251,9 @@ The following example requests a set of output lines and sets some of the lines
 in the request to active low:
 
 ```go
-ll, _ = c.RequestLines([]int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1),
-    gpiod.WithLines([]int{0, 3}, gpiod.AsActiveLow),
-    gpiod.AsOpenDrain)
+ll, _ = c.RequestLines([]int{0, 1, 2, 3}, gpiocdev.AsOutput(0, 0, 1, 1),
+    gpiocdev.WithLines([]int{0, 3}, gpiocdev.AsActiveLow),
+    gpiocdev.AsOpenDrain)
 ```
 
 The configuration of the subset of lines inherits the configuration of the
@@ -273,13 +265,13 @@ Once a line's configuration has branched from the request configuration it can
 only be altered with *WithLines* options:
 
 ```go
-ll.Reconfigure(gpiod.WithLines([]int{0}, gpiod.AsActiveHigh))
+ll.Reconfigure(gpiocdev.WithLines([]int{0}, gpiocdev.AsActiveHigh))
 ```
 
 or reset to the request configuration using the *Defaulted* option:
 
 ```go
-ll.Reconfigure(gpiod.WithLines([]int{3}, gpiod.Defaulted))
+ll.Reconfigure(gpiocdev.WithLines([]int{3}, gpiocdev.Defaulted))
 ```
 
 Complex configurations require Linux 5.10 or later.
@@ -290,10 +282,10 @@ The Chip object is used to discover details about avaialble lines and can be use
 to request lines from a GPIO chip.
 
 A Chip object is constructed using the
-[*NewChip*](https://pkg.go.dev/github.com/warthog618/gpiod#NewChip) function.
+[*NewChip*](https://pkg.go.dev/github.com/warthog618/go-gpiocdev#NewChip) function.
 
 ```go
-c, _ := gpiod.NewChip("gpiochip0")
+c, _ := gpiocdev.NewChip("gpiochip0")
 ```
 
 The parameter is the chip name, which corresponds to the name of the device in
@@ -302,15 +294,15 @@ the **/dev** directory, so in this example **/dev/gpiochip0**.
 The list of currently available GPIO chips is returned by the *Chips* function:
 
 ```go
-cc := gpiod.Chips()
+cc := gpiocdev.Chips()
 ```
 
 Default attributes for Lines requested from the Chip can be set via
 [configuration options](#configuration-options) to
-[*NewChip*](https://pkg.go.dev/github.com/warthog618/gpiod#NewChip).
+[*NewChip*](https://pkg.go.dev/github.com/warthog618/go-gpiocdev#NewChip).
 
 ```go
-c, _ := gpiod.NewChip("gpiochip0", gpiod.WithConsumer("myapp"))
+c, _ := gpiocdev.NewChip("gpiochip0", gpiocdev.WithConsumer("myapp"))
 ```
 
 In this example the consumer label is defaulted to "myapp".
@@ -326,9 +318,9 @@ requested from the chip.
 
 ### Line Info
 
-[Info](https://pkg.go.dev/github.com/warthog618/gpiod#LineInfo) about a line can
+[Info](https://pkg.go.dev/github.com/warthog618/go-gpiocdev#LineInfo) about a line can
 be read at any time from the chip using the
-[*LineInfo*](https://pkg.go.dev/github.com/warthog618/gpiod#Chip.LineInfo)
+[*LineInfo*](https://pkg.go.dev/github.com/warthog618/go-gpiocdev#Chip.LineInfo)
 method:
 
 ```go
@@ -351,7 +343,7 @@ infs, _ := ll.Info()
 Changes to the line info can be monitored by adding an info watch for the line:
 
 ```go
-func infoChangeHandler( evt gpiod.LineInfoChangeEvent) {
+func infoChangeHandler( evt gpiocdev.LineInfoChangeEvent) {
     // handle change in line info
 }
 
@@ -392,8 +384,8 @@ is 0 for inactive and 1 for active. The physical value considered active can be
 controlled using the *AsActiveHigh* and *AsActiveLow* options:
 
 ```go
-l, _ := c.RequestLine(4, gpiod.AsActiveLow) // during request
-l.Reconfigure(gpiod.AsActiveHigh)           // once requested
+l, _ := c.RequestLine(4, gpiocdev.AsActiveLow) // during request
+l.Reconfigure(gpiocdev.AsActiveHigh)           // once requested
 ```
 
 Lines are typically active high by default.
@@ -403,9 +395,9 @@ Lines are typically active high by default.
 The line direction can be controlled using the *AsInput* and *AsOutput* options:
 
 ```go
-l, _ := c.RequestLine(4, gpiod.AsInput) // during request
-l.Reconfigure(gpiod.AsInput)            // set direction to Input
-l.Reconfigure(gpiod.AsOutput(0))        // set direction to Output (and value to inactive)
+l, _ := c.RequestLine(4, gpiocdev.AsInput) // during request
+l.Reconfigure(gpiocdev.AsInput)            // set direction to Input
+l.Reconfigure(gpiocdev.AsOutput(0))        // set direction to Output (and value to inactive)
 ```
 
 ##### Bias
@@ -413,8 +405,8 @@ l.Reconfigure(gpiod.AsOutput(0))        // set direction to Output (and value to
 The bias options control the pull up/down state of the line:
 
 ```go
-l, _ = c.RequestLine(4, gpiod.WithPullUp) // during request
-l.Reconfigure(gpiod.WithBiasDisabled)     // once requested
+l, _ = c.RequestLine(4, gpiocdev.WithPullUp) // during request
+l.Reconfigure(gpiocdev.WithBiasDisabled)     // once requested
 ```
 
 The bias options require Linux 5.5 or later.
@@ -424,8 +416,8 @@ The bias options require Linux 5.5 or later.
 The drive options control how an output line is driven when active and inactive:
 
 ```go
-l,_ := c.RequestLine(4, gpiod.AsOpenDrain) // during request
-l.Reconfigure(gpiod.AsOpenSource)          // once requested
+l,_ := c.RequestLine(4, gpiocdev.AsOpenDrain) // during request
+l.Reconfigure(gpiocdev.AsOpenSource)          // once requested
 ```
 
 The default drive for output lines is push-pull, which actively drives the line
@@ -439,8 +431,8 @@ kernel.
 
 ```go
 period := 10 * time.Millisecond
-l, _ = c.RequestLine(4, gpiod.WithDebounce(period))// during request
-l.Reconfigure(gpiod.WithDebounce(period))         // once requested
+l, _ = c.RequestLine(4, gpiocdev.WithDebounce(period))// during request
+l.Reconfigure(gpiocdev.WithDebounce(period))         // once requested
 ```
 
 The WithDebounce option requires Linux 5.10 or later.
@@ -526,45 +518,45 @@ with *NewChip* or *Line.Reconfigure*.
 On Linux:
 
 ```shell
-go get github.com/warthog618/gpiod
+go get github.com/warthog618/go-gpiocdev
 ```
 
 For other platforms, where you intend to cross-compile for Linux, don't attempt
 to compile the package when it is installed:
 
 ```shell
-go get -d github.com/warthog618/gpiod
+go get -d github.com/warthog618/go-gpiocdev
 ```
 
 ## Tools
 
-A command line utility, **gpiodctl**, can be found in the cmd directory and is
+A command line utility, **gpiocdev**, can be found in the cmd directory and is
 provided to allow manual or scripted manipulation of GPIO lines.  This utility
 combines the Go equivalent of all the **libgpiod** command line tools into a
 single tool.
 
 ```shell
-gpiodctl is a utility to control GPIO lines on Linux GPIO character devices
+gpiocdev is a utility to control GPIO lines on Linux GPIO character devices
 
 Usage:
-  gpiodctl [flags]
-  gpiodctl [command]
+  gpiocdev [flags]
+  gpiocdev [command]
 
 Available Commands:
-  detect      Detect available GPIO chips
-  find        Find a GPIO line by name
+  chip        Detect available GPIO chips
+  edges       Monitor the state of a line or lines
   get         Get the state of a line or lines
   help        Help about any command
-  info        Info about chip lines
-  mon         Monitor the state of a line or lines
+  line        Info about chip lines
+  platform    Provide info about the platform iGPIO uAPI support.
   set         Set the state of a line or lines
   version     Display the version
   watch       Watch lines for changes to the line info
 
 Flags:
-  -h, --help   help for gpiodctl
+  -h, --help   help for gpiocdev
 
-Use "gpiodctl [command] --help" for more information about a command.
+Use "gpiocdev [command] --help" for more information about a command.
 
 ```
 
@@ -603,10 +595,10 @@ These are the results from a Raspberry Pi Zero W running Linux 6.4 and built
 with go1.20.6:
 
 ```shell
-$ ./gpiod.test -test.bench=.*
+$ ./go-gpiocdev.test -test.bench=.*
 goos: linux
 goarch: arm
-pkg: github.com/warthog618/gpiod
+pkg: github.com/warthog618/go-gpiocdev
 BenchmarkChipNewClose     	     248	   4381075 ns/op
 BenchmarkLineInfo         	   24651	     47278 ns/op
 BenchmarkLineReconfigure  	   20312	     55273 ns/op
@@ -620,16 +612,16 @@ PASS
 
 The latency benchmark is no longer representative as the measurement now depends
 on how quickly **gpio-sim** can toggle lines, and that is considerably slower
-than how quickly **gpiod** responds.  For comparison, the same test using
+than how quickly **gpiocdev** responds.  For comparison, the same test using
 looped Raspberry Pi lines produced a result of ~640μsec on the same platform.
 
 And on a Raspberry Pi 4 running Linux 6.4 (32bit kernel) and built with go1.20.6:
 
 ```shell
-$ ./gpiod.test -test.bench=.*
+$ ./go-gpiocdev.test -test.bench=.*
 goos: linux
 goarch: arm
-pkg: github.com/warthog618/gpiod
+pkg: github.com/warthog618/go-gpiocdev
 BenchmarkChipNewClose-4       	    9727	    118291 ns/op
 BenchmarkLineInfo-4           	  185316	      6104 ns/op
 BenchmarkLineReconfigure-4    	  364795	      3205 ns/op

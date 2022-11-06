@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/warthog618/gpiod"
+    "github.com/warthog618/go-gpiocdev"
 )
 
 func init() {
@@ -37,14 +37,14 @@ func info(cmd *cobra.Command, args []string) {
 	cc := []string(nil)
 	cc = append(cc, args...)
 	if len(cc) == 0 {
-		cc = gpiod.Chips()
+		cc = gpiocdev.Chips()
 	}
-	copts := []gpiod.ChipOption{}
+	copts := []gpiocdev.ChipOption{}
 	if infoOpts.AbiV != 0 {
-		copts = append(copts, gpiod.WithABIVersion(infoOpts.AbiV))
+		copts = append(copts, gpiocdev.WithABIVersion(infoOpts.AbiV))
 	}
 	for _, path := range cc {
-		c, err := gpiod.NewChip(path, copts...)
+		c, err := gpiocdev.NewChip(path, copts...)
 		if err != nil {
 			logErr(cmd, err)
 			rc = 1
@@ -65,7 +65,7 @@ func info(cmd *cobra.Command, args []string) {
 	os.Exit(rc)
 }
 
-func printLineInfo(li gpiod.LineInfo) {
+func printLineInfo(li gpiocdev.LineInfo) {
 	if len(li.Name) == 0 {
 		li.Name = "unnamed"
 	}
@@ -80,7 +80,7 @@ func printLineInfo(li gpiod.LineInfo) {
 		li.Consumer = "unused"
 	}
 	attrs := []string(nil)
-	if li.Config.Direction == gpiod.LineDirectionOutput {
+	if li.Config.Direction == gpiocdev.LineDirectionOutput {
 		attrs = append(attrs, "output")
 	} else {
 		attrs = append(attrs, "input")
@@ -92,17 +92,17 @@ func printLineInfo(li gpiod.LineInfo) {
 		attrs = append(attrs, "used")
 	}
 	switch li.Config.Drive {
-	case gpiod.LineDriveOpenDrain:
+	case gpiocdev.LineDriveOpenDrain:
 		attrs = append(attrs, "open-drain")
-	case gpiod.LineDriveOpenSource:
+	case gpiocdev.LineDriveOpenSource:
 		attrs = append(attrs, "open-source")
 	}
 	switch li.Config.Bias {
-	case gpiod.LineBiasPullUp:
+	case gpiocdev.LineBiasPullUp:
 		attrs = append(attrs, "pull-up")
-	case gpiod.LineBiasPullDown:
+	case gpiocdev.LineBiasPullDown:
 		attrs = append(attrs, "pull-down")
-	case gpiod.LineBiasDisabled:
+	case gpiocdev.LineBiasDisabled:
 		attrs = append(attrs, "bias-disabled")
 	}
 	if li.Config.DebouncePeriod != 0 {
@@ -113,6 +113,6 @@ func printLineInfo(li gpiod.LineInfo) {
 	if len(attrs) > 0 {
 		attrstr = "[" + strings.Join(attrs, ",") + "]"
 	}
-	fmt.Printf("\tline %3d:%12s%12s %s\n",
+	fmt.Printf("\tline %3d:%12s %16s %s\n",
 		li.Offset, li.Name, li.Consumer, attrstr)
 }

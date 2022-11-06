@@ -5,6 +5,8 @@ SPDX-License-Identifier: MIT
 -->
 ## [Unreleased](https://github.com/warthog618/gpiod/compare/v0.8.3...HEAD)
 
+- rename from **gpiod** to **gpiocdev**.
+
 ## v0.8.3 - 2024-03-16
 
 - deprecate in favour of **go-gpiocdev**

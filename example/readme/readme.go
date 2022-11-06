@@ -13,36 +13,36 @@ import (
 	"os"
 	"time"
 
-	"github.com/warthog618/gpiod"
-	"github.com/warthog618/gpiod/device/rpi"
-	"github.com/warthog618/gpiod/uapi"
+	"github.com/warthog618/go-gpiocdev"
+	"github.com/warthog618/go-gpiocdev/device/rpi"
+	"github.com/warthog618/go-gpiocdev/uapi"
 	"golang.org/x/sys/unix"
 )
 
 func main() {
 	// Chip Initialisation
-	c, _ := gpiod.NewChip("gpiochip0", gpiod.WithConsumer("myapp"))
+	c, _ := gpiocdev.NewChip("gpiochip0", gpiocdev.WithConsumer("myapp"))
 
 	// Quick Start
-	in, _ := gpiod.RequestLine("gpiochip0", 2, gpiod.AsInput)
+	in, _ := gpiocdev.RequestLine("gpiochip0", 2, gpiocdev.AsInput)
 	val, _ := in.Value()
-	out, _ := gpiod.RequestLine("gpiochip0", 3, gpiod.AsOutput(val))
+	out, _ := gpiocdev.RequestLine("gpiochip0", 3, gpiocdev.AsOutput(val))
 	in.Close()
 	out.Close()
 
 	// Line Requests
-	l, _ := gpiod.RequestLine("gpiochip0", 4)
+	l, _ := gpiocdev.RequestLine("gpiochip0", 4)
 	l.Close()
 	l, _ = c.RequestLine(4)
 	l.Close()
 	l, _ = c.RequestLine(rpi.J8p7) // Using Raspberry Pi J8 mapping.
 	l.Close()
-	l, _ = c.RequestLine(4, gpiod.AsOutput(1))
+	l, _ = c.RequestLine(4, gpiocdev.AsOutput(1))
 
-	ll, _ := gpiod.RequestLines("gpiochip0", []int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1))
+	ll, _ := gpiocdev.RequestLines("gpiochip0", []int{0, 1, 2, 3}, gpiocdev.AsOutput(0, 0, 1, 1))
 	ll.Close()
 
-	ll, _ = c.RequestLines([]int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1))
+	ll, _ = c.RequestLines([]int{0, 1, 2, 3}, gpiocdev.AsOutput(0, 0, 1, 1))
 
 	// Line Info
 	inf, _ := c.LineInfo(2)
@@ -59,12 +59,12 @@ func main() {
 	c.UnwatchLineInfo(4)
 
 	// Active Level
-	l, _ = c.RequestLine(4, gpiod.AsActiveLow) // during request
-	l.Reconfigure(gpiod.AsActiveHigh)          // once requested
+	l, _ = c.RequestLine(4, gpiocdev.AsActiveLow) // during request
+	l.Reconfigure(gpiocdev.AsActiveHigh)          // once requested
 
 	// Direction
-	l.Reconfigure(gpiod.AsInput)        // Set direction to Input
-	l.Reconfigure(gpiod.AsOutput(1, 0)) // Set direction to Output (and values to active and inactive)
+	l.Reconfigure(gpiocdev.AsInput)        // Set direction to Input
+	l.Reconfigure(gpiocdev.AsOutput(1, 0)) // Set direction to Output (and values to active and inactive)
 
 	// Input
 	r, _ := l.Value() // Read state from line (active/inactive)
@@ -80,24 +80,24 @@ func main() {
 	ll.SetValues([]int{0, 1, 0, 1}) // Set a group of lines
 
 	// Bias
-	l, _ = c.RequestLine(4, gpiod.WithPullUp) // during request
-	l.Reconfigure(gpiod.WithBiasDisabled)     // once requested
+	l, _ = c.RequestLine(4, gpiocdev.WithPullUp) // during request
+	l.Reconfigure(gpiocdev.WithBiasDisabled)     // once requested
 
 	// Debounce
 	period := 10 * time.Millisecond
-	l, _ = c.RequestLine(4, gpiod.WithDebounce(period)) // during request
-	l.Reconfigure(gpiod.WithDebounce(period))           // once requested
+	l, _ = c.RequestLine(4, gpiocdev.WithDebounce(period)) // during request
+	l.Reconfigure(gpiocdev.WithDebounce(period))           // once requested
 
 	// Edge Watches
-	l, _ = c.RequestLine(rpi.J8p7, gpiod.WithEventHandler(handler), gpiod.WithBothEdges)
-	l.Reconfigure(gpiod.WithoutEdges)
+	l, _ = c.RequestLine(rpi.J8p7, gpiocdev.WithEventHandler(handler), gpiocdev.WithBothEdges)
+	l.Reconfigure(gpiocdev.WithoutEdges)
 
 	// Options
-	ll, _ = c.RequestLines([]int{0, 1, 2, 3}, gpiod.AsOutput(0, 0, 1, 1),
-		gpiod.WithLines([]int{0, 3}, gpiod.AsActiveLow),
-		gpiod.AsOpenDrain)
-	ll.Reconfigure(gpiod.WithLines([]int{0}, gpiod.AsActiveHigh))
-	ll.Reconfigure(gpiod.WithLines([]int{3}, gpiod.Defaulted))
+	ll, _ = c.RequestLines([]int{0, 1, 2, 3}, gpiocdev.AsOutput(0, 0, 1, 1),
+		gpiocdev.WithLines([]int{0, 3}, gpiocdev.AsActiveLow),
+		gpiocdev.AsOpenDrain)
+	ll.Reconfigure(gpiocdev.WithLines([]int{0}, gpiocdev.AsActiveHigh))
+	ll.Reconfigure(gpiocdev.WithLines([]int{3}, gpiocdev.Defaulted))
 
 	// Line Requests (2)
 	l.Close()
@@ -107,11 +107,11 @@ func main() {
 	c.Close()
 }
 
-func handler(evt gpiod.LineEvent) {
+func handler(evt gpiocdev.LineEvent) {
 	// handle change in line state
 }
 
-func infoChangeHandler(evt gpiod.LineInfoChangeEvent) {
+func infoChangeHandler(evt gpiocdev.LineInfoChangeEvent) {
 	// handle change in line info
 }
 

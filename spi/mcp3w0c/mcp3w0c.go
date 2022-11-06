@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/warthog618/gpiod"
-	"github.com/warthog618/gpiod/spi"
+	"github.com/warthog618/go-gpiocdev"
+	"github.com/warthog618/go-gpiocdev/spi"
 )
 
 // MCP3w0c reads ADC values from a connected Microchip MCP3xxx family device.
@@ -29,7 +29,7 @@ type MCP3w0c struct {
 }
 
 // New creates a MCP3w0c.
-func New(c *gpiod.Chip, clk, csz, di, do int, width uint, options ...Option) (*MCP3w0c, error) {
+func New(c *gpiocdev.Chip, clk, csz, di, do int, width uint, options ...Option) (*MCP3w0c, error) {
 	s, err := spi.New(c, clk, csz, di, do, spi.WithTclk(500*time.Nanosecond))
 	if err != nil {
 		return nil, err
@@ -42,12 +42,12 @@ func New(c *gpiod.Chip, clk, csz, di, do int, width uint, options ...Option) (*M
 }
 
 // NewMCP3008 creates a MCP3008.
-func NewMCP3008(c *gpiod.Chip, clk, csz, di, do int, options ...Option) (*MCP3w0c, error) {
+func NewMCP3008(c *gpiocdev.Chip, clk, csz, di, do int, options ...Option) (*MCP3w0c, error) {
 	return New(c, clk, csz, di, do, 10, options...)
 }
 
 // NewMCP3208 creates a MCP3208.
-func NewMCP3208(c *gpiod.Chip, clk, csz, di, do int, options ...Option) (*MCP3w0c, error) {
+func NewMCP3208(c *gpiocdev.Chip, clk, csz, di, do int, options ...Option) (*MCP3w0c, error) {
 	return New(c, clk, csz, di, do, 12, options...)
 }
 
@@ -94,7 +94,7 @@ func (adc *MCP3w0c) read(ch int, sgl int) (uint16, error) {
 
 	// mux settling
 	if adc.s.Mosi == adc.s.Miso {
-		adc.s.Miso.Reconfigure(gpiod.AsInput)
+		adc.s.Miso.Reconfigure(gpiocdev.AsInput)
 	}
 	time.Sleep(adc.tset)
 	_, err = adc.s.ClockIn() // sample time - junk
@@ -129,7 +129,7 @@ func selectChip(s *spi.SPI) error {
 		return err
 	}
 	if s.Mosi == s.Miso {
-		err = s.Mosi.Reconfigure(gpiod.AsOutput(1))
+		err = s.Mosi.Reconfigure(gpiocdev.AsOutput(1))
 	} else {
 		err = s.Mosi.SetValue(1)
 	}

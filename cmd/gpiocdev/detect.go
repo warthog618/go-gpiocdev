@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/warthog618/gpiod"
+	"github.com/warthog618/go-gpiocdev"
 )
 
 func init() {
@@ -25,9 +25,9 @@ var detectCmd = &cobra.Command{
 
 func detect(cmd *cobra.Command, args []string) {
 	rc := 0
-	cc := gpiod.Chips()
+	cc := gpiocdev.Chips()
 	for _, path := range cc {
-		c, err := gpiod.NewChip(path)
+		c, err := gpiocdev.NewChip(path)
 		if err != nil {
 			logErr(cmd, err)
 			rc = 1

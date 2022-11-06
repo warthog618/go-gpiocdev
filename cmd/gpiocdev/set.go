@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/warthog618/gpiod"
+	"github.com/warthog618/go-gpiocdev"
 )
 
 func init() {
@@ -99,7 +99,7 @@ func set(cmd *cobra.Command, args []string) error {
 		ll = append(ll, o)
 		vv = append(vv, v)
 	}
-	c, err := gpiod.NewChip(name, gpiod.WithConsumer("gpiodctl-set"))
+	c, err := gpiocdev.NewChip(name, gpiocdev.WithConsumer("gpiocdevctl-set"))
 	if err != nil {
 		return err
 	}
@@ -147,19 +147,19 @@ func setWait() {
 	}
 }
 
-func makeSetOpts(vv []int) []gpiod.LineReqOption {
-	opts := []gpiod.LineReqOption{gpiod.AsOutput(vv...)}
+func makeSetOpts(vv []int) []gpiocdev.LineReqOption {
+	opts := []gpiocdev.LineReqOption{gpiocdev.AsOutput(vv...)}
 	if setOpts.ActiveLow {
-		opts = append(opts, gpiod.AsActiveLow)
+		opts = append(opts, gpiocdev.AsActiveLow)
 	}
 	bias := strings.ToLower(setOpts.Bias)
 	switch bias {
 	case "pull-up":
-		opts = append(opts, gpiod.WithPullUp)
+		opts = append(opts, gpiocdev.WithPullUp)
 	case "pull-down":
-		opts = append(opts, gpiod.WithPullDown)
+		opts = append(opts, gpiocdev.WithPullDown)
 	case "disable":
-		opts = append(opts, gpiod.WithBiasDisabled)
+		opts = append(opts, gpiocdev.WithBiasDisabled)
 	case "as-is":
 		fallthrough
 	default:
@@ -167,15 +167,15 @@ func makeSetOpts(vv []int) []gpiod.LineReqOption {
 	drive := strings.ToLower(setOpts.Drive)
 	switch drive {
 	case "open-drain":
-		opts = append(opts, gpiod.AsOpenDrain)
+		opts = append(opts, gpiocdev.AsOpenDrain)
 	case "open-source":
-		opts = append(opts, gpiod.AsOpenSource)
+		opts = append(opts, gpiocdev.AsOpenSource)
 	case "push-pull":
 		fallthrough
 	default:
 	}
 	if setOpts.AbiV != 0 {
-		opts = append(opts, gpiod.WithABIVersion(setOpts.AbiV))
+		opts = append(opts, gpiocdev.WithABIVersion(setOpts.AbiV))
 	}
 	return opts
 }

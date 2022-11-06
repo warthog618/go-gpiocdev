@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/warthog618/gpiod"
-	"github.com/warthog618/gpiod/spi"
+	"github.com/warthog618/go-gpiocdev"
+	"github.com/warthog618/go-gpiocdev/spi"
 )
 
 // ADC0832 reads ADC values from a connected ADC0832.
@@ -23,7 +23,7 @@ type ADC0832 struct {
 }
 
 // New creates a ADC0832.
-func New(c *gpiod.Chip, clk, csz, di, do int, options ...Option) (*ADC0832, error) {
+func New(c *gpiocdev.Chip, clk, csz, di, do int, options ...Option) (*ADC0832, error) {
 	s, err := spi.New(c, clk, csz, di, do, spi.WithTclk(2500*time.Nanosecond))
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func (adc *ADC0832) read(ch int, sgl int) (uint8, error) {
 
 	// mux settling
 	if adc.s.Mosi == adc.s.Miso {
-		adc.s.Miso.Reconfigure(gpiod.AsInput)
+		adc.s.Miso.Reconfigure(gpiocdev.AsInput)
 	}
 	time.Sleep(adc.tset)
 	_, err = adc.s.ClockIn() // sample time - junk
@@ -111,7 +111,7 @@ func selectChip(s *spi.SPI) error {
 		return err
 	}
 	if s.Mosi == s.Miso {
-		err = s.Mosi.Reconfigure(gpiod.AsOutput(1))
+		err = s.Mosi.Reconfigure(gpiocdev.AsOutput(1))
 	} else {
 		err = s.Mosi.SetValue(1)
 	}

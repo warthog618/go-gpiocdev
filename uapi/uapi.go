@@ -5,7 +5,7 @@
 //go:build linux
 // +build linux
 
-// Package uapi provides the Linux GPIO UAPI definitions for gpiod.
+// Package uapi provides the Linux GPIO UAPI definitions for gpiocdev.
 package uapi
 
 import (

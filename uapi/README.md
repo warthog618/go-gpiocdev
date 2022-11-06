@@ -6,16 +6,16 @@ SPDX-License-Identifier: MIT
 
 # uapi
 
-[![PkgGoDev](https://pkg.go.dev/badge/github.com/warthog618/gpiod/uapi)](https://pkg.go.dev/github.com/warthog618/gpiod/uapi)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/warthog618/gpiod/blob/master/LICENSE)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/warthog618/go-gpiocdev/uapi)](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/warthog618/go-gpiocdev/blob/master/LICENSE)
 
-GPIOD UAPI is a thin layer over the system ioctl calls that comprise the Linux GPIO UAPI.
+GPIOCDEV UAPI is a thin layer over the system ioctl calls that comprise the Linux GPIO UAPI.
 
-This library is used by **[gpiod](https://github.com/warthog618/gpiod)** to interact with the Linux kernel.
+This library is used by **[gpiocdev](https://github.com/warthog618/go-gpiocdev)** to interact with the Linux kernel.
 
 The library is exposed to allow for testing of the UAPI with the minimal amount of Go in the way.
 
-**gpiod** provides a higher level of abstraction, so for general use you probably want to be using that.
+**gpiocdev** provides a higher level of abstraction, so for general use you probably want to be using that.
 
 ## API
 
@@ -27,14 +27,14 @@ The GPIO UAPI v2 comprises eight ioctls (two of which are unchanged from v1):
 
 IOCTL | Scope | Description
 ---|--- | ---
-[GetChipInfo](https://pkg.go.dev/github.com/warthog618/gpiod/uapi#GetChipInfo) | chip | Return information about the chip itself.
-[GetLineInfoV2](https://pkg.go.dev/github.com/warthog618/gpiod/uapi#GetLineInfoV2) | chip | Return information about a particular line on the chip.
-[GetLine](https://pkg.go.dev/github.com/warthog618/gpiod/uapi#GetLine) | chip | Request a set of lines, and returns a file handle for ioctl commands.  The set may be any subset of the lines supported by the chip, including a single line.  This may be used for both input and output lines.  The lines remain reserved by the caller until the returned fd is closed.
-[GetLineValuesV2](https://pkg.go.dev/github.com/warthog618/gpiod/uapi#GetLineValuesV2) | line | Return the current value of a set of lines in an existing line request.
-[SetLineValuesV2](https://pkg.go.dev/github.com/warthog618/gpiod/uapi#SetLineValuesV2) | line | Set the current value of a set of lines in an existing line request.
-[SetLineConfigV2](https://pkg.go.dev/github.com/warthog618/gpiod/uapi#SetLineConfigV2) | line | Update the configuration of the lines in an existing line request.
-[WatchLineInfoV2](https://pkg.go.dev/github.com/warthog618/gpiod/uapi#WatchLineInfoV2) | chip | Add a watch for changes to the info of a particular line on the chip.
-[UnwatchLineInfo](https://pkg.go.dev/github.com/warthog618/gpiod/uapi#UnwatchLineInfo) | chip | Remove a watch for changes to the info of a particular line on the chip.
+[GetChipInfo](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#GetChipInfo) | chip | Return information about the chip itself.
+[GetLineInfoV2](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#GetLineInfoV2) | chip | Return information about a particular line on the chip.
+[GetLine](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#GetLine) | chip | Request a set of lines, and returns a file handle for ioctl commands.  The set may be any subset of the lines supported by the chip, including a single line.  This may be used for both input and output lines.  The lines remain reserved by the caller until the returned fd is closed.
+[GetLineValuesV2](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#GetLineValuesV2) | line | Return the current value of a set of lines in an existing line request.
+[SetLineValuesV2](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#SetLineValuesV2) | line | Set the current value of a set of lines in an existing line request.
+[SetLineConfigV2](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#SetLineConfigV2) | line | Update the configuration of the lines in an existing line request.
+[WatchLineInfoV2](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#WatchLineInfoV2) | chip | Add a watch for changes to the info of a particular line on the chip.
+[UnwatchLineInfo](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#UnwatchLineInfo) | chip | Remove a watch for changes to the info of a particular line on the chip.
 
 ### V1
 
@@ -42,15 +42,15 @@ The GPIO UAPI v1 comprises nine ioctls:
 
 IOCTL | Scope | Description
 ---|--- | ---
-[GetChipInfo](https://pkg.go.dev/github.com/warthog618/gpiod/uapi#GetChipInfo) | chip | Return information about the chip itself.
-[GetLineInfo](https://pkg.go.dev/github.com/warthog618/gpiod/uapi#GetLineInfo) | chip | Return information about a particular line on the chip.
-[GetLineHandle](https://pkg.go.dev/github.com/warthog618/gpiod/uapi#GetLineHandle) | chip | Request a set of lines, and returns a file handle for ioctl commands.  The set may be any subset of the lines supported by the chip, including a single line.  This may be used for both input and output lines.  The lines remain reserved by the caller until the returned fd is closed.
-[GetLineEvent](https://pkg.go.dev/github.com/warthog618/gpiod/uapi#GetLineEvent) | chip | Request an individual input line with edge detection enabled, and returns a file handle for ioctl commands and to return edge events.  Events can only be requested on input lines.  The line remains reserved by the caller until the returned fd is closed.
-[GetLineValues](https://pkg.go.dev/github.com/warthog618/gpiod/uapi#GetLineValues) | line | Return the current value of a set of lines in an existing handle or event request.
-[SetLineValues](https://pkg.go.dev/github.com/warthog618/gpiod/uapi#SetLineValues) | line | Set the current value of a set of lines in an existing handle request.
-[SetLineConfig](https://pkg.go.dev/github.com/warthog618/gpiod/uapi#SetLineConfig) | line | Update the configuration of the lines in an existing handle request.
-[WatchLineInfo](https://pkg.go.dev/github.com/warthog618/gpiod/uapi#WatchLineInfo) | chip | Add a watch for changes to the info of a particular line on the chip.
-[UnwatchLineInfo](https://pkg.go.dev/github.com/warthog618/gpiod/uapi#UnwatchLineInfo) | chip | Remove a watch for changes to the info of a particular line on the chip.
+[GetChipInfo](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#GetChipInfo) | chip | Return information about the chip itself.
+[GetLineInfo](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#GetLineInfo) | chip | Return information about a particular line on the chip.
+[GetLineHandle](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#GetLineHandle) | chip | Request a set of lines, and returns a file handle for ioctl commands.  The set may be any subset of the lines supported by the chip, including a single line.  This may be used for both input and output lines.  The lines remain reserved by the caller until the returned fd is closed.
+[GetLineEvent](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#GetLineEvent) | chip | Request an individual input line with edge detection enabled, and returns a file handle for ioctl commands and to return edge events.  Events can only be requested on input lines.  The line remains reserved by the caller until the returned fd is closed.
+[GetLineValues](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#GetLineValues) | line | Return the current value of a set of lines in an existing handle or event request.
+[SetLineValues](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#SetLineValues) | line | Set the current value of a set of lines in an existing handle request.
+[SetLineConfig](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#SetLineConfig) | line | Update the configuration of the lines in an existing handle request.
+[WatchLineInfo](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#WatchLineInfo) | chip | Add a watch for changes to the info of a particular line on the chip.
+[UnwatchLineInfo](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#UnwatchLineInfo) | chip | Remove a watch for changes to the info of a particular line on the chip.
 
 ## Usage
 
@@ -112,7 +112,7 @@ The following is a brief example of the usage of the major functions using v2 of
 
 Error handling and other tedious bits, such as initialising the arrays in the requests, omitted for brevity.
 
-Refer to **[gpiod](https://github.com/warthog618/gpiod)** for a concrete example of uapi usage.
+Refer to **[gpiocdev](https://github.com/warthog618/go-gpiocdev)** for a concrete example of uapi usage.
 
 This is essentially the same example using v1 of the UAPI:
 
