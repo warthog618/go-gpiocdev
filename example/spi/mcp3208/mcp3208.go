@@ -85,6 +85,6 @@ func loadConfig() *config.Config {
 		config.WithDefault(def))
 	cfg.Append(
 		blob.NewConfigFile(cfg, "config.file", "mcp3208.json", json.NewDecoder()))
-	cfg = cfg.GetConfig("", config.WithMust())
+	cfg = cfg.GetConfig("", config.WithMust)
 	return cfg
 }

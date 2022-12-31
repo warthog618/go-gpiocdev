@@ -86,6 +86,6 @@ func loadConfig() *config.Config {
 		config.WithDefault(def))
 	cfg.Append(
 		blob.NewConfigFile(cfg, "config.file", "adc0832.json", json.NewDecoder()))
-	cfg = cfg.GetConfig("", config.WithMust())
+	cfg = cfg.GetConfig("", config.WithMust)
 	return cfg
 }
