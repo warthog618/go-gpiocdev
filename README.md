@@ -21,8 +21,24 @@ The goal of this library is to provide the Go equivalent of the C
 library. The intent is not to mirror the **libgpiod** API but to provide the
 equivalent functionality.
 
-:warning: v0.6.0 introduces a few API breaking changes.  Refer to
-the [release notes](#release-notes) if updating from an older version.
+## Roadmap
+
+On the road to v1.0 the intent is to rename this library to **gpiocdev** to more clearly distinguish it from **libgpiod**, and to highlight that it operates on the GPIO character device. Additionally, the tools and testing will be more closely aligned to **libgpiod v2**, rather than **libgpiod v1**.
+
+The plan is to work on the renaming in a **gpiocdev** branch and, once that is complete, to release a final 0.8.x version which deprecates the **gpiod** name, and to merge the **gpiocdev** branch into master and release v0.9.0 which will be the first release as **gpiocdev**. Coincident with this, the github repo will be renamed from **gpiod** to **go-gpiocdev**.
+
+So, in summary, the planned changes are:
+
+v0.8.x
+
+- Deprecate github.com/warthog618/gpiod in favour of github.com/warthog618/go-gpiocdev
+
+v0.9.0
+
+- First release as **gpiocdev** (released simultaneously with the final 0.8.x)
+- Switch tests from **gpio-mockup** to **gpio-sim**
+- Rename *gpiodctl* to *gpiocdev* and upgrade tools to match **libgpiod v2** tools
+- Remove the **libgpiod v1** equivalent tools (the gpiocdev tool will provide equivalents of the **libgpiod v2** tools).
 
 ## Features
 
