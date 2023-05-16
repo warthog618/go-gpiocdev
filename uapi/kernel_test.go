@@ -16,17 +16,17 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/warthog618/gpiod/mockup"
+	"github.com/warthog618/go-gpiosim"
 	"github.com/warthog618/gpiod/uapi"
 	"golang.org/x/sys/unix"
 )
 
 func TestRepeatedGetLineHandle(t *testing.T) {
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
-	require.NotNil(t, c)
-	f, err := os.Open(c.DevPath)
+	require.NotNil(t, s)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
 
@@ -56,11 +56,11 @@ func TestRepeatedGetLineHandle(t *testing.T) {
 }
 
 func TestRepeatedGetLineEvent(t *testing.T) {
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
-	require.NotNil(t, c)
-	f, err := os.Open(c.DevPath)
+	require.NotNil(t, s)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
 
@@ -84,11 +84,11 @@ func TestRepeatedGetLineEvent(t *testing.T) {
 
 func TestRepeatedGetLine(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
-	require.NotNil(t, c)
-	f, err := os.Open(c.DevPath)
+	require.NotNil(t, s)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
 
@@ -118,21 +118,23 @@ func TestRepeatedGetLine(t *testing.T) {
 }
 
 func TestAsIs(t *testing.T) {
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
+	require.NotNil(t, s)
+	defer s.Close()
 	patterns := []uapi.HandleFlag{
 		uapi.HandleRequestInput,
 		uapi.HandleRequestOutput,
 	}
+	offset := uint32(2)
 	for _, flags := range patterns {
 		label := ""
 		hr := uapi.HandleRequest{
-			Offsets: [uapi.HandlesMax]uint32{2},
-			Lines:   uint32(1),
+			Lines: uint32(1),
 		}
+		hr.Offsets[0] = offset
 		info := uapi.LineInfo{
-			Offset: 2,
+			Offset: offset,
 		}
 		if flags.IsInput() {
 			label += "input"
@@ -144,7 +146,7 @@ func TestAsIs(t *testing.T) {
 			info.Flags |= uapi.LineFlagIsOut
 		}
 		tf := func(t *testing.T) {
-			testLineAsIs(t, c, hr, info)
+			testLineAsIs(t, s, hr, info)
 		}
 		t.Run(label, tf)
 	}
@@ -152,25 +154,24 @@ func TestAsIs(t *testing.T) {
 
 func TestWatchIsolation(t *testing.T) {
 	requireKernel(t, infoWatchKernel)
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
-
-	f1, err := os.Open(c.DevPath)
+	require.NotNil(t, s)
+	defer s.Close()
+	f1, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f1.Close()
 
-	f2, err := os.Open(c.DevPath)
+	f2, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f2.Close()
 
+	offset := uint32(3)
 	// set watch
-	li := uapi.LineInfo{Offset: 3}
-	lname := c.Label + "-3"
+	li := uapi.LineInfo{Offset: offset}
 	err = uapi.WatchLineInfo(f1.Fd(), &li)
 	require.Nil(t, err)
-	xli := uapi.LineInfo{Offset: 3}
-	copy(xli.Name[:], lname)
+	xli := uapi.LineInfo{Offset: offset}
 	assert.Equal(t, xli, li)
 
 	chg, err := readLineInfoChangedTimeout(f1.Fd(), spuriousEventWaitTimeout)
@@ -183,7 +184,7 @@ func TestWatchIsolation(t *testing.T) {
 
 	// request line
 	hr := uapi.HandleRequest{Lines: 1, Flags: uapi.HandleRequestInput}
-	hr.Offsets[0] = 3
+	hr.Offsets[0] = offset
 	copy(hr.Consumer[:], "test-watch-isolation")
 	err = uapi.GetLineHandle(f2.Fd(), &hr)
 	assert.Nil(t, err)
@@ -210,8 +211,7 @@ func TestWatchIsolation(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedReleased, chg.Type)
-	xli = uapi.LineInfo{Offset: 3}
-	copy(xli.Name[:], lname)
+	xli = uapi.LineInfo{Offset: offset}
 	assert.Equal(t, xli, chg.Info)
 
 	chg, err = readLineInfoChangedTimeout(f1.Fd(), spuriousEventWaitTimeout)
@@ -220,16 +220,18 @@ func TestWatchIsolation(t *testing.T) {
 }
 
 func TestBulkEventRead(t *testing.T) {
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
-	f, err := os.Open(c.DevPath)
+	require.NotNil(t, s)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
-	err = c.SetValue(1, 0)
+	offset := 1
+	err = s.SetPull(offset, 0)
 	require.Nil(t, err)
 	er := uapi.EventRequest{
-		Offset: 1,
+		Offset: uint32(offset),
 		HandleFlags: uapi.HandleRequestInput |
 			uapi.HandleRequestActiveLow,
 		EventFlags: uapi.EventRequestBothEdges,
@@ -242,13 +244,13 @@ func TestBulkEventRead(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
-	c.SetValue(1, 1)
+	s.SetPull(offset, 1)
 	time.Sleep(clkTick)
-	c.SetValue(1, 0)
+	s.SetPull(offset, 0)
 	time.Sleep(clkTick)
-	c.SetValue(1, 1)
+	s.SetPull(offset, 1)
 	time.Sleep(clkTick)
-	c.SetValue(1, 0)
+	s.SetPull(offset, 0)
 	time.Sleep(clkTick)
 
 	var ed uapi.EventData
@@ -262,21 +264,23 @@ func TestBulkEventRead(t *testing.T) {
 
 func TestBulkEventReadV2(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
-	f, err := os.Open(c.DevPath)
+	require.NotNil(t, s)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
-	err = c.SetValue(1, 0)
+	offset := 1
+	err = s.SetPull(offset, 0)
 	require.Nil(t, err)
 	lr := uapi.LineRequest{
-		Lines:   1,
-		Offsets: [uapi.LinesMax]uint32{1},
+		Lines: 1,
 		Config: uapi.LineConfig{
 			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
 		},
 	}
+	lr.Offsets[0] = uint32(offset)
 	copy(lr.Consumer[:31], "test-bulk-event-read-V2")
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
@@ -285,13 +289,13 @@ func TestBulkEventReadV2(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
-	c.SetValue(1, 1)
+	s.SetPull(offset, 1)
 	time.Sleep(clkTick)
-	c.SetValue(1, 0)
+	s.SetPull(offset, 0)
 	time.Sleep(clkTick)
-	c.SetValue(1, 1)
+	s.SetPull(offset, 1)
 	time.Sleep(clkTick)
-	c.SetValue(1, 0)
+	s.SetPull(offset, 0)
 	time.Sleep(clkTick)
 
 	var ed uapi.LineEvent
@@ -305,24 +309,25 @@ func TestBulkEventReadV2(t *testing.T) {
 
 func TestWatchInfoVersionLockV1(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(t, err)
+	defer s.Close()
 
-	f, err := os.Open(c.DevPath)
+	f, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
 
+	offset := uint32(3)
 	// test that watch locks to v1
-	liv1 := uapi.LineInfo{Offset: 3}
+	liv1 := uapi.LineInfo{Offset: offset}
 	err = uapi.WatchLineInfo(f.Fd(), &liv1)
 	require.Nil(t, err)
 
-	li := uapi.LineInfoV2{Offset: 3}
+	li := uapi.LineInfoV2{Offset: offset}
 	err = uapi.WatchLineInfoV2(f.Fd(), &li)
 	assert.Equal(t, unix.EPERM, err)
 
-	err = uapi.UnwatchLineInfo(f.Fd(), 3)
+	err = uapi.UnwatchLineInfo(f.Fd(), offset)
 	require.Nil(t, err)
 
 	err = uapi.WatchLineInfo(f.Fd(), &liv1)
@@ -331,24 +336,26 @@ func TestWatchInfoVersionLockV1(t *testing.T) {
 
 func TestWatchInfoVersionLockV2(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
+	require.NotNil(t, s)
+	defer s.Close()
 
-	f, err := os.Open(c.DevPath)
+	f, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
 
+	offset := uint32(3)
 	// test that watch locks to v2
-	li := uapi.LineInfoV2{Offset: 3}
+	li := uapi.LineInfoV2{Offset: offset}
 	err = uapi.WatchLineInfoV2(f.Fd(), &li)
 	require.Nil(t, err)
 
-	liv1 := uapi.LineInfo{Offset: 3}
+	liv1 := uapi.LineInfo{Offset: offset}
 	err = uapi.WatchLineInfo(f.Fd(), &liv1)
 	assert.Equal(t, unix.EPERM, err)
 
-	err = uapi.UnwatchLineInfo(f.Fd(), 3)
+	err = uapi.UnwatchLineInfo(f.Fd(), offset)
 	require.Nil(t, err)
 
 	err = uapi.WatchLineInfoV2(f.Fd(), &li)
@@ -357,11 +364,10 @@ func TestWatchInfoVersionLockV2(t *testing.T) {
 
 func TestSetConfigEdgeDetection(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
-
-	require.NotNil(t, c)
+	require.NotNil(t, s)
+	defer s.Close()
 
 	patterns := []struct {
 		name  string
@@ -374,54 +380,55 @@ func TestSetConfigEdgeDetection(t *testing.T) {
 		{"both", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth},
 	}
 
-	f, err := os.Open(c.DevPath)
+	f, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
-	err = c.SetValue(1, 0)
+	offset := uint32(1)
+	err = s.SetPull(int(offset), 0)
 	require.Nil(t, err)
 	for _, p1 := range patterns {
 		for _, p2 := range patterns {
 			tf := func(t *testing.T) {
 				lr := uapi.LineRequest{
-					Lines:   1,
-					Offsets: [uapi.LinesMax]uint32{1},
+					Lines: 1,
 					Config: uapi.LineConfig{
 						Flags: p1.flags,
 					},
 				}
+				lr.Offsets[0] = offset
 				copy(lr.Consumer[:31], "test-set-config-edge-detection")
 				err = uapi.GetLine(f.Fd(), &lr)
 				require.Nil(t, err)
 				defer unix.Close(int(lr.Fd))
 
 				xevt := uapi.LineEvent{
-					Offset:    1,
+					Offset:    offset,
 					LineSeqno: 1,
 					Seqno:     1,
 				}
-				testEdgeDetectionEvents(t, c, lr.Fd, &xevt, p1.flags)
+				testEdgeDetectionEvents(t, s, lr.Fd, &xevt, p1.flags)
 
 				config := uapi.LineConfig{
 					Flags: p2.flags,
 				}
 				err = uapi.SetLineConfigV2(uintptr(lr.Fd), &config)
 				require.Nil(t, err)
-				testEdgeDetectionEvents(t, c, lr.Fd, &xevt, p2.flags)
+				testEdgeDetectionEvents(t, s, lr.Fd, &xevt, p2.flags)
 
 				config.Flags = p1.flags
 				err = uapi.SetLineConfigV2(uintptr(lr.Fd), &config)
 				require.Nil(t, err)
-				testEdgeDetectionEvents(t, c, lr.Fd, &xevt, p1.flags)
+				testEdgeDetectionEvents(t, s, lr.Fd, &xevt, p1.flags)
 			}
 			t.Run(fmt.Sprintf("%s-to-%s", p1.name, p2.name), tf)
 		}
 	}
 }
 
-func testEdgeDetectionEvents(t *testing.T, c *mockup.Chip, fd int32, xevt *uapi.LineEvent, flags uapi.LineFlagV2) {
-	line := int(xevt.Offset)
+func testEdgeDetectionEvents(t *testing.T, s *gpiosim.Simpleton, fd int32, xevt *uapi.LineEvent, flags uapi.LineFlagV2) {
+	offset := int(xevt.Offset)
 	for i := 0; i < 2; i++ {
-		c.SetValue(line, 1)
+		s.SetPull(offset, 1)
 		if flags&uapi.LineFlagV2EdgeRising == 0 {
 			evt, err := readLineEventTimeout(fd, spuriousEventWaitTimeout)
 			assert.Nil(t, err)
@@ -437,7 +444,7 @@ func testEdgeDetectionEvents(t *testing.T, c *mockup.Chip, fd int32, xevt *uapi.
 			xevt.Seqno++
 		}
 
-		c.SetValue(line, 0)
+		s.SetPull(offset, 0)
 		if flags&uapi.LineFlagV2EdgeFalling == 0 {
 			evt, err := readLineEventTimeout(fd, spuriousEventWaitTimeout)
 			assert.Nil(t, err)
@@ -456,19 +463,18 @@ func testEdgeDetectionEvents(t *testing.T, c *mockup.Chip, fd int32, xevt *uapi.
 }
 
 func TestEventBufferOverflow(t *testing.T) {
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
-
-	require.NotNil(t, c)
-
-	f, err := os.Open(c.DevPath)
+	require.NotNil(t, s)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
-	err = c.SetValue(1, 1)
+	offset := 1
+	err = s.SetPull(offset, 1)
 	require.Nil(t, err)
 	er := uapi.EventRequest{
-		Offset: 1,
+		Offset: uint32(offset),
 		HandleFlags: uapi.HandleRequestInput |
 			uapi.HandleRequestActiveLow,
 		EventFlags: uapi.EventRequestBothEdges,
@@ -479,7 +485,7 @@ func TestEventBufferOverflow(t *testing.T) {
 	defer unix.Close(int(er.Fd))
 
 	for i := 0; i < 19; i++ {
-		err = c.SetValue(1, i&1)
+		err = s.SetPull(offset, i&1)
 		require.Nil(t, err)
 		time.Sleep(clkTick)
 	}
@@ -513,37 +519,36 @@ func TestEventBufferOverflow(t *testing.T) {
 
 func TestEventBufferOverflowV2(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
-
-	require.NotNil(t, c)
-
-	f, err := os.Open(c.DevPath)
+	require.NotNil(t, s)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
-	err = c.SetValue(1, 1)
+	offset := 1
+	err = s.SetPull(offset, 1)
 	require.Nil(t, err)
 	lr := uapi.LineRequest{
-		Lines:   1,
-		Offsets: [uapi.LinesMax]uint32{1},
+		Lines: 1,
 		Config: uapi.LineConfig{
 			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
 		},
 	}
+	lr.Offsets[0] = uint32(offset)
 	copy(lr.Consumer[:31], "test-event-buffer-overflow-V2")
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 	defer unix.Close(int(lr.Fd))
 
 	for i := 0; i < 20; i++ {
-		err = c.SetValue(1, i&1)
+		err = s.SetPull(1, i&1)
 		require.Nil(t, err)
 		time.Sleep(clkTick)
 	}
 	// first 4 events should be discarded by the kernel
 	xevt := uapi.LineEvent{
-		Offset:    1,
+		Offset:    uint32(offset),
 		LineSeqno: 5,
 		Seqno:     5,
 	}
@@ -568,23 +573,23 @@ func TestEventBufferOverflowV2(t *testing.T) {
 
 func TestSetConfigDebouncedEdges(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
-
-	require.NotNil(t, c)
-	f, err := os.Open(c.DevPath)
+	require.NotNil(t, s)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
-	err = c.SetValue(1, 0)
+	offset := 1
+	err = s.SetPull(offset, 0)
 	require.Nil(t, err)
 	lr := uapi.LineRequest{
-		Lines:   1,
-		Offsets: [uapi.LinesMax]uint32{1},
+		Lines: 1,
 		Config: uapi.LineConfig{
 			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
 		},
 	}
+	lr.Offsets[0] = uint32(offset)
 	copy(lr.Consumer[:31], "test-set-config-debounced-edges")
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
@@ -594,7 +599,7 @@ func TestSetConfigDebouncedEdges(t *testing.T) {
 	xevt := uapi.LineEvent{
 		Seqno:     1,
 		LineSeqno: 1,
-		Offset:    1,
+		Offset:    uint32(offset),
 	}
 
 	evt, err := readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
@@ -615,7 +620,7 @@ func TestSetConfigDebouncedEdges(t *testing.T) {
 
 		for i := 0; i < 2; i++ {
 			xevt.ID = uapi.LineEventRisingEdge
-			c.SetValue(1, 1)
+			s.SetPull(offset, 1)
 			evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 			require.Nil(t, err, i)
 			require.NotNil(t, evt, i)
@@ -625,7 +630,7 @@ func TestSetConfigDebouncedEdges(t *testing.T) {
 			xevt.LineSeqno++
 			xevt.Seqno++
 			xevt.ID = uapi.LineEventFallingEdge
-			c.SetValue(1, 0)
+			s.SetPull(offset, 0)
 			evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 			require.Nil(t, err, i)
 			require.NotNil(t, evt, i)
@@ -640,24 +645,24 @@ func TestSetConfigDebouncedEdges(t *testing.T) {
 
 func TestGetLineDebouncedEdges(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
-
-	require.NotNil(t, c)
-	f, err := os.Open(c.DevPath)
+	require.NotNil(t, s)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
-	err = c.SetValue(1, 0)
+	offset := 1
+	err = s.SetPull(offset, 0)
 	require.Nil(t, err)
 	lr := uapi.LineRequest{
-		Lines:   1,
-		Offsets: [uapi.LinesMax]uint32{1},
+		Lines: 1,
 		Config: uapi.LineConfig{
 			Flags:    uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
 			NumAttrs: 1,
 		},
 	}
+	lr.Offsets[0] = uint32(offset)
 	copy(lr.Consumer[:31], "test-get-line-debounced-edges")
 	lr.Config.Attrs[0].Mask = 1
 	lr.Config.Attrs[0].Attr = uapi.DebouncePeriod(20).Encode()
@@ -668,7 +673,7 @@ func TestGetLineDebouncedEdges(t *testing.T) {
 	xevt := uapi.LineEvent{
 		Seqno:     1,
 		LineSeqno: 1,
-		Offset:    1,
+		Offset:    uint32(offset),
 	}
 
 	evt, err := readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
@@ -677,7 +682,7 @@ func TestGetLineDebouncedEdges(t *testing.T) {
 
 	for i := 0; i < 2; i++ {
 		xevt.ID = uapi.LineEventRisingEdge
-		c.SetValue(1, 1)
+		s.SetPull(offset, 1)
 		evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 		require.Nil(t, err, i)
 		require.NotNil(t, evt, i)
@@ -687,7 +692,7 @@ func TestGetLineDebouncedEdges(t *testing.T) {
 		xevt.LineSeqno++
 		xevt.Seqno++
 		xevt.ID = uapi.LineEventFallingEdge
-		c.SetValue(1, 0)
+		s.SetPull(offset, 0)
 		evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 		require.Nil(t, err, i)
 		require.NotNil(t, evt, i)
@@ -701,23 +706,23 @@ func TestGetLineDebouncedEdges(t *testing.T) {
 
 func TestSetConfigEdgeDetectionPolarity(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
-
-	require.NotNil(t, c)
-	f, err := os.Open(c.DevPath)
+	require.NotNil(t, s)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
-	err = c.SetValue(1, 0)
+	offset := 1
+	err = s.SetPull(offset, 0)
 	require.Nil(t, err)
 	lr := uapi.LineRequest{
-		Lines:   1,
-		Offsets: [uapi.LinesMax]uint32{1},
+		Lines: 1,
 		Config: uapi.LineConfig{
 			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising,
 		},
 	}
+	lr.Offsets[0] = uint32(offset)
 	copy(lr.Consumer[:31], "test-set-config-edge-detection-polarity")
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
@@ -727,7 +732,7 @@ func TestSetConfigEdgeDetectionPolarity(t *testing.T) {
 	xevt := uapi.LineEvent{
 		Seqno:     1,
 		LineSeqno: 1,
-		Offset:    1,
+		Offset:    uint32(offset),
 		ID:        uapi.LineEventRisingEdge,
 	}
 
@@ -744,7 +749,7 @@ func TestSetConfigEdgeDetectionPolarity(t *testing.T) {
 
 		if flag == 0 {
 			for i := 0; i < 2; i++ {
-				c.SetValue(1, 1)
+				s.SetPull(offset, 1)
 				evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 				require.Nil(t, err, i)
 				require.NotNil(t, evt, i)
@@ -753,19 +758,19 @@ func TestSetConfigEdgeDetectionPolarity(t *testing.T) {
 
 				xevt.LineSeqno++
 				xevt.Seqno++
-				c.SetValue(1, 0)
+				s.SetPull(offset, 0)
 				evt, err := readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
 				assert.Nil(t, err, i)
 				assert.Nil(t, evt, "spurious event", i)
 			}
 		} else {
 			for i := 0; i < 2; i++ {
-				c.SetValue(1, 1)
+				s.SetPull(offset, 1)
 				evt, err := readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
 				assert.Nil(t, err, i)
 				assert.Nil(t, evt, "spurious event", i)
 
-				c.SetValue(1, 0)
+				s.SetPull(offset, 0)
 				evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 				require.Nil(t, err, i)
 				require.NotNil(t, evt, i)
@@ -780,7 +785,6 @@ func TestSetConfigEdgeDetectionPolarity(t *testing.T) {
 
 func TestOutputSetGets(t *testing.T) {
 	t.Skip("contains known failures up to v5.15")
-	requireMockup(t)
 	patterns := []struct {
 		name string
 		flag uapi.HandleFlag
@@ -789,9 +793,11 @@ func TestOutputSetGets(t *testing.T) {
 		{"od", uapi.HandleRequestOutput | uapi.HandleRequestOpenDrain},
 		{"os", uapi.HandleRequestOutput | uapi.HandleRequestOpenSource},
 	}
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
-	line := 0
+	require.NotNil(t, s)
+	defer s.Close()
+	offset := 0
 	for _, p := range patterns {
 		for initial := 0; initial <= 1; initial++ {
 			for toggle := 0; toggle <= 1; toggle++ {
@@ -808,7 +814,7 @@ func TestOutputSetGets(t *testing.T) {
 					}
 					label := fmt.Sprintf("%s-%d-%d-%d", name, initial^1, initial, final)
 					tf := func(t *testing.T) {
-						testLine(t, c, line, flags, initial, toggle)
+						testLine(t, s, offset, flags, initial, toggle)
 					}
 					t.Run(label, tf)
 				}
@@ -819,21 +825,18 @@ func TestOutputSetGets(t *testing.T) {
 
 func TestEdgeDetectionLinesMax(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
-	if mock != nil {
-		mock.Close()
-	}
-	defer reloadMockup()
-	mock, err := mockup.New([]int{int(uapi.LinesMax)}, false)
+	s, err := gpiosim.NewSimpleton(uapi.LinesMax + 6)
 	require.Nil(t, err)
-	c, err := mock.Chip(0)
-	require.Nil(t, err)
-	f, err := os.Open(c.DevPath)
+	require.NotNil(t, s)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
+
 	require.Nil(t, err)
 	defer f.Close()
 	offsets := [uapi.LinesMax]uint32{}
 	for i := 0; i < uapi.LinesMax; i++ {
 		offsets[i] = uint32(i)
-		err = c.SetValue(i, 0)
+		err = s.SetPull(i, 0)
 		require.Nil(t, err)
 	}
 	lr := uapi.LineRequest{
@@ -855,7 +858,7 @@ func TestEdgeDetectionLinesMax(t *testing.T) {
 		Mask: uapi.NewLineBitMask(uapi.LinesMax),
 	}
 	for i := 0; i < uapi.LinesMax; i++ {
-		c.SetValue(i, 1)
+		s.SetPull(i, 1)
 		evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 		require.Nil(t, err)
 		require.NotNil(t, evt)
@@ -868,7 +871,7 @@ func TestEdgeDetectionLinesMax(t *testing.T) {
 	}
 
 	for i := 0; i < uapi.LinesMax; i++ {
-		c.SetValue(i, 0)
+		s.SetPull(i, 0)
 		evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
 		assert.Nil(t, err)
 		require.NotNil(t, evt)
@@ -887,11 +890,11 @@ func TestEdgeDetectionLinesMax(t *testing.T) {
 	unix.Close(int(lr.Fd))
 }
 
-func testLine(t *testing.T, c *mockup.Chip, line int, flags uapi.HandleFlag, initial, toggle int) {
+func testLine(t *testing.T, s *gpiosim.Simpleton, line int, flags uapi.HandleFlag, initial, toggle int) {
 	t.Helper()
 	// set mock initial - opposing default
-	c.SetValue(line, initial^0x01)
-	f, err := os.Open(c.DevPath)
+	s.SetPull(line, initial^0x01)
+	f, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
 	// request line output
@@ -928,32 +931,30 @@ func testLine(t *testing.T, c *mockup.Chip, line int, flags uapi.HandleFlag, ini
 	unix.Close(int(hr.Fd))
 }
 
-func testLineAsIs(t *testing.T, c *mockup.Chip, hr uapi.HandleRequest, info uapi.LineInfo) {
-	f, err := os.Open(c.DevPath)
+func testLineAsIs(t *testing.T, s *gpiosim.Simpleton, hr uapi.HandleRequest, info uapi.LineInfo) {
+	f, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
 
-	line := int(hr.Offsets[0])
+	offset := int(hr.Offsets[0])
 	copy(hr.Consumer[:31], "test-as-is")
 
 	// initial request to set expected state
 	err = uapi.GetLineHandle(f.Fd(), &hr)
 	require.Nil(t, err)
-	li, err := uapi.GetLineInfo(f.Fd(), line)
+	li, err := uapi.GetLineInfo(f.Fd(), offset)
 	assert.Nil(t, err)
 	var xli uapi.LineInfo = info
 	xli.Flags |= uapi.LineFlagUsed
 	copy(xli.Consumer[:31], "test-as-is")
-	li.Name = xli.Name // don't care about name
 	assert.Equal(t, xli, li)
 	unix.Close(int(hr.Fd))
 
 	// check released
-	li, err = uapi.GetLineInfo(f.Fd(), line)
+	li, err = uapi.GetLineInfo(f.Fd(), offset)
 	assert.Nil(t, err)
 	xli = info
 	xli.Flags &^= (uapi.LineFlagActiveLow)
-	li.Name = xli.Name // don't care about name
 	assert.Equal(t, xli, li)
 
 	// request as-is and check state and value
@@ -961,12 +962,11 @@ func testLineAsIs(t *testing.T, c *mockup.Chip, hr uapi.HandleRequest, info uapi
 	hr.Flags &^= (uapi.HandleRequestInput | uapi.HandleRequestOutput)
 	err = uapi.GetLineHandle(f.Fd(), &hr)
 	require.Nil(t, err)
-	li, err = uapi.GetLineInfo(f.Fd(), line)
+	li, err = uapi.GetLineInfo(f.Fd(), offset)
 	assert.Nil(t, err)
 	xli = info
 	copy(xli.Consumer[:31], "test-as-is")
 	xli.Flags |= uapi.LineFlagUsed
-	li.Name = xli.Name // don't care about name
 	assert.Equal(t, xli, li)
 	unix.Close(int(hr.Fd))
 }

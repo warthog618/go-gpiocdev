@@ -8,7 +8,6 @@
 package uapi_test
 
 import (
-	"fmt"
 	"os"
 	"syscall"
 	"testing"
@@ -16,24 +15,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/warthog618/go-gpiosim"
 	"github.com/warthog618/gpiod/mockup"
 	"github.com/warthog618/gpiod/uapi"
 	"golang.org/x/sys/unix"
 )
-
-var (
-	mock       *mockup.Mockup
-	setupError error
-)
-
-func TestMain(m *testing.M) {
-	reloadMockup()
-	rc := m.Run()
-	if mock != nil {
-		mock.Close()
-	}
-	os.Exit(rc)
-}
 
 var (
 	setConfigKernel = mockup.Semver{5, 5} // setLineConfig ioctl added
@@ -45,89 +31,104 @@ var (
 	spuriousEventWaitTimeout = 30 * clkTick
 )
 
-func reloadMockup() {
-	if mock != nil {
-		mock.Close()
-	}
-	mock, setupError = mockup.New([]int{4, 8}, true)
-}
-
-func requireMockup(t *testing.T) {
-	t.Helper()
-	if setupError != nil {
-		t.Fail()
-		t.Skip(setupError)
-	}
-}
-
 func TestGetChipInfo(t *testing.T) {
-	reloadMockup() // test assumes clean mockups
-	requireMockup(t)
-	for n := 0; n < mock.Chips(); n++ {
-		c, err := mock.Chip(n)
-		require.Nil(t, err)
+	s, err := gpiosim.NewSim(
+		gpiosim.WithName("gpiosim_test"),
+		gpiosim.WithBank(gpiosim.NewBank("left", 8)),
+		gpiosim.WithBank(gpiosim.NewBank("right", 42)),
+	)
+	require.Nil(t, err)
+	defer s.Close()
+	for _, c := range s.Chips {
 		f := func(t *testing.T) {
-			f, err := os.Open(c.DevPath)
+			f, err := os.Open(c.DevPath())
 			require.Nil(t, err)
 			defer f.Close()
-			cix := uapi.ChipInfo{
-				Lines: uint32(c.Lines),
+			xci := uapi.ChipInfo{
+				Lines: uint32(c.Config().NumLines),
 			}
-			copy(cix.Name[:], c.Name)
-			copy(cix.Label[:], c.Label)
+			copy(xci.Name[:], c.ChipName())
+			copy(xci.Label[:], c.Config().Label)
 			ci, err := uapi.GetChipInfo(f.Fd())
 			assert.Nil(t, err)
-			assert.Equal(t, cix, ci)
+			assert.Equal(t, xci, ci)
 		}
-		t.Run(c.Name, f)
+		t.Run(c.ChipName(), f)
 	}
 	// badfd
-	ci, err := uapi.GetChipInfo(0)
+	f, err := os.CreateTemp("", "uapi_test")
+	require.Nil(t, err)
+	defer os.Remove(f.Name())
+	defer f.Close()
+	ci, err := uapi.GetChipInfo(f.Fd())
 	cix := uapi.ChipInfo{}
 	assert.NotNil(t, err)
 	assert.Equal(t, cix, ci)
 }
 
-func TestGetLineInfo(t *testing.T) {
-	reloadMockup() // test assumes clean mockups
-	requireMockup(t)
-	for n := 0; n < mock.Chips(); n++ {
-		c, err := mock.Chip(n)
-		require.Nil(t, err)
-		for l := 0; l <= c.Lines; l++ {
-			f := func(t *testing.T) {
-				f, err := os.Open(c.DevPath)
-				require.Nil(t, err)
-				defer f.Close()
-				xli := uapi.LineInfo{
-					Offset: uint32(l),
-					Flags:  0,
-				}
-				copy(xli.Name[:], fmt.Sprintf("%s-%d", c.Label, l))
-				copy(xli.Consumer[:], "")
-				li, err := uapi.GetLineInfo(f.Fd(), l)
-				if l < c.Lines {
-					assert.Nil(t, err)
-					assert.Equal(t, xli, li)
-				} else {
-					assert.Equal(t, unix.EINVAL, err)
-				}
-			}
-			t.Run(fmt.Sprintf("%s-%d", c.Name, l), f)
+func checkLineInfo(t *testing.T, f *os.File, k gpiosim.Bank) {
+	for o := 0; o < k.NumLines; o++ {
+		xli := uapi.LineInfo{
+			Offset: uint32(o),
 		}
+		if name, ok := k.Names[o]; ok {
+			copy(xli.Name[:], name)
+		}
+		if hog, ok := k.Hogs[o]; ok {
+			if hog.Direction != gpiosim.HogDirectionInput {
+				xli.Flags = uapi.LineFlagIsOut
+			}
+			xli.Flags |= uapi.LineFlagUsed
+			copy(xli.Consumer[:], []byte(hog.Consumer))
+		}
+		li, err := uapi.GetLineInfo(f.Fd(), o)
+		assert.Nil(t, err)
+		assert.Equal(t, xli, li)
 	}
+	// out of range
+	_, err := uapi.GetLineInfo(f.Fd(), k.NumLines)
+	assert.Equal(t, unix.EINVAL, err)
+}
+
+func TestGetLineInfo(t *testing.T) {
+	s, err := gpiosim.NewSim(
+		gpiosim.WithName("gpiosim_test"),
+		gpiosim.WithBank(gpiosim.NewBank("left", 8,
+			gpiosim.WithNamedLine(3, "LED0"),
+			gpiosim.WithNamedLine(5, "BUTTON1"),
+			gpiosim.WithHoggedLine(2, "piggy", gpiosim.HogDirectionOutputLow),
+		)),
+		gpiosim.WithBank(gpiosim.NewBank("right", 42,
+			gpiosim.WithNamedLine(3, "BUTTON2"),
+			gpiosim.WithNamedLine(4, "LED2"),
+			gpiosim.WithHoggedLine(7, "hogster", gpiosim.HogDirectionOutputHigh),
+			gpiosim.WithHoggedLine(9, "piggy", gpiosim.HogDirectionInput),
+		)),
+	)
+	require.Nil(t, err)
+	defer s.Close()
+
+	for _, c := range s.Chips {
+		f, err := os.Open(c.DevPath())
+		require.Nil(t, err)
+		defer f.Close()
+		checkLineInfo(t, f, c.Config())
+	}
+
 	// badfd
-	li, err := uapi.GetLineInfo(0, 1)
+	f, err := os.CreateTemp("", "uapi_test")
+	require.Nil(t, err)
+	defer os.Remove(f.Name())
+	defer f.Close()
+	li, err := uapi.GetLineInfo(f.Fd(), 1)
 	xli := uapi.LineInfo{}
 	assert.NotNil(t, err)
 	assert.Equal(t, xli, li)
 }
 
 func TestGetLineEvent(t *testing.T) {
-	requireMockup(t)
 	patterns := []struct {
 		name       string // unique name for pattern (hf/ef/offsets/xval combo)
-		cnum       int
 		handleFlag uapi.HandleFlag
 		eventFlag  uapi.EventFlag
 		offset     uint32
@@ -136,14 +137,12 @@ func TestGetLineEvent(t *testing.T) {
 		{
 			"as-is",
 			0,
-			0,
 			uapi.EventRequestBothEdges,
 			2,
 			nil,
 		},
 		{
 			"atv-lo",
-			1,
 			uapi.HandleRequestActiveLow,
 			uapi.EventRequestBothEdges,
 			2,
@@ -151,7 +150,6 @@ func TestGetLineEvent(t *testing.T) {
 		},
 		{
 			"input",
-			0,
 			uapi.HandleRequestInput,
 			uapi.EventRequestBothEdges,
 			2,
@@ -159,7 +157,6 @@ func TestGetLineEvent(t *testing.T) {
 		},
 		{
 			"input pull-up",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestPullUp,
 			uapi.EventRequestBothEdges,
@@ -168,7 +165,6 @@ func TestGetLineEvent(t *testing.T) {
 		},
 		{
 			"input pull-down",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestPullDown,
 			uapi.EventRequestBothEdges,
@@ -177,7 +173,6 @@ func TestGetLineEvent(t *testing.T) {
 		},
 		{
 			"input bias disable",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestBiasDisable,
 			uapi.EventRequestBothEdges,
@@ -186,7 +181,6 @@ func TestGetLineEvent(t *testing.T) {
 		},
 		{
 			"as-is pull-up",
-			0,
 			uapi.HandleRequestPullUp,
 			uapi.EventRequestBothEdges,
 			2,
@@ -194,7 +188,6 @@ func TestGetLineEvent(t *testing.T) {
 		},
 		{
 			"as-is pull-down",
-			0,
 			uapi.HandleRequestPullDown,
 			uapi.EventRequestBothEdges,
 			2,
@@ -202,7 +195,6 @@ func TestGetLineEvent(t *testing.T) {
 		},
 		{
 			"as-is bias disable",
-			0,
 			uapi.HandleRequestBiasDisable,
 			uapi.EventRequestBothEdges,
 			2,
@@ -211,7 +203,6 @@ func TestGetLineEvent(t *testing.T) {
 		// expected errors
 		{
 			"output",
-			0,
 			uapi.HandleRequestOutput,
 			uapi.EventRequestBothEdges,
 			2,
@@ -219,7 +210,6 @@ func TestGetLineEvent(t *testing.T) {
 		},
 		{
 			"oorange",
-			0,
 			uapi.HandleRequestInput,
 			uapi.EventRequestBothEdges,
 			6,
@@ -227,7 +217,6 @@ func TestGetLineEvent(t *testing.T) {
 		},
 		{
 			"input drain",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestOpenDrain,
 			uapi.EventRequestBothEdges,
@@ -236,7 +225,6 @@ func TestGetLineEvent(t *testing.T) {
 		},
 		{
 			"input source",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestOpenSource,
 			uapi.EventRequestBothEdges,
@@ -245,7 +233,6 @@ func TestGetLineEvent(t *testing.T) {
 		},
 		{
 			"as-is drain",
-			0,
 			uapi.HandleRequestOpenDrain,
 			uapi.EventRequestBothEdges,
 			2,
@@ -253,7 +240,6 @@ func TestGetLineEvent(t *testing.T) {
 		},
 		{
 			"as-is source",
-			0,
 			uapi.HandleRequestOpenSource,
 			uapi.EventRequestBothEdges,
 			2,
@@ -261,7 +247,6 @@ func TestGetLineEvent(t *testing.T) {
 		},
 		{
 			"bias disable and pull-up",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestBiasDisable |
 				uapi.HandleRequestPullUp,
@@ -271,7 +256,6 @@ func TestGetLineEvent(t *testing.T) {
 		},
 		{
 			"bias disable and pull-down",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestBiasDisable |
 				uapi.HandleRequestPullDown,
@@ -281,7 +265,6 @@ func TestGetLineEvent(t *testing.T) {
 		},
 		{
 			"pull-up and pull-down",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestPullUp |
 				uapi.HandleRequestPullDown,
@@ -290,14 +273,15 @@ func TestGetLineEvent(t *testing.T) {
 			unix.EINVAL,
 		},
 	}
+	s, err := gpiosim.NewSimpleton(4)
+	require.Nil(t, err)
+	defer s.Close()
 	for _, p := range patterns {
-		c, err := mock.Chip(p.cnum)
-		require.Nil(t, err)
 		tf := func(t *testing.T) {
 			if p.handleFlag.HasBiasFlag() {
 				requireKernel(t, setConfigKernel)
 			}
-			f, err := os.Open(c.DevPath)
+			f, err := os.Open(s.DevPath())
 			require.Nil(t, err)
 			defer f.Close()
 			er := uapi.EventRequest{
@@ -308,7 +292,7 @@ func TestGetLineEvent(t *testing.T) {
 			copy(er.Consumer[:], p.name)
 			err = uapi.GetLineEvent(f.Fd(), &er)
 			assert.Equal(t, p.err, err)
-			if p.offset > uint32(c.Lines) {
+			if p.offset > uint32(s.Config().NumLines) {
 				return
 			}
 			li, err := uapi.GetLineInfo(f.Fd(), int(p.offset))
@@ -322,7 +306,6 @@ func TestGetLineEvent(t *testing.T) {
 				Offset: p.offset,
 				Flags:  uapi.LineFlagUsed | lineFromHandle(p.handleFlag),
 			}
-			copy(xli.Name[:], li.Name[:]) // don't care about name
 			copy(xli.Consumer[:31], p.name)
 			assert.Equal(t, xli, li)
 			unix.Close(int(er.Fd))
@@ -332,10 +315,8 @@ func TestGetLineEvent(t *testing.T) {
 }
 
 func TestGetLineHandle(t *testing.T) {
-	requireMockup(t)
 	patterns := []struct {
 		name       string // unique name for pattern (hf/ef/offsets/xval combo)
-		cnum       int
 		handleFlag uapi.HandleFlag
 		offsets    []uint32
 		err        error
@@ -343,27 +324,23 @@ func TestGetLineHandle(t *testing.T) {
 		{
 			"as-is",
 			0,
-			0,
 			[]uint32{2},
 			nil,
 		},
 		{
 			"atv-lo",
-			1,
 			uapi.HandleRequestActiveLow,
 			[]uint32{2},
 			nil,
 		},
 		{
 			"input",
-			0,
 			uapi.HandleRequestInput,
 			[]uint32{2},
 			nil,
 		},
 		{
 			"input pull-up",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestPullUp,
 			[]uint32{2},
@@ -371,7 +348,6 @@ func TestGetLineHandle(t *testing.T) {
 		},
 		{
 			"input pull-down",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestPullDown,
 			[]uint32{3},
@@ -379,7 +355,6 @@ func TestGetLineHandle(t *testing.T) {
 		},
 		{
 			"input bias disable",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestBiasDisable,
 			[]uint32{3},
@@ -387,14 +362,12 @@ func TestGetLineHandle(t *testing.T) {
 		},
 		{
 			"output",
-			0,
 			uapi.HandleRequestOutput,
 			[]uint32{2},
 			nil,
 		},
 		{
 			"output drain",
-			0,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestOpenDrain,
 			[]uint32{2},
@@ -402,7 +375,6 @@ func TestGetLineHandle(t *testing.T) {
 		},
 		{
 			"output source",
-			0,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestOpenSource,
 			[]uint32{3},
@@ -410,7 +382,6 @@ func TestGetLineHandle(t *testing.T) {
 		},
 		{
 			"output pull-up",
-			0,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestPullUp,
 			[]uint32{1},
@@ -418,7 +389,6 @@ func TestGetLineHandle(t *testing.T) {
 		},
 		{
 			"output pull-down",
-			0,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestPullDown,
 			[]uint32{2},
@@ -426,7 +396,6 @@ func TestGetLineHandle(t *testing.T) {
 		},
 		{
 			"output bias disable",
-			0,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestBiasDisable,
 			[]uint32{2},
@@ -435,7 +404,6 @@ func TestGetLineHandle(t *testing.T) {
 		// expected errors
 		{
 			"both io",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestOutput,
 			[]uint32{2},
@@ -443,21 +411,18 @@ func TestGetLineHandle(t *testing.T) {
 		},
 		{
 			"overlength",
-			0,
 			uapi.HandleRequestInput,
 			[]uint32{0, 1, 2, 3, 4},
 			unix.EINVAL,
 		},
 		{
 			"oorange",
-			0,
 			uapi.HandleRequestInput,
 			[]uint32{6},
 			unix.EINVAL,
 		},
 		{
 			"input drain",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestOpenDrain,
 			[]uint32{1},
@@ -465,7 +430,6 @@ func TestGetLineHandle(t *testing.T) {
 		},
 		{
 			"input source",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestOpenSource,
 			[]uint32{2},
@@ -473,21 +437,18 @@ func TestGetLineHandle(t *testing.T) {
 		},
 		{
 			"as-is drain",
-			0,
 			uapi.HandleRequestOpenDrain,
 			[]uint32{2},
 			unix.EINVAL,
 		},
 		{
 			"as-is source",
-			0,
 			uapi.HandleRequestOpenSource,
 			[]uint32{1},
 			unix.EINVAL,
 		},
 		{
 			"drain source",
-			0,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestOpenDrain |
 				uapi.HandleRequestOpenSource,
@@ -496,28 +457,24 @@ func TestGetLineHandle(t *testing.T) {
 		},
 		{
 			"as-is pull-up",
-			0,
 			uapi.HandleRequestPullUp,
 			[]uint32{1},
 			unix.EINVAL,
 		},
 		{
 			"as-is pull-down",
-			0,
 			uapi.HandleRequestPullDown,
 			[]uint32{2},
 			unix.EINVAL,
 		},
 		{
 			"as-is bias disable",
-			0,
 			uapi.HandleRequestBiasDisable,
 			[]uint32{2},
 			unix.EINVAL,
 		},
 		{
 			"bias disable and pull-up",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestBiasDisable |
 				uapi.HandleRequestPullUp,
@@ -526,7 +483,6 @@ func TestGetLineHandle(t *testing.T) {
 		},
 		{
 			"bias disable and pull-down",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestBiasDisable |
 				uapi.HandleRequestPullDown,
@@ -535,7 +491,6 @@ func TestGetLineHandle(t *testing.T) {
 		},
 		{
 			"pull-up and pull-down",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestPullUp |
 				uapi.HandleRequestPullDown,
@@ -544,7 +499,6 @@ func TestGetLineHandle(t *testing.T) {
 		},
 		{
 			"all bias flags",
-			0,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestBiasDisable |
 				uapi.HandleRequestPullUp |
@@ -553,14 +507,15 @@ func TestGetLineHandle(t *testing.T) {
 			unix.EINVAL,
 		},
 	}
+	s, err := gpiosim.NewSimpleton(4)
+	require.Nil(t, err)
+	defer s.Close()
 	for _, p := range patterns {
-		c, err := mock.Chip(p.cnum)
-		require.Nil(t, err)
 		tf := func(t *testing.T) {
 			if p.handleFlag.HasBiasFlag() {
 				requireKernel(t, setConfigKernel)
 			}
-			f, err := os.Open(c.DevPath)
+			f, err := os.Open(s.DevPath())
 			require.Nil(t, err)
 			defer f.Close()
 			hr := uapi.HandleRequest{
@@ -571,7 +526,7 @@ func TestGetLineHandle(t *testing.T) {
 			copy(hr.Consumer[:], p.name)
 			err = uapi.GetLineHandle(f.Fd(), &hr)
 			assert.Equal(t, p.err, err)
-			if p.offsets[0] > uint32(c.Lines) {
+			if p.offsets[0] > uint32(s.Config().NumLines) {
 				return
 			}
 			// check line info
@@ -586,7 +541,6 @@ func TestGetLineHandle(t *testing.T) {
 				Offset: p.offsets[0],
 				Flags:  uapi.LineFlagUsed | lineFromHandle(p.handleFlag),
 			}
-			copy(xli.Name[:], li.Name[:]) // don't care about name
 			copy(xli.Consumer[:31], p.name)
 			assert.Equal(t, xli, li)
 			unix.Close(int(hr.Fd))
@@ -596,10 +550,8 @@ func TestGetLineHandle(t *testing.T) {
 }
 
 func TestGetLineValues(t *testing.T) {
-	requireMockup(t)
 	patterns := []struct {
 		name       string // unique name for pattern (hf/ef/offsets/xval combo)
-		cnum       int
 		handleFlag uapi.HandleFlag
 		evtFlag    uapi.EventFlag
 		offsets    []uint32
@@ -607,7 +559,6 @@ func TestGetLineValues(t *testing.T) {
 	}{
 		{
 			"as-is atv-lo lo",
-			1,
 			uapi.HandleRequestActiveLow,
 			0,
 			[]uint32{2},
@@ -615,7 +566,6 @@ func TestGetLineValues(t *testing.T) {
 		},
 		{
 			"as-is atv-lo hi",
-			1,
 			uapi.HandleRequestActiveLow,
 			0,
 			[]uint32{2},
@@ -625,7 +575,6 @@ func TestGetLineValues(t *testing.T) {
 			"as-is lo",
 			0,
 			0,
-			0,
 			[]uint32{2},
 			[]uint8{0},
 		},
@@ -633,13 +582,11 @@ func TestGetLineValues(t *testing.T) {
 			"as-is hi",
 			0,
 			0,
-			0,
 			[]uint32{1},
 			[]uint8{1},
 		},
 		{
 			"input lo",
-			0,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{2},
@@ -647,7 +594,6 @@ func TestGetLineValues(t *testing.T) {
 		},
 		{
 			"input hi",
-			0,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{1},
@@ -655,7 +601,6 @@ func TestGetLineValues(t *testing.T) {
 		},
 		{
 			"output lo",
-			0,
 			uapi.HandleRequestOutput,
 			0,
 			[]uint32{2},
@@ -663,7 +608,6 @@ func TestGetLineValues(t *testing.T) {
 		},
 		{
 			"output hi",
-			0,
 			uapi.HandleRequestOutput,
 			0,
 			[]uint32{1},
@@ -671,7 +615,6 @@ func TestGetLineValues(t *testing.T) {
 		},
 		{
 			"both lo",
-			1,
 			0,
 			uapi.EventRequestBothEdges,
 			[]uint32{2},
@@ -679,7 +622,6 @@ func TestGetLineValues(t *testing.T) {
 		},
 		{
 			"both hi",
-			1,
 			0,
 			uapi.EventRequestBothEdges,
 			[]uint32{1},
@@ -688,14 +630,12 @@ func TestGetLineValues(t *testing.T) {
 		{
 			"falling lo",
 			0,
-			0,
 			uapi.EventRequestFallingEdge,
 			[]uint32{2},
 			[]uint8{0},
 		},
 		{
 			"falling hi",
-			0,
 			0,
 			uapi.EventRequestFallingEdge,
 			[]uint32{1},
@@ -704,7 +644,6 @@ func TestGetLineValues(t *testing.T) {
 		{
 			"rising lo",
 			0,
-			0,
 			uapi.EventRequestRisingEdge,
 			[]uint32{2},
 			[]uint8{0},
@@ -712,14 +651,12 @@ func TestGetLineValues(t *testing.T) {
 		{
 			"rising hi",
 			0,
-			0,
 			uapi.EventRequestRisingEdge,
 			[]uint32{1},
 			[]uint8{1},
 		},
 		{
 			"input 2a",
-			0,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{0, 1},
@@ -727,7 +664,6 @@ func TestGetLineValues(t *testing.T) {
 		},
 		{
 			"input 2b",
-			0,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{2, 1},
@@ -735,7 +671,6 @@ func TestGetLineValues(t *testing.T) {
 		},
 		{
 			"input 3a",
-			0,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{0, 1, 2},
@@ -743,7 +678,6 @@ func TestGetLineValues(t *testing.T) {
 		},
 		{
 			"input 3b",
-			0,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{0, 2, 1},
@@ -751,7 +685,6 @@ func TestGetLineValues(t *testing.T) {
 		},
 		{
 			"input 4a",
-			0,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{0, 1, 2, 3},
@@ -759,7 +692,6 @@ func TestGetLineValues(t *testing.T) {
 		},
 		{
 			"input 4b",
-			0,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{3, 2, 1, 0},
@@ -767,7 +699,6 @@ func TestGetLineValues(t *testing.T) {
 		},
 		{
 			"input 8a",
-			1,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{0, 1, 2, 3, 4, 5, 6, 7},
@@ -775,7 +706,6 @@ func TestGetLineValues(t *testing.T) {
 		},
 		{
 			"input 8b",
-			1,
 			uapi.HandleRequestInput,
 			0,
 			[]uint32{3, 2, 1, 0, 4, 5, 6, 7},
@@ -783,7 +713,6 @@ func TestGetLineValues(t *testing.T) {
 		},
 		{
 			"atv-lo 8b",
-			1,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestActiveLow,
 			0,
@@ -791,9 +720,10 @@ func TestGetLineValues(t *testing.T) {
 			[]uint8{1, 1, 0, 1, 1, 1, 0, 0},
 		},
 	}
+	s, err := gpiosim.NewSimpleton(8)
+	require.Nil(t, err)
+	defer s.Close()
 	for _, p := range patterns {
-		c, err := mock.Chip(p.cnum)
-		require.Nil(t, err)
 		// set vals in mock
 		require.LessOrEqual(t, len(p.offsets), len(p.val))
 		for i, o := range p.offsets {
@@ -801,11 +731,11 @@ func TestGetLineValues(t *testing.T) {
 			if p.handleFlag.IsActiveLow() {
 				v ^= 0x01 // assumes using 1 for high
 			}
-			err := c.SetValue(int(o), v)
+			err := s.SetPull(int(o), v)
 			assert.Nil(t, err)
 		}
 		tf := func(t *testing.T) {
-			f, err := os.Open(c.DevPath)
+			f, err := os.Open(s.DevPath())
 			require.Nil(t, err)
 			defer f.Close()
 			var fd int32
@@ -821,7 +751,7 @@ func TestGetLineValues(t *testing.T) {
 				require.Nil(t, err)
 				fd = hr.Fd
 				if p.handleFlag.IsOutput() {
-					// mock is ignored for outputs
+					// sim is ignored for outputs
 					xval = make([]uint8, len(p.val))
 				}
 			} else {
@@ -846,19 +776,22 @@ func TestGetLineValues(t *testing.T) {
 		}
 		t.Run(p.name, tf)
 	}
+
 	// badfd
 	var hdx uapi.HandleData
 	var hd uapi.HandleData
-	err := uapi.GetLineValues(0, &hd)
+	f, err := os.CreateTemp("", "uapi_test")
+	require.Nil(t, err)
+	defer os.Remove(f.Name())
+	defer f.Close()
+	err = uapi.GetLineValues(f.Fd(), &hd)
 	assert.NotNil(t, err)
 	assert.Equal(t, hdx, hd)
 }
 
 func TestSetLineValues(t *testing.T) {
-	requireMockup(t)
 	patterns := []struct {
 		name       string // unique name for pattern (hf/ef/offsets/xval combo)
-		cnum       int
 		handleFlag uapi.HandleFlag
 		offsets    []uint32
 		val        []uint8
@@ -866,7 +799,6 @@ func TestSetLineValues(t *testing.T) {
 	}{
 		{
 			"output atv-lo lo",
-			1,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestActiveLow,
 			[]uint32{2},
@@ -875,7 +807,6 @@ func TestSetLineValues(t *testing.T) {
 		},
 		{
 			"output atv-lo hi",
-			1,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestActiveLow,
 			[]uint32{2},
@@ -884,7 +815,6 @@ func TestSetLineValues(t *testing.T) {
 		},
 		{
 			"as-is lo",
-			1,
 			0,
 			[]uint32{2},
 			[]uint8{0},
@@ -892,7 +822,6 @@ func TestSetLineValues(t *testing.T) {
 		},
 		{
 			"as-is hi",
-			1,
 			0,
 			[]uint32{2},
 			[]uint8{1},
@@ -900,7 +829,6 @@ func TestSetLineValues(t *testing.T) {
 		},
 		{
 			"output lo",
-			0,
 			uapi.HandleRequestOutput,
 			[]uint32{2},
 			[]uint8{0},
@@ -908,7 +836,6 @@ func TestSetLineValues(t *testing.T) {
 		},
 		{
 			"output hi",
-			0,
 			uapi.HandleRequestOutput,
 			[]uint32{1},
 			[]uint8{1},
@@ -916,7 +843,6 @@ func TestSetLineValues(t *testing.T) {
 		},
 		{
 			"output 2a",
-			0,
 			uapi.HandleRequestOutput,
 			[]uint32{0, 1},
 			[]uint8{1, 0},
@@ -924,7 +850,6 @@ func TestSetLineValues(t *testing.T) {
 		},
 		{
 			"output 2b",
-			0,
 			uapi.HandleRequestOutput,
 			[]uint32{2, 1},
 			[]uint8{0, 1},
@@ -932,7 +857,6 @@ func TestSetLineValues(t *testing.T) {
 		},
 		{
 			"output 3a",
-			0,
 			uapi.HandleRequestOutput,
 			[]uint32{0, 1, 2},
 			[]uint8{0, 1, 1},
@@ -940,7 +864,6 @@ func TestSetLineValues(t *testing.T) {
 		},
 		{
 			"output 3b",
-			0,
 			uapi.HandleRequestOutput,
 			[]uint32{0, 2, 1},
 			[]uint8{0, 1, 0},
@@ -948,7 +871,6 @@ func TestSetLineValues(t *testing.T) {
 		},
 		{
 			"output 4a",
-			0,
 			uapi.HandleRequestOutput,
 			[]uint32{0, 1, 2, 3},
 			[]uint8{0, 1, 1, 1},
@@ -956,7 +878,6 @@ func TestSetLineValues(t *testing.T) {
 		},
 		{
 			"output 4b",
-			0,
 			uapi.HandleRequestOutput,
 			[]uint32{3, 2, 1, 0},
 			[]uint8{1, 1, 0, 1},
@@ -964,7 +885,6 @@ func TestSetLineValues(t *testing.T) {
 		},
 		{
 			"output 8a",
-			1,
 			uapi.HandleRequestOutput,
 			[]uint32{0, 1, 2, 3, 4, 5, 6, 7},
 			[]uint8{0, 1, 1, 1, 1, 1, 0, 0},
@@ -972,7 +892,6 @@ func TestSetLineValues(t *testing.T) {
 		},
 		{
 			"output 8b",
-			1,
 			uapi.HandleRequestOutput,
 			[]uint32{3, 2, 1, 0, 4, 5, 6, 7},
 			[]uint8{1, 1, 0, 1, 1, 1, 0, 1},
@@ -980,7 +899,6 @@ func TestSetLineValues(t *testing.T) {
 		},
 		{
 			"atv-lo 8b",
-			1,
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestActiveLow,
 			[]uint32{3, 2, 1, 0, 4, 5, 6, 7},
@@ -990,7 +908,6 @@ func TestSetLineValues(t *testing.T) {
 		// expected failures....
 		{
 			"input lo",
-			0,
 			uapi.HandleRequestInput,
 			[]uint32{2},
 			[]uint8{0},
@@ -998,19 +915,19 @@ func TestSetLineValues(t *testing.T) {
 		},
 		{
 			"input hi",
-			0,
 			uapi.HandleRequestInput,
 			[]uint32{1},
 			[]uint8{1},
 			unix.EPERM,
 		},
 	}
+	s, err := gpiosim.NewSimpleton(8)
+	require.Nil(t, err)
+	defer s.Close()
 	for _, p := range patterns {
 		tf := func(t *testing.T) {
-			c, err := mock.Chip(p.cnum)
-			require.Nil(t, err)
 			require.LessOrEqual(t, len(p.offsets), len(p.val))
-			f, err := os.Open(c.DevPath)
+			f, err := os.Open(s.DevPath())
 			require.Nil(t, err)
 			defer f.Close()
 			hr := uapi.HandleRequest{
@@ -1028,7 +945,7 @@ func TestSetLineValues(t *testing.T) {
 			if p.err == nil {
 				// check values from mock
 				for i, o := range p.offsets {
-					v, err := c.Value(int(o))
+					v, err := s.Level(int(o))
 					assert.Nil(t, err)
 					xv := int(p.val[i])
 					if p.handleFlag.IsActiveLow() {
@@ -1041,18 +958,21 @@ func TestSetLineValues(t *testing.T) {
 		}
 		t.Run(p.name, tf)
 	}
+
 	// badfd
 	var hd uapi.HandleData
-	err := uapi.SetLineValues(0, hd)
+	f, err := os.CreateTemp("", "uapi_test")
+	require.Nil(t, err)
+	defer os.Remove(f.Name())
+	defer f.Close()
+	err = uapi.SetLineValues(f.Fd(), hd)
 	assert.NotNil(t, err)
 }
 
 func TestSetLineHandleConfig(t *testing.T) {
 	requireKernel(t, setConfigKernel)
-	requireMockup(t)
 	patterns := []struct {
 		name        string
-		cnum        int
 		offsets     []uint32
 		initialFlag uapi.HandleFlag
 		initialVal  []uint8
@@ -1062,7 +982,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 	}{
 		{
 			"in to out",
-			1,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestInput,
 			[]uint8{0, 1, 1},
@@ -1072,8 +991,7 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"out to in",
-			0,
-			[]uint32{2},
+			[]uint32{1, 2, 3},
 			uapi.HandleRequestOutput,
 			[]uint8{1, 0, 1},
 			uapi.HandleRequestInput,
@@ -1082,7 +1000,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"as-is atv-hi to as-is atv-lo",
-			0,
 			[]uint32{1, 2, 3},
 			0,
 			[]uint8{1, 0, 1},
@@ -1092,7 +1009,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"as-is atv-lo to as-is atv-hi",
-			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestActiveLow,
 			[]uint8{1, 0, 1},
@@ -1102,7 +1018,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"input atv-lo to input atv-hi",
-			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestInput |
 				uapi.HandleRequestActiveLow,
@@ -1113,7 +1028,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"input atv-hi to input atv-lo",
-			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestInput,
 			[]uint8{1, 0, 1},
@@ -1124,7 +1038,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"output atv-lo to output atv-hi",
-			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestActiveLow,
@@ -1135,7 +1048,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"output atv-hi to output atv-lo",
-			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestOutput,
 			[]uint8{1, 0, 1},
@@ -1146,7 +1058,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"input atv-lo to as-is atv-hi",
-			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestInput |
 				uapi.HandleRequestActiveLow,
@@ -1157,7 +1068,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"input atv-hi to as-is atv-lo",
-			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestInput,
 			[]uint8{1, 0, 1},
@@ -1167,7 +1077,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"input pull-up to input pull-down",
-			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestInput |
 				uapi.HandleRequestPullUp,
@@ -1179,7 +1088,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"input pull-down to input pull-up",
-			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestInput |
 				uapi.HandleRequestPullDown,
@@ -1191,7 +1099,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"output atv-lo to as-is atv-hi",
-			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestOutput |
 				uapi.HandleRequestActiveLow,
@@ -1202,7 +1109,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"output atv-hi to as-is atv-lo",
-			0,
 			[]uint32{1, 2, 3},
 			uapi.HandleRequestOutput,
 			[]uint8{1, 0, 1},
@@ -1213,7 +1119,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		// expected errors
 		{
 			"input drain",
-			0,
 			[]uint32{2},
 			uapi.HandleRequestInput,
 			nil,
@@ -1224,7 +1129,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"input source",
-			0,
 			[]uint32{2},
 			uapi.HandleRequestInput,
 			nil,
@@ -1235,7 +1139,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"as-is drain",
-			0,
 			[]uint32{2},
 			0,
 			nil,
@@ -1245,7 +1148,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"as-is source",
-			0,
 			[]uint32{2},
 			0,
 			nil,
@@ -1255,7 +1157,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"drain source",
-			0,
 			[]uint32{2},
 			uapi.HandleRequestOutput,
 			nil,
@@ -1267,7 +1168,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"pull-up and pull-down",
-			0,
 			[]uint32{2},
 			uapi.HandleRequestOutput,
 			nil,
@@ -1279,7 +1179,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"bias disable and pull-up",
-			0,
 			[]uint32{2},
 			uapi.HandleRequestOutput,
 			nil,
@@ -1291,7 +1190,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"bias disable and pull-down",
-			0,
 			[]uint32{2},
 			uapi.HandleRequestOutput,
 			nil,
@@ -1303,7 +1201,6 @@ func TestSetLineHandleConfig(t *testing.T) {
 		},
 		{
 			"all bias flags",
-			0,
 			[]uint32{2},
 			uapi.HandleRequestOutput,
 			nil,
@@ -1315,10 +1212,11 @@ func TestSetLineHandleConfig(t *testing.T) {
 			unix.EINVAL,
 		},
 	}
+	s, err := gpiosim.NewSimpleton(4)
+	require.Nil(t, err)
+	defer s.Close()
 	for _, p := range patterns {
 		tf := func(t *testing.T) {
-			c, err := mock.Chip(p.cnum)
-			require.Nil(t, err)
 			// setup mockup for inputs
 			if p.initialVal != nil {
 				for i, o := range p.offsets {
@@ -1327,11 +1225,11 @@ func TestSetLineHandleConfig(t *testing.T) {
 					if p.configFlag.IsActiveLow() {
 						v ^= 0x01 // assumes using 1 for high
 					}
-					err := c.SetValue(int(o), v)
+					err := s.SetPull(int(o), v)
 					assert.Nil(t, err)
 				}
 			}
-			f, err := os.Open(c.DevPath)
+			f, err := os.Open(s.DevPath())
 			require.Nil(t, err)
 			defer f.Close()
 			hr := uapi.HandleRequest{
@@ -1362,14 +1260,13 @@ func TestSetLineHandleConfig(t *testing.T) {
 					Flags: uapi.LineFlagUsed |
 						lineFromConfig(p.initialFlag, p.configFlag),
 				}
-				copy(xli.Name[:], li.Name[:]) // don't care about name
 				copy(xli.Consumer[:31], p.name)
 				assert.Equal(t, xli, li)
 				if len(p.configVal) != 0 {
-					// check values from mock
+					// check values from sim
 					require.LessOrEqual(t, len(p.offsets), len(p.configVal))
 					for i, o := range p.offsets {
-						v, err := c.Value(int(o))
+						v, err := s.Level(int(o))
 						assert.Nil(t, err)
 						xv := int(p.configVal[i])
 						if p.configFlag.IsActiveLow() {
@@ -1387,10 +1284,8 @@ func TestSetLineHandleConfig(t *testing.T) {
 
 func TestSetLineEventConfig(t *testing.T) {
 	requireKernel(t, setConfigKernel)
-	requireMockup(t)
 	patterns := []struct {
 		name        string
-		cnum        int
 		offset      uint32
 		initialFlag uapi.HandleFlag
 		configFlag  uapi.HandleFlag
@@ -1398,45 +1293,51 @@ func TestSetLineEventConfig(t *testing.T) {
 	}{
 		// expected errors
 		{
-			"low to high", 0, 1,
+			"low to high",
+			1,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestActiveLow,
 			0,
 			unix.EINVAL,
 		},
 		{
-			"high to low", 0, 2,
+			"high to low",
+			2,
 			uapi.HandleRequestInput,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestActiveLow,
 			unix.EINVAL,
 		},
 		{
-			"in to out", 1, 2,
+			"in to out",
+			2,
 			uapi.HandleRequestInput,
 			uapi.HandleRequestOutput,
 			unix.EINVAL,
 		},
 		{
-			"drain", 0, 3,
+			"drain",
+			3,
 			uapi.HandleRequestInput,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestOpenDrain,
 			unix.EINVAL,
 		},
 		{
-			"source", 0, 3,
+			"source",
+			3,
 			uapi.HandleRequestInput,
 			uapi.HandleRequestInput |
 				uapi.HandleRequestOpenSource,
 			unix.EINVAL,
 		},
 	}
+	s, err := gpiosim.NewSimpleton(4)
+	require.Nil(t, err)
+	defer s.Close()
 	for _, p := range patterns {
 		tf := func(t *testing.T) {
-			c, err := mock.Chip(p.cnum)
-			require.Nil(t, err)
-			f, err := os.Open(c.DevPath)
+			f, err := os.Open(s.DevPath())
 			require.Nil(t, err)
 			defer f.Close()
 			er := uapi.EventRequest{
@@ -1465,7 +1366,6 @@ func TestSetLineEventConfig(t *testing.T) {
 					Flags: uapi.LineFlagUsed |
 						lineFromConfig(p.initialFlag, p.configFlag),
 				}
-				copy(xli.Name[:], li.Name[:]) // don't care about name
 				copy(xli.Consumer[:31], p.name)
 				assert.Equal(t, xli, li)
 			}
@@ -1479,17 +1379,25 @@ func TestWatchLineInfo(t *testing.T) {
 	// also covers ReadLineInfoChanged
 
 	requireKernel(t, infoWatchKernel)
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSim(
+		gpiosim.WithName("gpiosim_test"),
+		gpiosim.WithBank(gpiosim.NewBank("left", 8,
+			gpiosim.WithNamedLine(3, "LED0"),
+		)),
+	)
 	require.Nil(t, err)
+	defer s.Close()
 
-	f, err := os.Open(c.DevPath)
+	c := s.Chips[0]
+	f, err := os.Open(c.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
 
+	offset := uint32(3)
+
 	// unwatched
 	hr := uapi.HandleRequest{Lines: 1, Flags: uapi.HandleRequestInput}
-	hr.Offsets[0] = 3
+	hr.Offsets[0] = offset
 	copy(hr.Consumer[:], "testwatch")
 	err = uapi.GetLineHandle(f.Fd(), &hr)
 	assert.Nil(t, err)
@@ -1499,17 +1407,16 @@ func TestWatchLineInfo(t *testing.T) {
 	unix.Close(int(hr.Fd))
 
 	// out of range
-	li := uapi.LineInfo{Offset: uint32(c.Lines + 1)}
+	li := uapi.LineInfo{Offset: uint32(c.Config().NumLines + 1)}
 	err = uapi.WatchLineInfo(f.Fd(), &li)
 	require.Equal(t, syscall.Errno(0x16), err)
 
 	// set watch
-	li = uapi.LineInfo{Offset: 3}
-	lname := c.Label + "-3"
+	li = uapi.LineInfo{Offset: offset}
 	err = uapi.WatchLineInfo(f.Fd(), &li)
 	require.Nil(t, err)
-	xli := uapi.LineInfo{Offset: 3}
-	copy(xli.Name[:], lname)
+	xli := uapi.LineInfo{Offset: offset}
+	copy(xli.Name[:], []byte(c.Config().Names[int(offset)]))
 	assert.Equal(t, xli, li)
 
 	// repeated watch
@@ -1522,7 +1429,7 @@ func TestWatchLineInfo(t *testing.T) {
 
 	// request line
 	hr = uapi.HandleRequest{Lines: 1, Flags: uapi.HandleRequestInput}
-	hr.Offsets[0] = 3
+	hr.Offsets[0] = offset
 	copy(hr.Consumer[:], "testwatch")
 	err = uapi.GetLineHandle(f.Fd(), &hr)
 	assert.Nil(t, err)
@@ -1560,8 +1467,8 @@ func TestWatchLineInfo(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedReleased, chg.Type)
-	xli = uapi.LineInfo{Offset: 3}
-	copy(xli.Name[:], lname)
+	xli = uapi.LineInfo{Offset: offset}
+	copy(xli.Name[:], []byte(c.Config().Names[int(offset)]))
 	assert.Equal(t, xli, chg.Info)
 
 	chg, err = readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
@@ -1571,24 +1478,30 @@ func TestWatchLineInfo(t *testing.T) {
 
 func TestUnwatchLineInfo(t *testing.T) {
 	requireKernel(t, infoWatchKernel)
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSim(
+		gpiosim.WithName("gpiosim_test"),
+		gpiosim.WithBank(gpiosim.NewBank("left", 8,
+			gpiosim.WithNamedLine(3, "LED0"),
+		)),
+	)
 	require.Nil(t, err)
+	defer s.Close()
 
-	f, err := os.Open(c.DevPath)
+	c := s.Chips[0]
+	f, err := os.Open(c.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
 
-	li := uapi.LineInfo{Offset: uint32(c.Lines + 1)}
+	li := uapi.LineInfo{Offset: uint32(c.Config().NumLines + 1)}
 	err = uapi.UnwatchLineInfo(f.Fd(), li.Offset)
 	require.Equal(t, syscall.Errno(0x16), err)
 
-	li = uapi.LineInfo{Offset: 3}
-	lname := c.Label + "-3"
+	offset := uint32(3)
+	li = uapi.LineInfo{Offset: offset}
 	err = uapi.WatchLineInfo(f.Fd(), &li)
 	require.Nil(t, err)
-	xli := uapi.LineInfo{Offset: 3}
-	copy(xli.Name[:], lname)
+	xli := uapi.LineInfo{Offset: offset}
+	copy(xli.Name[:], []byte(c.Config().Names[int(offset)]))
 	assert.Equal(t, xli, li)
 
 	chg, err := readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
@@ -1600,7 +1513,7 @@ func TestUnwatchLineInfo(t *testing.T) {
 
 	// request line
 	hr := uapi.HandleRequest{Lines: 1, Flags: uapi.HandleRequestInput}
-	hr.Offsets[0] = 3
+	hr.Offsets[0] = offset
 	err = uapi.GetLineHandle(f.Fd(), &hr)
 	assert.Nil(t, err)
 	unix.Close(int(hr.Fd))
@@ -1609,7 +1522,7 @@ func TestUnwatchLineInfo(t *testing.T) {
 	assert.Nil(t, chg, "spurious change")
 
 	// repeated unwatch
-	err = uapi.UnwatchLineInfo(f.Fd(), 3)
+	err = uapi.UnwatchLineInfo(f.Fd(), offset)
 	require.Equal(t, unix.EBUSY, err)
 
 	// repeated watch
@@ -1618,16 +1531,17 @@ func TestUnwatchLineInfo(t *testing.T) {
 }
 
 func TestReadEvent(t *testing.T) {
-	requireMockup(t)
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(t, err)
-	f, err := os.Open(c.DevPath)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(t, err)
 	defer f.Close()
-	err = c.SetValue(1, 0)
+	offset := 1
+	err = s.SetPull(offset, 0)
 	require.Nil(t, err)
 	er := uapi.EventRequest{
-		Offset: 1,
+		Offset: uint32(offset),
 		HandleFlags: uapi.HandleRequestInput |
 			uapi.HandleRequestActiveLow,
 		EventFlags: uapi.EventRequestBothEdges,
@@ -1640,13 +1554,13 @@ func TestReadEvent(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Nil(t, evt, "spurious event")
 
-	c.SetValue(1, 1)
+	s.SetPull(offset, 1)
 	evt, err = readEventTimeout(er.Fd, eventWaitTimeout)
 	require.Nil(t, err)
 	require.NotNil(t, evt)
 	assert.Equal(t, uapi.EventRequestFallingEdge, evt.ID)
 
-	c.SetValue(1, 0)
+	s.SetPull(offset, 0)
 	evt, err = readEventTimeout(er.Fd, eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, evt)
@@ -1655,9 +1569,15 @@ func TestReadEvent(t *testing.T) {
 
 func readEventTimeout(fd int32, t time.Duration) (*uapi.EventData, error) {
 	pollfd := unix.PollFd{Fd: int32(fd), Events: unix.POLLIN}
-	n, err := unix.Poll([]unix.PollFd{pollfd}, int(t.Milliseconds()))
-	if err != nil || n != 1 {
-		return nil, err
+	for {
+		n, err := unix.Poll([]unix.PollFd{pollfd}, int(t.Milliseconds()))
+		if err == unix.EINTR {
+			continue
+		}
+		if err != nil || n != 1 {
+			return nil, err
+		}
+		break
 	}
 	evt, err := uapi.ReadEvent(uintptr(fd))
 	if err != nil {
@@ -1670,9 +1590,15 @@ func readLineInfoChangedTimeout(fd uintptr,
 	t time.Duration) (*uapi.LineInfoChanged, error) {
 
 	pollfd := unix.PollFd{Fd: int32(fd), Events: unix.POLLIN}
-	n, err := unix.Poll([]unix.PollFd{pollfd}, int(t.Milliseconds()))
-	if err != nil || n != 1 {
-		return nil, err
+	for {
+		n, err := unix.Poll([]unix.PollFd{pollfd}, int(t.Milliseconds()))
+		if err == unix.EINTR {
+			continue
+		}
+		if err != nil || n != 1 {
+			return nil, err
+		}
+		break
 	}
 	infoChanged, err := uapi.ReadLineInfoChanged(fd)
 	if err != nil {

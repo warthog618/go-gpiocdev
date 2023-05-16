@@ -12,15 +12,16 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/warthog618/go-gpiosim"
 	"github.com/warthog618/gpiod/uapi"
 	"golang.org/x/sys/unix"
 )
 
 func BenchmarkLineInfoV2(b *testing.B) {
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
-	require.NotNil(b, c)
-	f, err := os.Open(c.DevPath)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(b, err)
 	require.NotNil(b, f)
 	defer f.Close()
@@ -30,10 +31,10 @@ func BenchmarkLineInfoV2(b *testing.B) {
 }
 
 func BenchmarkGetLine(b *testing.B) {
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
-	require.NotNil(b, c)
-	f, err := os.Open(c.DevPath)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(b, err)
 	require.NotNil(b, f)
 	defer f.Close()
@@ -47,10 +48,10 @@ func BenchmarkGetLine(b *testing.B) {
 }
 
 func BenchmarkGetLineWithEdges(b *testing.B) {
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
-	require.NotNil(b, c)
-	f, err := os.Open(c.DevPath)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(b, err)
 	require.NotNil(b, f)
 	defer f.Close()
@@ -67,10 +68,10 @@ func BenchmarkGetLineWithEdges(b *testing.B) {
 }
 
 func BenchmarkGetLineValuesV2(b *testing.B) {
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
-	require.NotNil(b, c)
-	f, err := os.Open(c.DevPath)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(b, err)
 	require.NotNil(b, f)
 	defer f.Close()
@@ -86,10 +87,10 @@ func BenchmarkGetLineValuesV2(b *testing.B) {
 }
 
 func BenchmarkSetLineValuesV2(b *testing.B) {
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
-	require.NotNil(b, c)
-	f, err := os.Open(c.DevPath)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(b, err)
 	require.NotNil(b, f)
 	defer f.Close()
@@ -110,10 +111,10 @@ func BenchmarkSetLineValuesV2(b *testing.B) {
 }
 
 func BenchmarkSetLineValuesV2Sparse(b *testing.B) {
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
-	require.NotNil(b, c)
-	f, err := os.Open(c.DevPath)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(b, err)
 	require.NotNil(b, f)
 	defer f.Close()
@@ -135,10 +136,10 @@ func BenchmarkSetLineValuesV2Sparse(b *testing.B) {
 }
 
 func BenchmarkSetLineConfigV2(b *testing.B) {
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
-	require.NotNil(b, c)
-	f, err := os.Open(c.DevPath)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(b, err)
 	require.NotNil(b, f)
 	defer f.Close()
@@ -154,10 +155,10 @@ func BenchmarkSetLineConfigV2(b *testing.B) {
 }
 
 func BenchmarkWatchLineInfoV2(b *testing.B) {
-	c, err := mock.Chip(0)
+	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
-	require.NotNil(b, c)
-	f, err := os.Open(c.DevPath)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
 	require.Nil(b, err)
 	require.NotNil(b, f)
 	defer f.Close()
