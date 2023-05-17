@@ -7,7 +7,6 @@ module github.com/warthog618/gpiod
 go 1.17
 
 require (
-	github.com/pilebones/go-udev v0.9.0
 	github.com/spf13/cobra v1.6.1
 	github.com/stretchr/testify v1.8.2
 	github.com/warthog618/go-gpiosim v0.0.0-00010101000000-000000000000

@@ -9,32 +9,42 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/warthog618/go-gpiosim"
 	"github.com/warthog618/gpiod"
 )
 
 func BenchmarkChipNewClose(b *testing.B) {
+	s, err := gpiosim.NewSimpleton(6)
+	require.Nil(b, err)
+	defer s.Close()
 	for i := 0; i < b.N; i++ {
-		c, _ := gpiod.NewChip(platform.Devpath())
+		c, _ := gpiod.NewChip(s.DevPath())
 		c.Close()
 	}
 }
 
 func BenchmarkLineInfo(b *testing.B) {
-	c, err := gpiod.NewChip(platform.Devpath())
+	s, err := gpiosim.NewSimpleton(6)
+	require.Nil(b, err)
+	defer s.Close()
+	c, err := gpiod.NewChip(s.DevPath())
 	require.Nil(b, err)
 	require.NotNil(b, c)
 	defer c.Close()
 	for i := 0; i < b.N; i++ {
-		c.LineInfo(platform.IntrLine())
+		c.LineInfo(3)
 	}
 }
 
 func BenchmarkLineReconfigure(b *testing.B) {
-	c, err := gpiod.NewChip(platform.Devpath())
+	s, err := gpiosim.NewSimpleton(6)
+	require.Nil(b, err)
+	defer s.Close()
+	c, err := gpiod.NewChip(s.DevPath())
 	require.Nil(b, err)
 	require.NotNil(b, c)
 	defer c.Close()
-	l, err := c.RequestLine(platform.IntrLine())
+	l, err := c.RequestLine(3)
 	require.Nil(b, err)
 	require.NotNil(b, l)
 	defer l.Close()
@@ -44,11 +54,14 @@ func BenchmarkLineReconfigure(b *testing.B) {
 }
 
 func BenchmarkLineValue(b *testing.B) {
-	c, err := gpiod.NewChip(platform.Devpath())
+	s, err := gpiosim.NewSimpleton(6)
+	require.Nil(b, err)
+	defer s.Close()
+	c, err := gpiod.NewChip(s.DevPath())
 	require.Nil(b, err)
 	require.NotNil(b, c)
 	defer c.Close()
-	l, err := c.RequestLine(platform.IntrLine())
+	l, err := c.RequestLine(3)
 	require.Nil(b, err)
 	require.NotNil(b, l)
 	defer l.Close()
@@ -58,25 +71,31 @@ func BenchmarkLineValue(b *testing.B) {
 }
 
 func BenchmarkLinesValues(b *testing.B) {
-	c, err := gpiod.NewChip(platform.Devpath())
+	s, err := gpiosim.NewSimpleton(6)
+	require.Nil(b, err)
+	defer s.Close()
+	c, err := gpiod.NewChip(s.DevPath())
 	require.Nil(b, err)
 	require.NotNil(b, c)
 	defer c.Close()
-	l, err := c.RequestLines(platform.FloatingLines())
+	l, err := c.RequestLines([]int{1, 2, 3})
 	require.Nil(b, err)
 	require.NotNil(b, l)
 	defer l.Close()
-	vv := make([]int, c.Lines())
+	vv := make([]int, len(l.Offsets()))
 	for i := 0; i < b.N; i++ {
 		l.Values(vv)
 	}
 }
 func BenchmarkLineSetValue(b *testing.B) {
-	c, err := gpiod.NewChip(platform.Devpath())
+	s, err := gpiosim.NewSimpleton(6)
+	require.Nil(b, err)
+	defer s.Close()
+	c, err := gpiod.NewChip(s.DevPath())
 	require.Nil(b, err)
 	require.NotNil(b, c)
 	defer c.Close()
-	l, err := c.RequestLine(platform.FloatingLines()[0], gpiod.AsOutput(0))
+	l, err := c.RequestLine(3, gpiod.AsOutput(0))
 	require.Nil(b, err)
 	require.NotNil(b, l)
 	defer l.Close()
@@ -86,11 +105,14 @@ func BenchmarkLineSetValue(b *testing.B) {
 }
 
 func BenchmarkLinesSetValues(b *testing.B) {
-	c, err := gpiod.NewChip(platform.Devpath())
+	s, err := gpiosim.NewSimpleton(6)
+	require.Nil(b, err)
+	defer s.Close()
+	c, err := gpiod.NewChip(s.DevPath())
 	require.Nil(b, err)
 	require.NotNil(b, c)
 	defer c.Close()
-	ll, err := c.RequestLines(platform.FloatingLines(), gpiod.AsOutput(0))
+	ll, err := c.RequestLines([]int{1, 2}, gpiod.AsOutput(0))
 	require.Nil(b, err)
 	require.NotNil(b, ll)
 	defer ll.Close()
@@ -102,16 +124,20 @@ func BenchmarkLinesSetValues(b *testing.B) {
 }
 
 func BenchmarkInterruptLatency(b *testing.B) {
-	c, err := gpiod.NewChip(platform.Devpath())
+	s, err := gpiosim.NewSimpleton(6)
+	require.Nil(b, err)
+	defer s.Close()
+	c, err := gpiod.NewChip(s.DevPath())
 	require.Nil(b, err)
 	require.NotNil(b, c)
 	defer c.Close()
-	platform.TriggerIntr(1)
+	offset := 2
+	s.SetPull(offset, 1)
 	ich := make(chan int)
 	eh := func(evt gpiod.LineEvent) {
 		ich <- 1
 	}
-	r, err := c.RequestLine(platform.IntrLine(),
+	r, err := c.RequestLine(offset,
 		gpiod.WithBothEdges,
 		gpiod.WithEventHandler(eh))
 	require.Nil(b, err)
@@ -122,7 +148,7 @@ func BenchmarkInterruptLatency(b *testing.B) {
 	case <-time.After(time.Millisecond):
 	}
 	for i := 0; i < b.N; i++ {
-		platform.TriggerIntr(i & 1)
+		s.SetPull(offset, i&1)
 		<-ich
 	}
 	r.Close()

@@ -8,15 +8,15 @@
 // This is a Go equivalent of libgpiod.
 //
 // Supports:
-//  - Line direction (input/output)
-//  - Line write (active/inactive)
-//  - Line read (active/inactive)
-//  - Line bias (pull-up/pull-down/disabled)
-//  - Line drive (push-pull/open-drain/open-source)
-//  - Line level (active-high/active-low)
-//  - Line edge detection (rising/falling/both)
-//  - Line labels
-//  - Collections of lines for near simultaneous reads and writes on multiple lines
+//   - Line direction (input/output)
+//   - Line write (active/inactive)
+//   - Line read (active/inactive)
+//   - Line bias (pull-up/pull-down/disabled)
+//   - Line drive (push-pull/open-drain/open-source)
+//   - Line level (active-high/active-low)
+//   - Line edge detection (rising/falling/both)
+//   - Line labels
+//   - Collections of lines for near simultaneous reads and writes on multiple lines
 //
 // Example of use:
 //

@@ -16,14 +16,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/warthog618/go-gpiosim"
-	"github.com/warthog618/gpiod/mockup"
 	"github.com/warthog618/gpiod/uapi"
 	"golang.org/x/sys/unix"
 )
 
 var (
-	setConfigKernel = mockup.Semver{5, 5} // setLineConfig ioctl added
-	infoWatchKernel = mockup.Semver{5, 7} // watchLineInfo ioctl added
+	setConfigKernel = uapi.Semver{5, 5} // setLineConfig ioctl added
+	infoWatchKernel = uapi.Semver{5, 7} // watchLineInfo ioctl added
 
 	// linux kernel timers typically have this granularity, so base timeouts on this...
 	clkTick                  = 10 * time.Millisecond
@@ -1217,7 +1216,7 @@ func TestSetLineHandleConfig(t *testing.T) {
 	defer s.Close()
 	for _, p := range patterns {
 		tf := func(t *testing.T) {
-			// setup mockup for inputs
+			// setup sim for inputs
 			if p.initialVal != nil {
 				for i, o := range p.offsets {
 					v := int(p.initialVal[i])
@@ -1720,8 +1719,8 @@ func lineFromHandle(hf uapi.HandleFlag) uapi.LineFlag {
 	return lf
 }
 
-func requireKernel(t *testing.T, min mockup.Semver) {
-	if err := mockup.CheckKernelVersion(min); err != nil {
+func requireKernel(t *testing.T, min uapi.Semver) {
+	if err := uapi.CheckKernelVersion(min); err != nil {
 		t.Skip(err)
 	}
 }

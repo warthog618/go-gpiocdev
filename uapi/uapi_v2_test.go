@@ -16,14 +16,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/warthog618/go-gpiosim"
-	"github.com/warthog618/gpiod/mockup"
 	"github.com/warthog618/gpiod/uapi"
 	"golang.org/x/sys/unix"
 )
 
 var (
-	uapiV2Kernel             = mockup.Semver{5, 10} // uapi v2 added
-	eventClockRealtimeKernel = mockup.Semver{5, 11} // add LineFlagV2EventClockRealtime
+	uapiV2Kernel             = uapi.Semver{5, 10} // uapi v2 added
+	eventClockRealtimeKernel = uapi.Semver{5, 11} // add LineFlagV2EventClockRealtime
 	debouncePeriod           = 5 * clkTick
 )
 
@@ -78,7 +77,6 @@ func TestGetLineInfoV2(t *testing.T) {
 	for _, c := range s.Chips {
 		f, err := os.Open(c.DevPath())
 		require.Nil(t, err)
-		t.Logf("chip fd: %d", f.Fd())
 		defer f.Close()
 		checkLineInfoV2(t, f, c.Config())
 	}
@@ -2257,8 +2255,7 @@ func TestReadLineEvent(t *testing.T) {
 
 	unix.Close(int(lr.Fd))
 
-	// !!! move CheckKernelVersion out of mockup...
-	if mockup.CheckKernelVersion(eventClockRealtimeKernel) != nil {
+	if uapi.CheckKernelVersion(eventClockRealtimeKernel) != nil {
 		return
 	}
 

@@ -11,6 +11,9 @@ package uapi
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
+	"regexp"
+	"strconv"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -558,4 +561,69 @@ func (f EventFlag) IsFallingEdge() bool {
 // requested.
 func (f EventFlag) IsBothEdges() bool {
 	return f&EventRequestBothEdges == EventRequestBothEdges
+}
+
+// KernelVersion returns the running kernel version.
+func KernelVersion() (semver []byte, err error) {
+	uname := unix.Utsname{}
+	err = unix.Uname(&uname)
+	if err != nil {
+		return
+	}
+	release := string(uname.Release[:])
+	r := regexp.MustCompile(`(\d+)\.(\d+)\.(\d+)`)
+	vers := r.FindStringSubmatch(release)
+	if len(vers) != 4 {
+		err = fmt.Errorf("can't parse uname: %s", release)
+		return
+	}
+	v := []byte{0, 0, 0}
+	for i, vf := range vers[1:] {
+		var vfi uint64
+		vfi, err = strconv.ParseUint(vf, 10, 64)
+		if err != nil {
+			return
+		}
+		v[i] = byte(vfi)
+	}
+	semver = v
+	return
+}
+
+// CheckKernelVersion returns an error if the kernel version is less than the
+// min.
+func CheckKernelVersion(min Semver) error {
+	kv, err := KernelVersion()
+	if err != nil {
+		return err
+	}
+	n := bytes.Compare(kv, min[:])
+	if n < 0 {
+		return ErrorBadVersion{Need: min, Have: kv}
+	}
+	return nil
+}
+
+// Semver is 3 part version, Major, Minor, Patch.
+type Semver []byte
+
+func (v Semver) String() string {
+	if len(v) == 0 {
+		return ""
+	}
+	vstr := fmt.Sprintf("%d", v[0])
+	for i := 1; i < len(v); i++ {
+		vstr += fmt.Sprintf(".%d", v[i])
+	}
+	return vstr
+}
+
+// ErrorBadVersion indicates the kernel version is insufficient.
+type ErrorBadVersion struct {
+	Need Semver
+	Have Semver
+}
+
+func (e ErrorBadVersion) Error() string {
+	return fmt.Sprintf("require kernel %s or later, but running %s", e.Need, e.Have)
 }
