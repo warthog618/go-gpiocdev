@@ -56,11 +56,11 @@ Supports the following functionality per line and for collections of lines:
 - different configurations for lines within a collection<sup>**3**</sup>
 
 <sup>**1**</sup> Dynamically changing line direction without releasing the line
-requires Linux v5.5 or later.
+requires Linux 5.5 or later.
 
-<sup>**2**</sup> Requires Linux v5.5 or later.
+<sup>**2**</sup> Requires Linux 5.5 or later.
 
-<sup>**3**</sup> Requires Linux v5.10 or later.
+<sup>**3**</sup> Requires Linux 5.10 or later.
 
 All library functions are safe to call from different goroutines.
 
@@ -258,7 +258,7 @@ The *Line.Reconfigure* method accepts differential changes to the configuration
 for the lines, so option categories not specified or overridden by the specified
 changes will remain unchanged.
 
-The *Line.Reconfigure* method requires Linux v5.5 or later.
+The *Line.Reconfigure* method requires Linux 5.5 or later.
 
 #### Complex Configurations
 
@@ -293,7 +293,7 @@ or reset to the request configuration using the *Defaulted* option:
 ll.Reconfigure(gpiod.WithLines([]int{3}, gpiod.Defaulted))
 ```
 
-Complex configurations require Linux v5.10 or later.
+Complex configurations require Linux 5.10 or later.
 
 ### Chip Initialization
 
@@ -428,7 +428,7 @@ l, _ = c.RequestLine(4, gpiod.WithPullUp) // during request
 l.Reconfigure(gpiod.WithBiasDisabled)     // once requested
 ```
 
-The bias options require Linux v5.5 or later.
+The bias options require Linux 5.5 or later.
 
 ##### Drive
 
@@ -454,7 +454,7 @@ l, _ = c.RequestLine(4, gpiod.WithDebounce(period))// during request
 l.Reconfigure(gpiod.WithDebounce(period))         // once requested
 ```
 
-The WithDebounce option requires Linux v5.10 or later.
+The WithDebounce option requires Linux 5.10 or later.
 
 ##### Edge Detection
 
@@ -469,16 +469,16 @@ Refer to [Edge Watches](#edge-watches) for examples of the edge detection option
 ##### Event Clock
 
 The event clock options control the source clock used to timestamp edge events.
-This is only useful for Linux kernels v5.11 and later - prior to that the clock
+This is only useful for Linux kernels 5.11 and later - prior to that the clock
 source is fixed.
 
 The event clock source used by the kernel has changed over time as follows:
 
 Kernel Version | Clock source
 --- | ---
-pre-v5.7 | CLOCK_REALTIME
-v5.7 - v5.10 | CLOCK_MONOTONIC
-v5.11 and later | configurable
+pre-5.7 | CLOCK_REALTIME
+5.7 - 5.10 | CLOCK_MONOTONIC
+5.11 and later | configurable (defaults to CLOCK_MONOTONIC)
 
 Determining which clock the edge event timestamps contain is currently left as
 an exercise for the user.
@@ -525,11 +525,11 @@ with *NewChip* or *Line.Reconfigure*.
 <sup>**3**</sup> Can be applied to either *Chip.RequestLine* or
 *Line.Reconfigure*, but cannot be used with *NewChip*.
 
-<sup>**4**</sup> Requires Linux v5.5 or later.
+<sup>**4**</sup> Requires Linux 5.5 or later.
 
-<sup>**5**</sup> Requires Linux v5.10 or later.
+<sup>**5**</sup> Requires Linux 5.10 or later.
 
-<sup>**6**</sup> Requires Linux v5.11 or later.
+<sup>**6**</sup> Requires Linux 5.11 or later.
 
 ## Installation
 
@@ -650,7 +650,7 @@ Later Pis can also use ARM7 (GOARM=7).
 The tests include benchmarks on reads, writes, bulk reads and writes,  and
 interrupt latency.
 
-These are the results from a Raspberry Pi Zero W running Linux v5.10 and built
+These are the results from a Raspberry Pi Zero W running Linux 5.10 and built
 with go1.15.6:
 
 ```shell
@@ -678,10 +678,10 @@ The caller must have access to the character device - typically
 **/dev/gpiochip0**.  That is generally root unless you have changed the
 permissions of that device.
 
-The Bias line options and the Line.Reconfigure method both require Linux v5.5 or
+The Bias line options and the Line.Reconfigure method both require Linux 5.5 or
 later.
 
-Debounce and other uAPI v2 features require Linux v5.10 or later.
+Debounce and other uAPI v2 features require Linux 5.10 or later.
 
 The requirements for each [configuration option](#configuration-options) are
 noted in that section.
@@ -717,19 +717,19 @@ Make licensing [REUSE](https://reuse.software/) compliant.
 ### v0.6.0
 
 *gpiod* now supports both the old GPIO uAPI (v1) and the newer (v2) introduced
-in Linux v5.10. The library automatically detects the available uAPI versions
+in Linux 5.10. The library automatically detects the available uAPI versions
 and makes use of the latest.
 
 Applications written for uAPI v1 will continue to work with uAPI v2.
 
 Applications that make use of v2 specific features will return errors when run
-on Linux kernels prior to v5.10.
+on Linux kernels prior to 5.10.
 
 Breaking API changes:
 
 1. The event handler parameter has been moved from edge options into the
    *WithEventHandler(eh)* option to allow for reconfiguration of edge detection
-   which is supported in Linux v5.10.
+   which is supported in Linux 5.10.
 
    Old edge options should be replaced with the *WithEventHandler* option and
    the now parameterless edge option, e.g.:
