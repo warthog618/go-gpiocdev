@@ -9,11 +9,9 @@ go 1.17
 require (
 	github.com/spf13/cobra v1.6.1
 	github.com/stretchr/testify v1.8.2
-	github.com/warthog618/go-gpiosim v0.0.0-00010101000000-000000000000
-	golang.org/x/sys v0.3.0
+	github.com/warthog618/go-gpiosim v0.1.0
+	golang.org/x/sys v0.10.0
 )
-
-replace github.com/warthog618/go-gpiosim => ../gpiosim
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
