@@ -36,9 +36,7 @@ v0.8.x
 v0.9.0
 
 - First release as **gpiocdev** (released simultaneously with the final 0.8.x)
-- Switch tests from **gpio-mockup** to **gpio-sim**
 - Rename *gpiodctl* to *gpiocdev* and upgrade tools to match **libgpiod v2** tools
-- Remove the **libgpiod v1** equivalent tools (the gpiocdev tool will provide equivalents of the **libgpiod v2** tools).
 
 ## Features
 
@@ -514,7 +512,8 @@ Option | Category | Description
 *WithLines(offsets, options...)*<sup>**3**,**5**</sup> |  | Specify configuration options for a subset of lines in a request
 *Defaulted*<sup>**5**</sup> |  | Reset the configuration for a request to the default configuration, or the configuration of a particular line in a request to the default for that request
 
-The options described as **default** are generally not required, except to override other options earlier in a chain of configuration options.
+The options described as **default** are generally not required, except to
+override other options earlier in a chain of configuration options.
 
 <sup>**1**</sup> Can be applied to either *NewChip* or *Chip.RequestLine*, but
 cannot be used with *Line.Reconfigure*.
@@ -539,7 +538,8 @@ On Linux:
 go get github.com/warthog618/gpiod
 ```
 
-For other platforms, where you intend to cross-compile for Linux, don't attempt to compile the package when it is installed:
+For other platforms, where you intend to cross-compile for Linux, don't attempt
+to compile the package when it is installed:
 
 ```shell
 go get -d github.com/warthog618/gpiod
@@ -596,51 +596,23 @@ gpiomon | Report edges detected on a line or set of lines on one gpiochip.
 The library is fully tested, other than some error cases and sanity checks that
 are difficult to trigger.
 
-The tests require a kernel release 5.1.0 or later to run.  For all the tests to
-pass a kernel 5.5.0 or later is required.
+The tests require a kernel release 5.19 or later to run, built with
+**CONFIG_GPIO_SIM** set or as a module.
 
-The test user must have access to the **/dev/gpiochip0** character device.
-
-### Platforms
-
-The tests can be run on either of two platforms:
-
-- gpio-mockup (**default**)
-- Raspberry Pi
-
-#### gpio-mockup
-
-The gpio-mockup platform is any Linux platform with a recent kernel that supports
-the **gpio-mockup** loadable module. **gpio-mockup** must be built as a module
-and the test user must have rights to load and unload the module.
-
-The **gpio-mockup** is the default platform for tests and benchmarks as it does
-not interact with physical hardware and so is always safe to run.
-
-#### Raspberry Pi
-
-On Raspberry Pi, the tests are intended to be run on a board with J8 pins 11 and
-12 floating and with pins 15 and 16 tied together, possibly using a jumper
-across the header.
-
-:warning: The tests set J8 pins 11, 12 and 16 to outputs so **DO NOT**
-run them on hardware where any of those pins is being externally driven.
-
-The Raspberry Pi platform is selected by specifying the platform parameter on
-the test command line:
+The tests must be run as root, to allow contruction of **gpio-sims**.
+They can still be built as an unprivileged user, e.g.
 
 ```shell
-go test -platform=rpi
+$ go test -c
 ```
 
-Tests have been run successfully on Raspberry Pi Zero W and Pi 4B.  The library
-should also work on other Raspberry Pi variants, I just haven't gotten around to
-testing them yet.
+but must be run as root.
 
-The tests can be cross-compiled from other platforms using:
+The tests can also be cross-compiled for other platforms.
+e.g. build tests for a Raspberry Pi using:
 
 ```shell
-GOOS=linux GOARCH=arm GOARM=6 go test -c
+$ GOOS=linux GOARCH=arm GOARM=6 go test -c
 ```
 
 Later Pis can also use ARM7 (GOARM=7).
@@ -650,24 +622,29 @@ Later Pis can also use ARM7 (GOARM=7).
 The tests include benchmarks on reads, writes, bulk reads and writes,  and
 interrupt latency.
 
-These are the results from a Raspberry Pi Zero W running Linux 5.10 and built
-with go1.15.6:
+These are the results from a Raspberry Pi Zero W running Linux 6.4 and built
+with go1.20.6:
 
 ```shell
-$ ./gpiod.test -platform=rpi -test.bench=.*
+$ ./gpiod.test -test.bench=.*
 goos: linux
 goarch: arm
 pkg: github.com/warthog618/gpiod
-BenchmarkChipNewClose              265       3949958 ns/op
-BenchmarkLineInfo                28420         40192 ns/op
-BenchmarkLineReconfigure         26079         46121 ns/op
-BenchmarkLineValue              114961         10176 ns/op
-BenchmarkLinesValues             66969         17367 ns/op
-BenchmarkLineSetValue            92529         12531 ns/op
-BenchmarkLinesSetValues          65965         17309 ns/op
-BenchmarkInterruptLatency         1827        638202 ns/op
+BenchmarkChipNewClose     	     248	   4381075 ns/op
+BenchmarkLineInfo         	   24651	     47278 ns/op
+BenchmarkLineReconfigure  	   20312	     55273 ns/op
+BenchmarkLineValue        	   71774	     14933 ns/op
+BenchmarkLinesValues      	   54920	     24659 ns/op
+BenchmarkLineSetValue     	   73359	     16501 ns/op
+BenchmarkLinesSetValues   	   53557	     21056 ns/op
+BenchmarkInterruptLatency 	     105	  10407929 ns/op
 PASS
 ```
+
+The latency benchmark is no longer representative as the measurement now depends
+on how quickly **gpio-sim** can toggle lines, and that is considerably slower
+than how quickly **gpiod** responds.  For comparison, the same test using
+looped Raspberry Pi lines produced a result of ~640μsec on the same platform.
 
 ## Prerequisites
 
@@ -688,13 +665,27 @@ noted in that section.
 
 ## Release Notes
 
+### v0.8.2
+
+Switch tests from **gpio-mockup** to **gpio-sim**.
+
+Drop test dependency on *pilebones/go-udev*.
+
+Drop example dependency on *warthog618/config*.
+
+### v0.8.1
+
+Add bananapi pin mappings.
+
+Fix config check in **gpioset**.
+
 ### v0.8.0
 
-  Add top level *RequestLine* and *RequestLines* functions to simplify common use cases.
+Add top level *RequestLine* and *RequestLines* functions to simplify common use cases.
 
-  **blinker** and **watcher** examples interwork with each other on a Raspberry Pi with a jumper across **J8-15** and **J8-16**.
+**blinker** and **watcher** examples interwork with each other on a Raspberry Pi with a jumper across **J8-15** and **J8-16**.
 
-  Fix deadlock in **gpiodctl set** no-wait.
+Fix deadlock in **gpiodctl set** no-wait.
 
 ### v0.7.0
 
