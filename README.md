@@ -577,20 +577,6 @@ Use "gpiodctl [command] --help" for more information about a command.
 
 ```
 
-The Go equivalent of each of the **libgpiod** command line tools can also be
-found in the cmd directory.
-
-Those tools are:
-
-Tool | Description
---- | ---
-gpiodetect | Report all the gpiochips available on the system.
-gpioinfo | Report the details of all the lines available on gpiochips.
-gpiofind | Find the gpiochip and offset of a line by name.
-gpioget | Get the value of a line or a set of lines on one gpiochip.
-gpioset | Set of value of a line or a set of lines on one gpiochip.
-gpiomon | Report edges detected on a line or set of lines on one gpiochip.
-
 ## Tests
 
 The library is fully tested, other than some error cases and sanity checks that
