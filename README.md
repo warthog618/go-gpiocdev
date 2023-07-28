@@ -632,6 +632,24 @@ on how quickly **gpio-sim** can toggle lines, and that is considerably slower
 than how quickly **gpiod** responds.  For comparison, the same test using
 looped Raspberry Pi lines produced a result of ~640μsec on the same platform.
 
+And on a Raspberry Pi 4 running Linux 6.4 (32bit kernel) and built with go1.20.6:
+
+```shell
+$ ./gpiod.test -test.bench=.*
+goos: linux
+goarch: arm
+pkg: github.com/warthog618/gpiod
+BenchmarkChipNewClose-4       	    9727	    118291 ns/op
+BenchmarkLineInfo-4           	  185316	      6104 ns/op
+BenchmarkLineReconfigure-4    	  364795	      3205 ns/op
+BenchmarkLineValue-4          	 1072785	      1061 ns/op
+BenchmarkLinesValues-4        	  816200	      1428 ns/op
+BenchmarkLineSetValue-4       	 1015972	      1150 ns/op
+BenchmarkLinesSetValues-4     	  715154	      1717 ns/op
+BenchmarkInterruptLatency-4   	   18439	     61145 ns/op
+PASS
+```
+
 ## Prerequisites
 
 The library targets Linux with support for the GPIO character device API.  That
