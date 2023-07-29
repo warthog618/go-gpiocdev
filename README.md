@@ -530,35 +530,9 @@ go get -d github.com/warthog618/go-gpiocdev
 
 ## Tools
 
-A command line utility, **gpiocdev**, can be found in the cmd directory and is
-provided to allow manual or scripted manipulation of GPIO lines.  This utility
-combines the Go equivalent of all the **libgpiod** command line tools into a
-single tool.
-
-```shell
-gpiocdev is a utility to control GPIO lines on Linux GPIO character devices
-
-Usage:
-  gpiocdev [flags]
-  gpiocdev [command]
-
-Available Commands:
-  chip        Detect available GPIO chips
-  edges       Monitor the state of a line or lines
-  get         Get the state of a line or lines
-  help        Help about any command
-  line        Info about chip lines
-  platform    Provide info about the platform iGPIO uAPI support.
-  set         Set the state of a line or lines
-  version     Display the version
-  watch       Watch lines for changes to the line info
-
-Flags:
-  -h, --help   help for gpiocdev
-
-Use "gpiocdev [command] --help" for more information about a command.
-
-```
+A companion package, **[gpiocdev-cli](github.com/warthog618/go-gpiocdev-cli)** provides a command line tool that allows
+manual or scripted manipulation of GPIO lines.  This utility combines the Go
+equivalent of all the **libgpiod** command line tools into a single tool.
 
 ## Tests
 

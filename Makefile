@@ -13,13 +13,13 @@ spis=$(patsubst %.go, %, $(wildcard example/spi/*/*.go))
 examples=$(patsubst %.go, %, $(wildcard example/*/*.go))
 bins= $(spis) $(examples)
 
-cmds=$(patsubst %.go, %, $(wildcard cmd/gpio*/gpio*.go))
+cli=$(patsubst %.go, %, $(wildcard cli/gpio*.go))
 
 all: tools $(bins)
 
-$(cmds) : % : %.go
+$(cli) : % : %.go
 	cd $(@D); \
-	$(GOBUILD) $(LDFLAGS)
+	$(GOBUILD) -o gpiocdev $(LDFLAGS)
 
 $(bins) : % : %.go
 	cd $(@D); \
@@ -27,6 +27,7 @@ $(bins) : % : %.go
 
 clean: 
 	$(GOCLEAN) ./...
+	rm cli/gpiocdev
 
-tools: $(cmds)
+tools: $(cli)
 

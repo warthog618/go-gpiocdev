@@ -6,6 +6,7 @@ SPDX-License-Identifier: MIT
 ## [Unreleased](https://github.com/warthog618/gpiod/compare/v0.8.3...HEAD)
 
 - rename from **gpiod** to **gpiocdev**.
+- move cli into its own repo - **go-gpiocdev-cli**.
 
 ## v0.8.3 - 2024-03-16
 
