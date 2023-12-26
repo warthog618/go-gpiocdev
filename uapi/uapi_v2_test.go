@@ -8,6 +8,7 @@
 package uapi_test
 
 import (
+	"errors"
 	"os"
 	"syscall"
 	"testing"
@@ -2716,6 +2717,43 @@ func TestDebounce(t *testing.T) {
 	assert.Nil(t, evt, "spurious event")
 
 	unix.Close(int(lr.Fd))
+}
+
+func TestReleaseWakesPoll(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
+	s, err := gpiosim.NewSimpleton(4)
+	require.Nil(t, err)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
+	require.Nil(t, err)
+	defer f.Close()
+	offset := 1
+	err = s.SetPull(offset, 0)
+	require.Nil(t, err)
+	lr := uapi.LineRequest{
+		Lines: 1,
+		Config: uapi.LineConfig{
+			Flags: uapi.LineFlagV2Input |
+				uapi.LineFlagV2EdgeBoth,
+			NumAttrs: 1,
+		},
+	}
+
+	errChan := make(chan error)
+
+	monitor := func() {
+		evt, err := readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
+		if evt != nil {
+			errChan <- errors.New("spurious event")
+		} else {
+			errChan <- err
+		}
+	}
+
+	go monitor()
+	unix.Close(int(lr.Fd))
+	err = <-errChan
+	assert.Equal(t, unix.EBADF, err)
 }
 
 func checkLineValue(t *testing.T, lr uapi.LineRequest, v int) {
