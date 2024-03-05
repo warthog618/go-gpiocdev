@@ -382,7 +382,6 @@ func testChipDriveOption(t *testing.T, option gpiod.ChipOption,
 	require.NotNil(t, l)
 	defer l.Close()
 	inf, err := c.LineInfo(offset)
-	t.Logf("li: %v", inf)
 	assert.Nil(t, err)
 	assert.Equal(t, drive, inf.Config.Drive)
 	for _, sv := range values {
