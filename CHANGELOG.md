@@ -7,6 +7,7 @@ SPDX-License-Identifier: MIT
 
 - rename from **gpiod** to **gpiocdev**.
 - move cli into its own repo - **go-gpiocdev-cli**.
+- remove SPI examples.
 
 ## v0.8.3 - 2024-03-16
 
