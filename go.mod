@@ -4,12 +4,12 @@
 
 module github.com/warthog618/go-gpiocdev
 
-go 1.17
+go 1.19
 
 require (
-	github.com/stretchr/testify v1.8.2
+	github.com/stretchr/testify v1.9.0
 	github.com/warthog618/go-gpiosim v0.1.0
-	golang.org/x/sys v0.10.0
+	golang.org/x/sys v0.18.0
 )
 
 require (
