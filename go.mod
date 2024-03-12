@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: CC0-1.0
 
+// Deprecated: use github.com/warthog618/go-gpiocdev instead.
 module github.com/warthog618/gpiod
 
 go 1.17

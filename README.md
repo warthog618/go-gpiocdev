@@ -23,20 +23,11 @@ equivalent functionality.
 
 ## Roadmap
 
-On the road to v1.0 the intent is to rename this library to **gpiocdev** to more clearly distinguish it from **libgpiod**, and to highlight that it operates on the GPIO character device. Additionally, the tools and testing will be more closely aligned to **libgpiod v2**, rather than **libgpiod v1**.
+This library has been renamed to **gpiocdev** to more clearly distinguish it from **libgpiod**, and to highlight that it operates on the GPIO character device.
 
-The plan is to work on the renaming in a **gpiocdev** branch and, once that is complete, to release a final 0.8.x version which deprecates the **gpiod** name, and to merge the **gpiocdev** branch into master and release v0.9.0 which will be the first release as **gpiocdev**. Coincident with this, the github repo will be renamed from **gpiod** to **go-gpiocdev**.
+All future development will occur in the **[go-gpiocdev](https://github.com/warthog618/go-gpiocdev)** repository.
 
-So, in summary, the planned changes are:
-
-v0.8.x
-
-- Deprecate github.com/warthog618/gpiod in favour of github.com/warthog618/go-gpiocdev
-
-v0.9.0
-
-- First release as **gpiocdev** (released simultaneously with the final 0.8.x)
-- Rename *gpiodctl* to *gpiocdev* and upgrade tools to match **libgpiod v2** tools
+Update your dependencies from `github.com/warthog618/gpiod` to `github.com/warthog618/go-gpiocdev` to switch.
 
 ## Features
 
@@ -666,80 +657,3 @@ Debounce and other uAPI v2 features require Linux 5.10 or later.
 
 The requirements for each [configuration option](#configuration-options) are
 noted in that section.
-
-## Release Notes
-
-### v0.8.2
-
-Switch tests from **gpio-mockup** to **gpio-sim**.
-
-Drop test dependency on *pilebones/go-udev*.
-
-Drop example dependency on *warthog618/config*.
-
-### v0.8.1
-
-Add bananapi pin mappings.
-
-Fix config check in **gpioset**.
-
-### v0.8.0
-
-Add top level *RequestLine* and *RequestLines* functions to simplify common use cases.
-
-**blinker** and **watcher** examples interwork with each other on a Raspberry Pi with a jumper across **J8-15** and **J8-16**.
-
-Fix deadlock in **gpiodctl set** no-wait.
-
-### v0.7.0
-
-*LineEvent* exposes sequence numbers for uAPI v2 events.
-
-Info tools (**gpiodctl info** and **gpioinfo**) report debounce-period.
-
-**gpiodctl mon** and watcher example report event sequence numbers.
-
-**gpiodctl mon** supports setting debounce period.
-
-**gpiodctl detect** reports kernel uAPI version in use.
-
-Watchers use Eventfd instead of pipes to reduce open file descriptors.
-
-Start migrating to Go 1.17 go:build style build tags.
-
-Make licensing [REUSE](https://reuse.software/) compliant.
-
-### v0.6.0
-
-*gpiod* now supports both the old GPIO uAPI (v1) and the newer (v2) introduced
-in Linux 5.10. The library automatically detects the available uAPI versions
-and makes use of the latest.
-
-Applications written for uAPI v1 will continue to work with uAPI v2.
-
-Applications that make use of v2 specific features will return errors when run
-on Linux kernels prior to 5.10.
-
-Breaking API changes:
-
-1. The event handler parameter has been moved from edge options into the
-   *WithEventHandler(eh)* option to allow for reconfiguration of edge detection
-   which is supported in Linux 5.10.
-
-   Old edge options should be replaced with the *WithEventHandler* option and
-   the now parameterless edge option, e.g.:
-
-   ```sed
-   s/gpiod\.WithBothEdges(/gpiod.WithBothEdges, gpiod.WithEventHandler(/g
-   ```
-
-2. *WithBiasDisable* is renamed *WithBiasDisabled*.  This option is probably
-   rarely used and the renaming is trivial, so no backward compatibility is
-   provided.
-
-3. *FindLine* has been dropped as line names are not guaranteed to be unique.
-   Iterating over the available chips and lines to search for line by name can
-   be easily done - the *Chips* function provides the list of available chips as
-   a starting point.
-
-   Refer to the *find* command in **gpiodctl** for example code.
