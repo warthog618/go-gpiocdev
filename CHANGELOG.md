@@ -3,7 +3,9 @@ SPDX-FileCopyrightText: 2024 Kent Gibson <warthog618@gmail.com>
 
 SPDX-License-Identifier: MIT
 -->
-## [Unreleased](https://github.com/warthog618/gpiod/compare/v0.8.3...HEAD)
+## [Unreleased](https://github.com/warthog618/gpiod/compare/v0.9.0...HEAD)
+
+## v0.9.0 - 2024-03-16
 
 - rename from **gpiod** to **gpiocdev**.
 - move cli into its own repo - **go-gpiocdev-cli**.
