@@ -51,7 +51,7 @@ A simple piece of wire example that reads the value of an input line (pin 2) and
 writes its value to an output line (pin 3):
 
 ```go
-import "github.com/warthog618/gpiocdev"
+import "github.com/warthog618/go-gpiocdev"
 
 ...
 
@@ -67,7 +67,7 @@ Error handling and releasing of resources omitted for brevity.
 ## Usage
 
 ```go
-import "github.com/warthog618/gpiocdev"
+import "github.com/warthog618/go-gpiocdev"
 ```
 
 Error handling is omitted from the following examples for brevity.
