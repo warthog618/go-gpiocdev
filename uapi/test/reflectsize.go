@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"unsafe"
+
+	"github.com/warthog618/go-gpiocdev/uapi"
 )
 
 // sizeof returns the size >= 0 of variables for the given type or -1 if the type is not acceptable.
@@ -35,8 +37,6 @@ func sizeof(t reflect.Type) int {
 	return -1
 }
 
-const nameSize = 32
-
 // dataSize returns the number of bytes the actual data represented by v occupies in memory.
 // For compound structures, it sums the sizes of the elements. Thus, for instance, for a slice
 // it returns the length of the slice times the element size and does not count the memory
@@ -51,41 +51,8 @@ func dataSize(v reflect.Value) int {
 	return sizeof(v.Type())
 }
 
-// LineInfoChanged contains the details of a change to line info.
-//
-// This is returned via the chip fd in response to changes to watched lines.
-type LineInfoChanged struct {
-	// The time the change occured.
-	A uint64
-
-	// The type of change.
-	B uint32
-
-	// The updated info.
-	Info LineInfo
-
-	// reserved for future use.
-	_ [4]uint32
-	_ uint32 // alignment??
-}
-
-type LineInfo struct {
-	// The offset of the line within the chip.
-	Offset uint32
-
-	// The line flags applied to this line.
-	Flags uint32
-
-	// The system name for this line.
-	Name [nameSize]byte
-
-	// If requested, a string added by the requester to identify the
-	// owner of the request.
-	Consumer [nameSize]byte
-}
-
 func main() {
-	var lic LineInfoChanged
+	var lic uapi.LineInfoChanged
 
 	fmt.Printf("unsafe.sizeof: %d\n", unsafe.Sizeof(lic))
 
