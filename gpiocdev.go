@@ -36,7 +36,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"sync"
@@ -1182,7 +1181,7 @@ func IsChip(name string) error {
 //
 // Does not open them or check if they are valid.
 func chipNames() []string {
-	ee, err := ioutil.ReadDir("/dev")
+	ee, err := os.ReadDir("/dev")
 	if err != nil {
 		return nil
 	}
