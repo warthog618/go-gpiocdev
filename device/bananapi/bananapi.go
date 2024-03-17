@@ -42,6 +42,7 @@ var (
 	GPIO27 = GPIO_TO_OFFSET[27]
 )
 
+// GPIO_TO_OFFSET maps from GPIO number to offset.
 var GPIO_TO_OFFSET = map[int]int{
 	2:  53,
 	3:  52,
