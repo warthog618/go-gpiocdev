@@ -124,7 +124,7 @@ const (
 	// LineDriveOpenDrain indicates the line is an open drain output.
 	LineDriveOpenDrain
 
-	// LineDriveOpenSource indicates the line is an open souce output.
+	// LineDriveOpenSource indicates the line is an open source output.
 	LineDriveOpenSource
 )
 
@@ -514,7 +514,7 @@ func (c *Chip) createInfoWatcher() error {
 // The changes are reported via the chip InfoChangeHandler.
 // Repeated calls replace the InfoChangeHandler.
 //
-// Requires Linux v5.7 or later.
+// Requires Linux 5.7 or later.
 func (c *Chip) WatchLineInfo(offset int, lich InfoChangeHandler) (info LineInfo, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -550,7 +550,7 @@ func (c *Chip) WatchLineInfo(offset int, lich InfoChangeHandler) (info LineInfo,
 
 // UnwatchLineInfo disables watching changes to line info.
 //
-// Requires Linux v5.7 or later.
+// Requires Linux 5.7 or later.
 func (c *Chip) UnwatchLineInfo(offset int) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -806,7 +806,7 @@ func (l *baseLine) Close() error {
 //
 // Not valid for lines with edge detection enabled.
 //
-// Requires Linux v5.5 or later.
+// Requires Linux 5.5 or later.
 func (l *baseLine) Reconfigure(options ...LineConfigOption) error {
 	if l.isEvent {
 		return unix.EINVAL
@@ -1085,19 +1085,19 @@ type LineEvent struct {
 	//
 	// The timestamp is intended for accurately measuring intervals between
 	// events. It is not guaranteed to be based on a particular clock. It has
-	// been based on CLOCK_REALTIME, but from Linux v5.7 it is based on
+	// been based on CLOCK_REALTIME, but from Linux 5.7 it is based on
 	// CLOCK_MONOTONIC.
 	Timestamp time.Duration
 
 	// The type of state change event this structure represents.
 	Type LineEventType
 
-	// The seqno for this event in all events on all lines in this line request.
+	// The sequence number for this event in all events on all lines in this line request.
 	//
 	// Requires uAPI v2.
 	Seqno uint32
 
-	// The seqno for this event in all events in this line.
+	// The sequence number for this event in all events in this line.
 	//
 	// Requires uAPI v2.
 	LineSeqno uint32
@@ -1112,7 +1112,7 @@ type LineInfoChangeEvent struct {
 	//
 	// The timestamp is intended for accurately measuring intervals between
 	// events. It is not guaranteed to be based on a particular clock, but from
-	// Linux v5.7 it is based on CLOCK_MONOTONIC.
+	// Linux 5.7 it is based on CLOCK_MONOTONIC.
 	Timestamp time.Duration
 
 	// The type of info change event this structure represents.

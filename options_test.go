@@ -433,7 +433,7 @@ func testLineDriveReconfigure(t *testing.T, createOption gpiocdev.LineReqOption,
 		c := getChip(t, s.DevPath())
 		defer c.Close()
 
-		l, err := c.RequestLine(offset,	createOption, gpiocdev.AsOutput(1))
+		l, err := c.RequestLine(offset, createOption, gpiocdev.AsOutput(1))
 		assert.Nil(t, err)
 		require.NotNil(t, l)
 		defer l.Close()
@@ -719,7 +719,7 @@ func TestWithEventHandler(t *testing.T) {
 
 	r.Close()
 
-	// stub out inherted event handler
+	// stub out inherited event handler
 	r, err = c.RequestLine(offset,
 		gpiocdev.WithEventHandler(nil))
 	require.Nil(t, err)

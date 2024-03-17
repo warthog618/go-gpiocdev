@@ -383,7 +383,7 @@ func (la LineAttribute) Value64() uint64 {
 	return nativeEndian.Uint64(la.Value[:])
 }
 
-// LineAttributeID identfies the type of a configuration attribute.
+// LineAttributeID identifies the type of a configuration attribute.
 type LineAttributeID uint32
 
 const (
@@ -614,10 +614,10 @@ type LineEvent struct {
 	// The line that triggered the event.
 	Offset uint32
 
-	// The seqno for this event in all events on all lines in this line request.
+	// The sequence number for this event in all events on all lines in this line request.
 	Seqno uint32
 
-	// The seqno for this event in all events in this line.
+	// The sequence number for this event in all events in this line.
 	LineSeqno uint32
 
 	// reserved for future use

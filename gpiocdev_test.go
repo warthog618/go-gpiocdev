@@ -974,7 +974,7 @@ func TestLinesSetValues(t *testing.T) {
 }
 
 func TestIsChip(t *testing.T) {
-	// nonexistent
+	// non-existent
 	err := gpiocdev.IsChip("/dev/nonexistent")
 	assert.NotNil(t, err)
 
