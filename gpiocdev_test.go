@@ -219,10 +219,54 @@ func TestChipClose(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestChipFindLine(t *testing.T) {
+	s, err := gpiosim.NewSim(
+		gpiosim.WithName("gpiocdev_test"),
+		gpiosim.WithBank(gpiosim.NewBank("left", 8,
+			gpiosim.WithNamedLine(3, "CFLBUTTON1"),
+			gpiosim.WithNamedLine(5, "CFLLED6"),
+		)),
+		gpiosim.WithBank(gpiosim.NewBank("right", 8,
+			gpiosim.WithNamedLine(1, "CFLBUTTON1"),
+			gpiosim.WithNamedLine(4, "CFLLED7"),
+		)),
+	)
+	require.Nil(t, err)
+	defer s.Close()
+
+	c, err := gpiocdev.NewChip(s.Chips[0].ChipName())
+	require.Nil(t, err)
+	defer c.Close()
+
+	offset, err := c.FindLine("CFLLED6")
+	require.Nil(t, err)
+	require.Equal(t, 5, offset)
+
+	offset, err = c.FindLine("CFLLED7")
+	require.Equal(t, gpiocdev.ErrNotFound, err)
+
+	offset, err = c.FindLine("CFLLED3")
+	require.Equal(t, gpiocdev.ErrNotFound, err)
+
+	c, err = gpiocdev.NewChip(s.Chips[1].ChipName())
+	require.Nil(t, err)
+	defer c.Close()
+
+	offset, err = c.FindLine("CFLLED6")
+	require.Equal(t, gpiocdev.ErrNotFound, err)
+
+	offset, err = c.FindLine("CFLLED7")
+	require.Nil(t, err)
+	require.Equal(t, 4, offset)
+
+	offset, err = c.FindLine("CFLLED3")
+	require.Equal(t, gpiocdev.ErrNotFound, err)
+}
+
 func TestChipLineInfo(t *testing.T) {
 	offset := 4
 	s, err := gpiosim.NewSim(
-		gpiosim.WithName("gpiosim_test"),
+		gpiosim.WithName("gpiocdev_test"),
 		gpiosim.WithBank(gpiosim.NewBank("left", 8,
 			gpiosim.WithNamedLine(offset, "BUTTON1"),
 		)),
@@ -971,6 +1015,58 @@ func TestLinesSetValues(t *testing.T) {
 	l.Close()
 	err = l.SetValues([]int{0, 1})
 	assert.Equal(t, gpiocdev.ErrClosed, err)
+}
+
+func naturalLess(lhs, rhs string) bool {
+	llhs := len(lhs)
+	lrhs := len(rhs)
+	if llhs == lrhs {
+		return lhs < rhs
+	}
+	if llhs < lrhs {
+		return true
+	}
+	return false
+}
+
+func TestFindLine(t *testing.T) {
+	s, err := gpiosim.NewSim(
+		gpiosim.WithName("gpiocdev_test"),
+		gpiosim.WithBank(gpiosim.NewBank("left", 8,
+			gpiosim.WithNamedLine(3, "FLBUTTON1"),
+			gpiosim.WithNamedLine(5, "FLLED6"),
+		)),
+		gpiosim.WithBank(gpiosim.NewBank("right", 8,
+			gpiosim.WithNamedLine(1, "FLBUTTON1"),
+			gpiosim.WithNamedLine(4, "FLLED7"),
+		)),
+	)
+	require.Nil(t, err)
+	defer s.Close()
+
+	chip, offset, err := gpiocdev.FindLine("FLLED6")
+	require.Nil(t, err)
+	require.Equal(t, s.Chips[0].ChipName(), chip)
+	require.Equal(t, 5, offset)
+
+	chip, offset, err = gpiocdev.FindLine("FLLED7")
+	require.Nil(t, err)
+	require.Equal(t, s.Chips[1].ChipName(), chip)
+	require.Equal(t, 4, offset)
+
+	chip, offset, err = gpiocdev.FindLine("FLLED3")
+	require.Equal(t, gpiocdev.ErrNotFound, err)
+
+	chip, offset, err = gpiocdev.FindLine("FLBUTTON1")
+	require.Nil(t, err)
+	// behaviour depends on chip number assigned by gpio-sim
+	if naturalLess(s.Chips[0].ChipName(), s.Chips[1].ChipName()) {
+		require.Equal(t, s.Chips[0].ChipName(), chip)
+		require.Equal(t, 3, offset)
+	} else {
+		require.Equal(t, s.Chips[1].ChipName(), chip)
+		require.Equal(t, 1, offset)
+	}
 }
 
 func TestIsChip(t *testing.T) {

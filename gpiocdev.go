@@ -37,6 +37,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -193,14 +195,33 @@ type LineInfo struct {
 	Config LineConfig
 }
 
+func naturalLess(lhs, rhs string) bool {
+	llhs := len(lhs)
+	lrhs := len(rhs)
+	if llhs == lrhs {
+		return lhs < rhs
+	}
+	if llhs < lrhs {
+		return true
+	}
+	return false
+}
+
 // Chips returns the names of the available GPIO devices.
 func Chips() []string {
+	ee, err := os.ReadDir("/dev") // returns chips in ascii order
+	if err != nil {
+		return nil
+	}
 	cc := []string(nil)
-	for _, name := range chipNames() {
-		if IsChip(name) == nil {
+	for _, e := range ee {
+		name := e.Name()
+		if strings.HasPrefix(name, "gpiochip") {
 			cc = append(cc, name)
 		}
 	}
+	// sort in numeric order
+	sort.Slice(cc, func(i, j int) bool { return naturalLess(cc[i], cc[j]) })
 	return cc
 }
 
@@ -236,7 +257,7 @@ func NewChip(name string, options ...ChipOption) (*Chip, error) {
 		return nil, err
 	}
 	co := ChipOptions{
-		consumer: fmt.Sprintf("gpiocdev-%d", os.Getpid()),
+		consumer: "gpiocdev-" + strconv.Itoa(os.Getpid()),
 	}
 	for _, option := range options {
 		option.applyChipOption(&co)
@@ -289,6 +310,19 @@ func (c *Chip) Close() error {
 		c.iw.close()
 	}
 	return c.f.Close()
+}
+
+// FindLine returns the offset of the named line, if found on the chip.
+//
+// If multiple lines have the same name then the lowest matching offset is returned.
+func (c *Chip) FindLine(name string) (offset int, err error) {
+	for o := 0; o < c.lines; o++ {
+		inf, err := c.LineInfo(o)
+		if err == nil && inf.Name == name {
+			return o, nil
+		}
+	}
+	return 0, ErrNotFound
 }
 
 // LineInfo returns the publicly available information on the line.
@@ -1138,6 +1172,25 @@ const (
 // InfoChangeHandler is a receiver for line info change events.
 type InfoChangeHandler func(LineInfoChangeEvent)
 
+// FindLine returns the offset of the named line, if found on available chips.
+//
+// If multiple lines have the same name then the first one found (lowest chip
+// and lowest offset) is returned.
+func FindLine(name string) (chip string, offset int, err error) {
+	var c *Chip
+	for _, chip = range Chips() {
+		c, err = NewChip(chip)
+		if err != nil {
+			continue
+		}
+		offset, err = c.FindLine(name)
+		if err == nil {
+			return
+		}
+	}
+	return "", 0, ErrNotFound
+}
+
 // IsChip checks if the named device is an accessible GPIO character device.
 //
 // Returns an error if not.
@@ -1177,24 +1230,6 @@ func IsChip(name string) error {
 	return nil
 }
 
-// chipNames returns the name of potential gpiochips.
-//
-// Does not open them or check if they are valid.
-func chipNames() []string {
-	ee, err := os.ReadDir("/dev")
-	if err != nil {
-		return nil
-	}
-	cc := []string(nil)
-	for _, e := range ee {
-		name := e.Name()
-		if strings.HasPrefix(name, "gpiochip") {
-			cc = append(cc, name)
-		}
-	}
-	return cc
-}
-
 func nameToPath(name string) string {
 	if strings.HasPrefix(name, "/dev/") {
 		return name
@@ -1218,6 +1253,9 @@ var (
 
 	// ErrNotCharacterDevice indicates the device is not a character device.
 	ErrNotCharacterDevice = errors.New("not a character device")
+
+	// ErrNotFound indicates the named line cannot be found.
+	ErrNotFound = errors.New("not found")
 
 	// ErrPermissionDenied indicates caller does not have required permissions
 	// for the operation.
