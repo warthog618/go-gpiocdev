@@ -162,7 +162,7 @@ l.SetValue(1)     // Set line active
 l.SetValue(0)     // Set line inactive
 ```
 
-Also refer to the [blinker](example/blinker/blinker.go) example.
+Also refer to the [toggle_line_value](examples/toggle_line_value/main.go) example.
 
 For collections of lines, all lines are set simultaneously using the
 [*SetValues*](https://pkg.go.dev/github.com/warthog618/go-gpiocdev#Lines.SetValues)
@@ -214,7 +214,7 @@ Note that the *Close* waits for the event handler to return and so must not be
 called from the event handler context - it should be called from a separate
 goroutine.
 
-Also see the [watcher](example/watcher/watcher.go) example.
+Also see the [watch_line_value](examples/watch_line_value/main.go) example.
 
 ### Line Configuration
 

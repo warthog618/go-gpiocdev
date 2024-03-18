@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/warthog618/go-gpiocdev"
-	"github.com/warthog618/go-gpiocdev/device/rpi"
 )
 
 func printEvent(evt gpiocdev.LineEvent) {
@@ -45,7 +44,7 @@ func printEvent(evt gpiocdev.LineEvent) {
 	}
 }
 
-// Watches GPIO 23 (Raspberry Pi J8-16) and reports when it changes state.
+// Watches line 23 on gpiochip0 and reports when it changes state.
 func main() {
 	echan := make(chan gpiocdev.LineEvent, 6)
 
@@ -57,12 +56,13 @@ func main() {
 			// if you want the handler to block, rather than dropping
 			// events when the channel fills then <- ctx.Done() instead
 			// to ensure that the handler can't be left blocked
-			fmt.Printf("event chan overflow - discarding event")
+			fmt.Println("event chan overflow - discarding event")
 		}
 	}
 
-	offset := rpi.J8p16
-	l, err := gpiocdev.RequestLine("gpiochip0", offset,
+	offset := 23
+	chip := "gpiochip0"
+	l, err := gpiocdev.RequestLine(chip, offset,
 		gpiocdev.WithPullUp,
 		gpiocdev.WithBothEdges,
 		gpiocdev.WithEventHandler(eh))
@@ -74,7 +74,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Watching Pin %d...\n", offset)
+	fmt.Printf("Watching Pin %s:%d...\n", chip, offset)
 	done := false
 	for !done {
 		select {
@@ -82,7 +82,7 @@ func main() {
 		case evt := <-echan:
 			printEvent(evt)
 		case <-ctx.Done():
-			fmt.Println("exiting...")
+			fmt.Println("select_watch_line_value exiting...")
 			l.Close()
 			done = true
 		}

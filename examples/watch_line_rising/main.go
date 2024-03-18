@@ -5,7 +5,7 @@
 //go:build linux
 // +build linux
 
-// A simple example that watches an input pin and reports edge events.
+// A simple example that watches an input pin and reports rising edge events.
 package main
 
 import (
@@ -21,33 +21,34 @@ func eventHandler(evt gpiocdev.LineEvent) {
 	t := time.Now()
 	edge := "rising"
 	if evt.Type == gpiocdev.LineEventFallingEdge {
+		// shouldn't see any of these, but check to confirm
 		edge = "falling"
 	}
 	if evt.Seqno != 0 {
 		// only uAPI v2 populates the sequence numbers
-		fmt.Printf("event: #%d(%d)%3d %-7s %s (%s)\n",
+		fmt.Printf("%s event: #%d(%d)%3d %-7s (%s)\n",
+			t.Format(time.RFC3339Nano),
 			evt.Seqno,
 			evt.LineSeqno,
 			evt.Offset,
 			edge,
-			t.Format(time.RFC3339Nano),
 			evt.Timestamp)
 	} else {
-		fmt.Printf("event:%3d %-7s %s (%s)\n",
+		fmt.Printf("%s event:%3d %-7s (%s)\n",
+			t.Format(time.RFC3339Nano),
 			evt.Offset,
 			edge,
-			t.Format(time.RFC3339Nano),
 			evt.Timestamp)
 	}
 }
 
-// Watches gpiochip0:23 and reports when it changes state.
+// Watches gpiochip0:23 reports when it rises.
 func main() {
 	offset := 23
 	chip := "gpiochip0"
 	l, err := gpiocdev.RequestLine(chip, offset,
 		gpiocdev.WithPullUp,
-		gpiocdev.WithBothEdges,
+		gpiocdev.WithRisingEdge,
 		gpiocdev.WithEventHandler(eventHandler))
 	if err != nil {
 		fmt.Printf("RequestLine returned error: %s\n", err)
@@ -62,5 +63,5 @@ func main() {
 	// But we'll just run for a minute then exit.
 	fmt.Printf("Watching Pin %s:%d...\n", chip, offset)
 	time.Sleep(time.Minute)
-	fmt.Println("watch_line_value exiting...")
+	fmt.Println("watch_line_rising exiting...")
 }

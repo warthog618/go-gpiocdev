@@ -6,6 +6,7 @@ SPDX-License-Identifier: MIT
 ## [Unreleased](https://github.com/warthog618/gpiod/compare/v0.9.0...HEAD)
 
 - add *FindLine* functions to *Chip* and global.
+- rework and extend examples.
 
 ## v0.9.0 - 2024-03-16
 
