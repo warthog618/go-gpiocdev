@@ -248,9 +248,9 @@ func TestChipFindLine(t *testing.T) {
 	offset, err = c.FindLine("CFLLED3")
 	require.Equal(t, gpiocdev.ErrNotFound, err)
 
+	c.Close()
 	c, err = gpiocdev.NewChip(s.Chips[1].ChipName())
 	require.Nil(t, err)
-	defer c.Close()
 
 	offset, err = c.FindLine("CFLLED6")
 	require.Equal(t, gpiocdev.ErrNotFound, err)
