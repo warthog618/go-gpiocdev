@@ -367,28 +367,28 @@ func (o LineBias) applySubsetLineConfigOption(offsets []int, lco *lineConfigOpti
 // application is to clear any previous bias option in a chain of LineOptions,
 // before that configuration is applied.
 //
-// Requires Linux v5.5 or later.
+// Requires Linux 5.5 or later.
 const WithBiasAsIs = LineBiasUnknown
 
 // WithBiasDisabled indicates that a line have its internal bias disabled.
 //
 // This option overrides and clears any previous bias options.
 //
-// Requires Linux v5.5 or later.
+// Requires Linux 5.5 or later.
 const WithBiasDisabled = LineBiasDisabled
 
 // WithPullDown indicates that a line have its internal pull-down enabled.
 //
 // This option overrides and clears any previous bias options.
 //
-// Requires Linux v5.5 or later.
+// Requires Linux 5.5 or later.
 const WithPullDown = LineBiasPullDown
 
 // WithPullUp indicates that a line have its internal pull-up enabled.
 //
 // This option overrides and clears any previous bias options.
 //
-// Requires Linux v5.5 or later.
+// Requires Linux 5.5 or later.
 const WithPullUp = LineBiasPullUp
 
 func (o EventHandler) applyChipOption(c *ChipOptions) {
@@ -405,7 +405,7 @@ func (o EventHandler) applyLineReqOption(lro *lineReqOptions) {
 // Events are forwarded to the provided handler function.
 //
 // To maintain event ordering, the event handler is called serially for each
-// event from the requested lines.  To minimize the possiblity of overflowing
+// event from the requested lines.  To minimize the possibility of overflowing
 // the queue of events in the kernel, the event handler should handle or
 // hand-off the event and return as soon as possible.
 //
@@ -471,7 +471,7 @@ const WithBothEdges = LineEdgeBoth
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
 //
-// The WithoutEdges option requires Linux v5.10 or later.
+// The WithoutEdges option requires Linux 5.10 or later.
 const WithoutEdges = LineEdgeNone
 
 func (o LineEventClock) applyChipOption(c *ChipOptions) {
@@ -503,12 +503,12 @@ const WithMonotonicEventClock = LineEventClockMonotonic
 // WithRealtimeEventClock specifies that the edge event timestamps are sourced
 // from CLOCK_REALTIME.
 //
-// Requires Linux v5.11 or later.
+// Requires Linux 5.11 or later.
 const WithRealtimeEventClock = LineEventClockRealtime
 
 // DebounceOption indicates that a line will be debounced.
 //
-// The DebounceOption requires Linux v5.10 or later.
+// The DebounceOption requires Linux 5.10 or later.
 type DebounceOption time.Duration
 
 func (o DebounceOption) applyLineConfig(lc *LineConfig) {
@@ -537,7 +537,7 @@ func (o DebounceOption) applySubsetLineConfigOption(offsets []int, lco *lineConf
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
 //
-// Requires Linux v5.10 or later.
+// Requires Linux 5.10 or later.
 func WithDebounce(period time.Duration) DebounceOption {
 	return DebounceOption(period)
 }
@@ -559,7 +559,7 @@ func (o ABIVersionOption) applyLineReqOption(l *lineReqOptions) {
 //
 // The default is to use the latest version supported by the kernel.
 //
-// ABI version 2 requires Linux v5.10 or later.
+// ABI version 2 requires Linux 5.10 or later.
 func WithABIVersion(version int) ABIVersionOption {
 	return ABIVersionOption(version)
 }
@@ -622,7 +622,7 @@ func (o DefaultedOption) applySubsetLineConfigOption(offsets []int, lco *lineCon
 // When applied within WithLines() it resets the configuration of the lines to
 // the default for the request, effectively clearing all previous WithLines()
 // options for the specified offsets.  If no offsets are specified then the
-// configurarion for all offsets is reset to the request default.
+// configuration for all offsets is reset to the request default.
 //
 // When applied outside WithLines() it resets the default configuration for the
 // request itself to default values but leaves any configuration set within
@@ -632,7 +632,7 @@ const Defaulted = DefaultedOption(0)
 // EventBufferSizeOption provides a suggested minimum number of events the
 // kernel will buffer for the line request.
 //
-// The EventBufferSizeOption requires Linux v5.10 or later.
+// The EventBufferSizeOption requires Linux 5.10 or later.
 type EventBufferSizeOption int
 
 func (o EventBufferSizeOption) applyLineReqOption(lro *lineReqOptions) {
@@ -648,7 +648,7 @@ func (o EventBufferSizeOption) applyLineReqOption(lro *lineReqOptions) {
 // A zero value (the default) indicates that the kernel should use its default
 // buffer size (the number of requested lines * 16).
 //
-// Requires Linux v5.10 or later.
+// Requires Linux 5.10 or later.
 func WithEventBufferSize(size int) EventBufferSizeOption {
 	return EventBufferSizeOption(size)
 }

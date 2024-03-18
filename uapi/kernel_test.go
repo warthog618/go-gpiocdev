@@ -784,7 +784,7 @@ func TestSetConfigEdgeDetectionPolarity(t *testing.T) {
 }
 
 func TestOutputSetGets(t *testing.T) {
-	t.Skip("contains known failures up to v5.15")
+	t.Skip("contains known failures up to Linux 5.15")
 	patterns := []struct {
 		name string
 		flag uapi.HandleFlag
