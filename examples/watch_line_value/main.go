@@ -52,7 +52,7 @@ func main() {
 	if err != nil {
 		fmt.Printf("RequestLine returned error: %s\n", err)
 		if err == syscall.Errno(22) {
-			fmt.Println("Note that the WithPullUp option requires kernel V5.5 or later - check your kernel version.")
+			fmt.Println("Note that the WithPullUp option requires Linux 5.5 or later - check your kernel version.")
 		}
 		os.Exit(1)
 	}
