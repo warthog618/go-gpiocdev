@@ -530,7 +530,7 @@ go get -d github.com/warthog618/go-gpiocdev
 
 ## Tools
 
-A companion package, **[gpiocdev-cli](github.com/warthog618/go-gpiocdev-cli)** provides a command line tool that allows
+A companion package, **[gpiocdev-cli](https://github.com/warthog618/go-gpiocdev-cli)** provides a command line tool that allows
 manual or scripted manipulation of GPIO lines.  This utility combines the Go
 equivalent of all the **libgpiod** command line tools into a single tool.
 
