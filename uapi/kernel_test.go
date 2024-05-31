@@ -783,6 +783,75 @@ func TestSetConfigEdgeDetectionPolarity(t *testing.T) {
 	}
 }
 
+func TestSetConfigDebouncedThenEdges(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
+	s, err := gpiosim.NewSimpleton(6)
+	require.Nil(t, err)
+	require.NotNil(t, s)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
+	require.Nil(t, err)
+	defer f.Close()
+	offset := 1
+	err = s.SetPull(offset, 0)
+	require.Nil(t, err)
+	config := uapi.LineConfig{
+		Flags: uapi.LineFlagV2Input}
+
+	lr := uapi.LineRequest{
+		Lines:  1,
+		Config: config,
+	}
+	lr.Offsets[0] = uint32(offset)
+	copy(lr.Consumer[:31], "test-set-config-debounced-edges")
+	err = uapi.GetLine(f.Fd(), &lr)
+	require.Nil(t, err)
+	defer unix.Close(int(lr.Fd))
+
+	config.NumAttrs = 1
+	config.Attrs[0].Mask = 1
+	config.Attrs[0].Attr = uapi.DebouncePeriod(1000).Encode()
+	err = uapi.SetLineConfigV2(uintptr(lr.Fd), &config)
+	require.Nil(t, err)
+
+	config.Flags |= uapi.LineFlagV2EdgeBoth
+	err = uapi.SetLineConfigV2(uintptr(lr.Fd), &config)
+	require.Nil(t, err)
+
+	xevt := uapi.LineEvent{
+		Seqno:     1,
+		LineSeqno: 1,
+		Offset:    uint32(offset),
+	}
+
+	evt, err := readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
+	assert.Nil(t, err)
+	assert.Nil(t, evt, "spurious event")
+
+	for i := 0; i < 2; i++ {
+		xevt.ID = uapi.LineEventRisingEdge
+		s.SetPull(offset, 1)
+		evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
+		require.Nil(t, err, i)
+		require.NotNil(t, evt, i)
+		evt.Timestamp = 0
+		assert.Equal(t, xevt, *evt, i)
+
+		xevt.LineSeqno++
+		xevt.Seqno++
+		xevt.ID = uapi.LineEventFallingEdge
+		s.SetPull(offset, 0)
+		evt, err = readLineEventTimeout(lr.Fd, eventWaitTimeout)
+		require.Nil(t, err, i)
+		require.NotNil(t, evt, i)
+		evt.Timestamp = 0
+		assert.Equal(t, xevt, *evt, i)
+
+		xevt.LineSeqno++
+		xevt.Seqno++
+	}
+}
+
 func TestOutputSetGets(t *testing.T) {
 	t.Skip("contains known failures up to Linux 5.15")
 	patterns := []struct {
