@@ -950,7 +950,11 @@ func (l *Line) Value() (int, error) {
 func (l *Line) SetValue(value int) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.defCfg.Direction != LineDirectionOutput {
+	info, err := l.Info()
+	if err != nil {
+		return err
+	}
+	if info.Config.Direction != LineDirectionOutput {
 		return ErrPermissionDenied
 	}
 	if l.closed {
@@ -969,7 +973,7 @@ func (l *Line) SetValue(value int) error {
 		Mask: 1,
 		Bits: uapi.NewLineBitmap(value),
 	}
-	err := uapi.SetLineValuesV2(l.vfd, lsv)
+	err = uapi.SetLineValuesV2(l.vfd, lsv)
 	if err == nil {
 		l.values[l.offsets[0]] = value
 	}
@@ -1059,8 +1063,14 @@ func (l *Lines) Values(values []int) error {
 func (l *Lines) SetValues(values []int) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.defCfg.Direction != LineDirectionOutput {
-		return ErrPermissionDenied
+	for i := range values {
+		info, err := l.Info()
+		if err != nil {
+			return err
+		}
+		if info[i].Config.Direction != LineDirectionOutput {
+			return ErrPermissionDenied
+		}
 	}
 	if l.closed {
 		return ErrClosed
