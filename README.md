@@ -153,7 +153,7 @@ ll.Values(rr)           // Read the state of a collection of lines
 
 #### Write Output
 
-The current line value can be set with the
+For lines requested as *output*, the current line value can be set with the
 [*SetValue*](https://pkg.go.dev/github.com/warthog618/go-gpiocdev#Line.SetValue)
 method:
 
