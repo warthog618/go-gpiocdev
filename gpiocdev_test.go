@@ -426,7 +426,7 @@ func TestChipWatchLineInfo(t *testing.T) {
 	_, err = c.WatchLineInfo(offset, watcher1)
 	require.Nil(t, err)
 
-	l, err := c.RequestLine(offset)
+	l, err := c.RequestLine(offset, gpiocdev.AsInput)
 	assert.Nil(t, err)
 	require.NotNil(t, l)
 	waitInfoEvent(t, wc1, gpiocdev.LineRequested)
