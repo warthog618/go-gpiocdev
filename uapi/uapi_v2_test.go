@@ -1880,7 +1880,7 @@ func TestSetLineConfigV2(t *testing.T) {
 					Flags:  uapi.LineFlagV2Used | p.config.Flags,
 				}
 				if p.config.Flags&uapi.LineFlagV2DirectionMask == 0 {
-					xli.Flags |= p.lr.Config.Flags & uapi.LineFlagV2DirectionMask
+					xli.Flags = uapi.LineFlagV2Used | p.lr.Config.Flags
 				}
 				if xli.Flags&uapi.LineFlagV2DirectionMask == 0 {
 					li.Flags &^= uapi.LineFlagV2DirectionMask
@@ -2094,7 +2094,7 @@ func TestWatchLineInfoV2(t *testing.T) {
 	assert.Nil(t, chg, "spurious change")
 
 	// reconfig line
-	lc := uapi.LineConfig{Flags: uapi.LineFlagV2ActiveLow}
+	lc := uapi.LineConfig{Flags: uapi.LineFlagV2Input | uapi.LineFlagV2ActiveLow}
 	err = uapi.SetLineConfigV2(uintptr(lr.Fd), &lc)
 	assert.Nil(t, err)
 	chg, err = readLineInfoChangedV2Timeout(f.Fd(), eventWaitTimeout)

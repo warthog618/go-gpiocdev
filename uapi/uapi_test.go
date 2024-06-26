@@ -1004,7 +1004,7 @@ func TestSetLineHandleConfig(t *testing.T) {
 			[]uint8{1, 0, 1},
 			uapi.HandleRequestActiveLow,
 			[]uint8{1, 0, 1},
-			nil,
+			unix.EINVAL,
 		},
 		{
 			"as-is atv-lo to as-is atv-hi",
@@ -1013,7 +1013,7 @@ func TestSetLineHandleConfig(t *testing.T) {
 			[]uint8{1, 0, 1},
 			0,
 			[]uint8{1, 0, 1},
-			nil,
+			unix.EINVAL,
 		},
 		{
 			"input atv-lo to input atv-hi",
@@ -1063,7 +1063,7 @@ func TestSetLineHandleConfig(t *testing.T) {
 			[]uint8{1, 0, 1},
 			0,
 			[]uint8{1, 0, 1},
-			nil,
+			unix.EINVAL,
 		},
 		{
 			"input atv-hi to as-is atv-lo",
@@ -1072,7 +1072,7 @@ func TestSetLineHandleConfig(t *testing.T) {
 			[]uint8{1, 0, 1},
 			uapi.HandleRequestActiveLow,
 			[]uint8{1, 0, 1},
-			nil,
+			unix.EINVAL,
 		},
 		{
 			"input pull-up to input pull-down",
@@ -1103,8 +1103,8 @@ func TestSetLineHandleConfig(t *testing.T) {
 				uapi.HandleRequestActiveLow,
 			[]uint8{1, 0, 1},
 			0,
-			[]uint8{0, 1, 0}, // must be opposite of initial as mock is not updated
-			nil,
+			[]uint8{1, 0, 1},
+			unix.EINVAL,
 		},
 		{
 			"output atv-hi to as-is atv-lo",
@@ -1112,8 +1112,8 @@ func TestSetLineHandleConfig(t *testing.T) {
 			uapi.HandleRequestOutput,
 			[]uint8{1, 0, 1},
 			uapi.HandleRequestActiveLow,
-			[]uint8{0, 1, 0}, // must be opposite of initial as mock is not updated
-			nil,
+			[]uint8{1, 0, 1},
+			unix.EINVAL,
 		},
 		// expected errors
 		{
@@ -1445,7 +1445,7 @@ func TestWatchLineInfo(t *testing.T) {
 	assert.Nil(t, chg, "spurious change")
 
 	// reconfig line
-	hc := uapi.HandleConfig{Flags: uapi.HandleRequestActiveLow}
+	hc := uapi.HandleConfig{Flags: uapi.HandleRequestInput | uapi.HandleRequestActiveLow}
 	copy(hr.Consumer[:], "testwatch")
 	err = uapi.SetLineConfig(uintptr(hr.Fd), &hc)
 	assert.Nil(t, err)
