@@ -9,17 +9,10 @@ GOCLEAN=$(GOCMD) clean
 VERSION ?= $(shell git describe --tags --always --dirty 2> /dev/null )
 LDFLAGS=-ldflags "-X=main.version=$(VERSION)"
 
-spis=$(patsubst %.go, %, $(wildcard example/spi/*/*.go))
-examples=$(patsubst %.go, %, $(wildcard example/*/*.go))
-bins= $(spis) $(examples)
+examples=$(patsubst %.go, %, $(wildcard examples/*/main.go))
+bins= $(examples)
 
-cli=$(patsubst %.go, %, $(wildcard cli/gpio*.go))
-
-all: tools $(bins)
-
-$(cli) : % : %.go
-	cd $(@D); \
-	$(GOBUILD) -o gpiocdev $(LDFLAGS)
+all: $(bins)
 
 $(bins) : % : %.go
 	cd $(@D); \
@@ -27,7 +20,4 @@ $(bins) : % : %.go
 
 clean: 
 	$(GOCLEAN) ./...
-	rm cli/gpiocdev
-
-tools: $(cli)
 
