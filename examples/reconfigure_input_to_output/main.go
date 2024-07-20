@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 //go:build linux
-// +build linux
 
 // A simple example that requests a line as an input and subsequently switches it to an output.
 // DO NOT run this on a platform where that line is externally driven.

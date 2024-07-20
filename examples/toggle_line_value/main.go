@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 //go:build linux
-// +build linux
 
 // A simple example that toggles an output pin.
 package main

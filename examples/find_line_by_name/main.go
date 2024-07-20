@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 //go:build linux
-// +build linux
 
 // A simple example that finds a line by name.
 package main

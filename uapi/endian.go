@@ -4,7 +4,6 @@
 
 // don't build on platforms with fixed endianness
 //go:build !amd64 && !386
-// +build !amd64,!386
 
 package uapi
 

@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 //go:build linux
-// +build linux
 
 // Package uapi provides the Linux GPIO UAPI definitions for gpiocdev.
 package uapi

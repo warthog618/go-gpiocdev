@@ -3,7 +3,6 @@
 // Copyright © 2020 Kent Gibson <warthog618@gmail.com>.
 
 //go:build linux
-// +build linux
 
 package uapi_test
 

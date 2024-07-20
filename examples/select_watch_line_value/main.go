@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 //go:build linux
-// +build linux
 
 // A simple example that watches an input pin and reports edge events.
 // This is a version of the watch_line_value example that performs the watching within
