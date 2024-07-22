@@ -928,6 +928,8 @@ func (l *Line) Info() (info LineInfo, err error) {
 }
 
 // Value returns the current value (active state) of the line.
+//
+// Values are 0 for inactive and 1 for active.
 func (l *Line) Value() (int, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -947,6 +949,8 @@ func (l *Line) Value() (int, error) {
 // SetValue sets the current value (active state) of the line.
 //
 // Only valid for output lines.
+//
+// Values are 0 for inactive and 1 for active.
 func (l *Line) SetValue(value int) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -1015,6 +1019,8 @@ func (l *Lines) Info() ([]*LineInfo, error) {
 
 // Values returns the current values (active state) of the collection of lines.
 //
+// Values are 0 for inactive and 1 for active.
+//
 // Gets as many values from the set, in order, as can be fit in values, up to
 // the full set.
 func (l *Lines) Values(values []int) error {
@@ -1052,6 +1058,8 @@ func (l *Lines) Values(values []int) error {
 // SetValues sets the current active state of the collection of lines.
 //
 // Only valid for output lines.
+//
+// Values are 0 for inactive and 1 for active.
 //
 // All lines in the set are set at once.  If insufficient values are provided
 // then the remaining lines are set to inactive. If too many values are provided
