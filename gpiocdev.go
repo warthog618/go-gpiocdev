@@ -1191,6 +1191,8 @@ func FindLine(name string) (chip string, offset int, err error) {
 		if err != nil {
 			continue
 		}
+		defer c.Close()
+
 		offset, err = c.FindLine(name)
 		if err == nil {
 			return
