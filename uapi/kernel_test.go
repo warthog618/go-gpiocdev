@@ -361,6 +361,225 @@ func TestWatchInfoVersionLockV2(t *testing.T) {
 	require.Nil(t, err)
 }
 
+func TestWatchLineInfoV2Requested(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
+	patterns := []struct {
+		name   string
+		flags  uapi.LineFlagV2
+		period int
+	}{
+		{"input", uapi.LineFlagV2Input, 0},
+		{"active_low", uapi.LineFlagV2Input, 0},
+		{"debounced", uapi.LineFlagV2Input, 20000},
+		{"output", uapi.LineFlagV2Output, 0},
+		{"open_drain", uapi.LineFlagV2Output | uapi.LineFlagV2OpenDrain, 0},
+		{"open_source", uapi.LineFlagV2Output | uapi.LineFlagV2OpenSource, 0},
+		{"rising", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising, 0},
+		{"falling", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling, 0},
+		{"both_edges", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth, 0},
+		{"rising_debounced", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising, 13000},
+		{"falling_debounced", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling, 15000},
+		{"both_edges_debounced", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth, 17000},
+	}
+
+	for _, p := range patterns {
+		tf := func(t *testing.T) {
+			s, err := gpiosim.NewSim(
+				gpiosim.WithName("gpiosim_test"),
+				gpiosim.WithBank(gpiosim.NewBank("left", 8,
+					gpiosim.WithNamedLine(3, "LED0"),
+				)),
+			)
+			require.Nil(t, err)
+			defer s.Close()
+
+			c := s.Chips[0]
+			f, err := os.Open(c.DevPath())
+			require.Nil(t, err)
+			defer f.Close()
+
+			offset := uint32(3)
+
+			// set watch
+			li := uapi.LineInfoV2{Offset: offset}
+			err = uapi.WatchLineInfoV2(f.Fd(), &li)
+			require.Nil(t, err)
+			xli := uapi.LineInfoV2{
+				Offset: offset,
+				Flags:  uapi.LineFlagV2Input,
+			}
+			copy(xli.Name[:], []byte(c.Config().Names[int(offset)]))
+			assert.Equal(t, xli, li)
+
+			// request line
+			lr := uapi.LineRequest{
+				Lines: 1,
+				Config: uapi.LineConfig{
+					Flags: p.flags,
+				},
+			}
+			lr.Offsets[0] = offset
+			copy(lr.Consumer[:], "testwatchrequested")
+			if p.period > 0 {
+				lr.Config.NumAttrs = 1
+				lr.Config.Attrs[0].Mask = 1
+				lr.Config.Attrs[0].Attr = uapi.DebouncePeriod(p.period).Encode()
+			}
+			err = uapi.GetLine(f.Fd(), &lr)
+			assert.Nil(t, err)
+			chg, err := readLineInfoChangedV2Timeout(f.Fd(), eventWaitTimeout)
+			assert.Nil(t, err)
+			require.NotNil(t, chg)
+			assert.Equal(t, uapi.LineChangedRequested, chg.Type)
+			xli.Flags = lr.Config.Flags | uapi.LineFlagV2Used
+			copy(xli.Consumer[:], "testwatchrequested")
+			if p.period > 0 {
+				xli.NumAttrs = 1
+				xli.Attrs[0] = uapi.DebouncePeriod(p.period).Encode()
+			}
+			assert.Equal(t, xli, chg.Info)
+
+			chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
+			assert.Nil(t, err)
+			assert.Nil(t, chg, "spurious change")
+
+			// release line
+			unix.Close(int(lr.Fd))
+			chg, err = readLineInfoChangedV2Timeout(f.Fd(), eventWaitTimeout)
+			assert.Nil(t, err)
+			require.NotNil(t, chg)
+			assert.Equal(t, uapi.LineChangedReleased, chg.Type)
+			xli = uapi.LineInfoV2{
+				Offset: 3,
+				Flags:  p.flags & (uapi.LineFlagV2Input | uapi.LineFlagV2Output),
+			}
+			copy(xli.Name[:], []byte(c.Config().Names[int(offset)]))
+			assert.Equal(t, xli, chg.Info)
+
+			chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
+			assert.Nil(t, err)
+			assert.Nil(t, chg, "spurious change")
+		}
+		t.Run(fmt.Sprintf("%s", p.name), tf)
+	}
+}
+
+func TestWatchLineInfoV2Config(t *testing.T) {
+	requireKernel(t, uapiV2Kernel)
+
+	patterns := []struct {
+		name   string
+		flags  uapi.LineFlagV2
+		period int
+	}{
+		{"input", uapi.LineFlagV2Input, 0},
+		{"active_low", uapi.LineFlagV2Input, 0},
+		{"debounced", uapi.LineFlagV2Input, 20000},
+		{"output", uapi.LineFlagV2Output, 0},
+		{"open_drain", uapi.LineFlagV2Output | uapi.LineFlagV2OpenDrain, 0},
+		{"open_source", uapi.LineFlagV2Output | uapi.LineFlagV2OpenSource, 0},
+		{"rising", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising, 0},
+		{"falling", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling, 0},
+		{"both_edges", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth, 0},
+		{"rising_debounced", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising, 13000},
+		{"falling_debounced", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling, 15000},
+		{"both_edges_debounced", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth, 17000},
+	}
+
+	for _, p := range patterns {
+		tf := func(t *testing.T) {
+			s, err := gpiosim.NewSim(
+				gpiosim.WithName("gpiosim_test"),
+				gpiosim.WithBank(gpiosim.NewBank("left", 8,
+					gpiosim.WithNamedLine(3, "LED0"),
+				)),
+			)
+			require.Nil(t, err)
+			defer s.Close()
+
+			c := s.Chips[0]
+			f, err := os.Open(c.DevPath())
+			require.Nil(t, err)
+			defer f.Close()
+
+			offset := uint32(3)
+
+			// set watch
+			li := uapi.LineInfoV2{Offset: offset}
+			err = uapi.WatchLineInfoV2(f.Fd(), &li)
+			require.Nil(t, err)
+			xli := uapi.LineInfoV2{
+				Offset: offset,
+				Flags:  uapi.LineFlagV2Input,
+			}
+			copy(xli.Name[:], []byte(c.Config().Names[int(offset)]))
+			assert.Equal(t, xli, li)
+
+			// request line
+			lr := uapi.LineRequest{
+				Lines: 1,
+			}
+			lr.Offsets[0] = offset
+			copy(lr.Consumer[:], "testwatchconfig")
+			err = uapi.GetLine(f.Fd(), &lr)
+			assert.Nil(t, err)
+			chg, err := readLineInfoChangedV2Timeout(f.Fd(), eventWaitTimeout)
+			assert.Nil(t, err)
+			require.NotNil(t, chg)
+			assert.Equal(t, uapi.LineChangedRequested, chg.Type)
+			xli.Flags = uapi.LineFlagV2Used | uapi.LineFlagV2Input
+			copy(xli.Consumer[:], "testwatchconfig")
+			assert.Equal(t, xli, chg.Info)
+
+			chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
+			assert.Nil(t, err)
+			assert.Nil(t, chg, "spurious change")
+
+			// reconfig line
+			lc := uapi.LineConfig{Flags: p.flags}
+			if p.period > 0 {
+				lc.NumAttrs = 1
+				lc.Attrs[0].Mask = 1
+				lc.Attrs[0].Attr = uapi.DebouncePeriod(p.period).Encode()
+			}
+			err = uapi.SetLineConfigV2(uintptr(lr.Fd), &lc)
+			assert.Nil(t, err)
+			chg, err = readLineInfoChangedV2Timeout(f.Fd(), eventWaitTimeout)
+			assert.Nil(t, err)
+			require.NotNil(t, chg)
+			assert.Equal(t, uapi.LineChangedConfig, chg.Type)
+			xli.Flags = p.flags | uapi.LineFlagV2Used
+			if p.period > 0 {
+				xli.NumAttrs = 1
+				xli.Attrs[0] = uapi.DebouncePeriod(p.period).Encode()
+			}
+			assert.Equal(t, xli, chg.Info)
+
+			chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
+			assert.Nil(t, err)
+			assert.Nil(t, chg, "spurious change")
+
+			// release line
+			unix.Close(int(lr.Fd))
+			chg, err = readLineInfoChangedV2Timeout(f.Fd(), eventWaitTimeout)
+			assert.Nil(t, err)
+			require.NotNil(t, chg)
+			assert.Equal(t, uapi.LineChangedReleased, chg.Type)
+			xli = uapi.LineInfoV2{
+				Offset: 3,
+				Flags:  p.flags & (uapi.LineFlagV2Input | uapi.LineFlagV2Output),
+			}
+			copy(xli.Name[:], []byte(c.Config().Names[int(offset)]))
+			assert.Equal(t, xli, chg.Info)
+
+			chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
+			assert.Nil(t, err)
+			assert.Nil(t, chg, "spurious change")
+		}
+		t.Run(fmt.Sprintf("%s", p.name), tf)
+	}
+}
+
 func TestSetConfigEdgeDetection(t *testing.T) {
 	requireKernel(t, uapiV2Kernel)
 	s, err := gpiosim.NewSimpleton(6)
@@ -594,7 +813,7 @@ func TestSetConfigDebouncedEdges(t *testing.T) {
 	require.Nil(t, err)
 	defer unix.Close(int(lr.Fd))
 
-	periods := []int{-1, 1, 0, 2}
+	periods := []int{-1, 1000, 0, 2000}
 	xevt := uapi.LineEvent{
 		Seqno:     1,
 		LineSeqno: 1,
@@ -664,7 +883,7 @@ func TestGetLineDebouncedEdges(t *testing.T) {
 	lr.Offsets[0] = uint32(offset)
 	copy(lr.Consumer[:31], "test-get-line-debounced-edges")
 	lr.Config.Attrs[0].Mask = 1
-	lr.Config.Attrs[0].Attr = uapi.DebouncePeriod(20).Encode()
+	lr.Config.Attrs[0].Attr = uapi.DebouncePeriod(20000).Encode()
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 	defer unix.Close(int(lr.Fd))
