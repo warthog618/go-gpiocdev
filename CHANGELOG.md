@@ -3,10 +3,15 @@ SPDX-FileCopyrightText: 2024 Kent Gibson <warthog618@gmail.com>
 
 SPDX-License-Identifier: MIT
 -->
-## [Unreleased](https://github.com/warthog618/gpiod/compare/v0.9.0...HEAD)
+## [Unreleased](https://github.com/warthog618/gpiod/compare/v0.9.1...HEAD)
+
+## v0.9.1 - 2024-10-30
 
 - add *FindLine* functions to *Chip* and global.
 - rework and extend examples.
+- better document line values.
+- update tests for Linux 6.10 directionless reconfigure behaviour.
+- extend kernel uapi tests.
 
 ## v0.9.0 - 2024-03-16
 
