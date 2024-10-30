@@ -7,7 +7,7 @@
 //
 // The gpiochip these mappings apply to depends on the Pi variant.
 // For Pi0 to Pi4 it is gpiochip0.
-// For Pi5 it is gpiochip4.
+// For Pi5 it is gpiochip0 or gpiochip4 (depending on kernel version).
 package rpi
 
 import (
