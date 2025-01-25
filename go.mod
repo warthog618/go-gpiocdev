@@ -8,8 +8,8 @@ go 1.19
 
 require (
 	github.com/stretchr/testify v1.9.0
-	github.com/warthog618/go-gpiosim v0.1.1
-	golang.org/x/sys v0.18.0
+	github.com/warthog618/go-gpiosim v0.1.2
+	golang.org/x/sys v0.29.0
 )
 
 require (
