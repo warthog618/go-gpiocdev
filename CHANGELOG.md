@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2024 Kent Gibson <warthog618@gmail.com>
 
 SPDX-License-Identifier: MIT
 -->
-## [Unreleased](https://github.com/warthog618/gpiod/compare/v0.9.1...HEAD)
+## [Unreleased](https://github.com/warthog618/go-gpiocdev/compare/v0.9.1...HEAD)
 
 ## v0.9.1 - 2024-10-30
 
