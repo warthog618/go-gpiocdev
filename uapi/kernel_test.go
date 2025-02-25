@@ -624,6 +624,7 @@ func TestSetConfigEdgeDetection(t *testing.T) {
 					LineSeqno: 1,
 					Seqno:     1,
 				}
+				testLineFlags(t, f.Fd(), offset, p1.flags)
 				testEdgeDetectionEvents(t, s, lr.Fd, &xevt, p1.flags)
 
 				config := uapi.LineConfig{
@@ -631,6 +632,7 @@ func TestSetConfigEdgeDetection(t *testing.T) {
 				}
 				err = uapi.SetLineConfigV2(uintptr(lr.Fd), &config)
 				require.Nil(t, err)
+				testLineFlags(t, f.Fd(), offset, p2.flags)
 				testEdgeDetectionEvents(t, s, lr.Fd, &xevt, p2.flags)
 
 				config.Flags = p1.flags
@@ -641,6 +643,12 @@ func TestSetConfigEdgeDetection(t *testing.T) {
 			t.Run(fmt.Sprintf("%s-to-%s", p1.name, p2.name), tf)
 		}
 	}
+}
+
+func testLineFlags(t *testing.T, fd uintptr, offset uint32, flags uapi.LineFlagV2) {
+	li, err := uapi.GetLineInfoV2(fd, int(offset))
+	assert.Nil(t, err)
+	assert.Equal(t, flags|uapi.LineFlagV2Used, li.Flags)
 }
 
 func testEdgeDetectionEvents(t *testing.T, s *gpiosim.Simpleton, fd int32, xevt *uapi.LineEvent, flags uapi.LineFlagV2) {
