@@ -9,8 +9,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/warthog618/go-gpiocdev"
 	"github.com/warthog618/go-gpiosim"
+
+	"github.com/warthog618/go-gpiocdev"
 )
 
 func BenchmarkChipNewClose(b *testing.B) {
@@ -33,6 +34,52 @@ func BenchmarkLineInfo(b *testing.B) {
 	defer c.Close()
 	for i := 0; i < b.N; i++ {
 		c.LineInfo(3)
+	}
+}
+
+func BenchmarkLineRequest(b *testing.B) {
+	s, err := gpiosim.NewSimpleton(6)
+	require.Nil(b, err)
+	defer s.Close()
+	c, err := gpiocdev.NewChip(s.DevPath())
+	require.Nil(b, err)
+	require.NotNil(b, c)
+	defer c.Close()
+	for i := 0; i < b.N; i++ {
+		l, err := c.RequestLine(3)
+		require.Nil(b, err)
+		l.Close()
+	}
+}
+
+func BenchmarkLineRequestWithBothEdges(b *testing.B) {
+	s, err := gpiosim.NewSimpleton(6)
+	require.Nil(b, err)
+	defer s.Close()
+	c, err := gpiocdev.NewChip(s.DevPath())
+	require.Nil(b, err)
+	require.NotNil(b, c)
+	defer c.Close()
+	for i := 0; i < b.N; i++ {
+		l, err := c.RequestLine(4, gpiocdev.WithBothEdges)
+		require.Nil(b, err)
+		l.Close()
+	}
+}
+
+func BenchmarkLineRequestWithBothEdgesDebounced(b *testing.B) {
+	s, err := gpiosim.NewSimpleton(6)
+	require.Nil(b, err)
+	defer s.Close()
+	c, err := gpiocdev.NewChip(s.DevPath())
+	require.Nil(b, err)
+	require.NotNil(b, c)
+	defer c.Close()
+	period := 10 * time.Millisecond
+	for i := 0; i < b.N; i++ {
+		l, err := c.RequestLine(4, gpiocdev.WithBothEdges, gpiocdev.WithDebounce(period))
+		require.Nil(b, err)
+		l.Close()
 	}
 }
 
@@ -87,6 +134,7 @@ func BenchmarkLinesValues(b *testing.B) {
 		l.Values(vv)
 	}
 }
+
 func BenchmarkLineSetValue(b *testing.B) {
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(b, err)
