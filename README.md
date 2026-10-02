@@ -480,7 +480,7 @@ Option | Category | Description
 *AsOpenDrain* | Drive | Request lines as open drain outputs
 *AsOpenSource* | Drive | Request lines as open source outputs
 *WithEventHandler(eh)<sup>**1**</sup>* |  | Send edge events detected on requested lines to the provided handler
-*WithEventBufferSize(num)<sup>**1**,**5**</sup>* |  | Suggest the minimum number of events that can be stored in the kernel event buffer for the requested lines
+*WithEventBufferSize(num)<sup>**2**,**5**</sup>* |  | Suggest the minimum number of events that can be stored in the kernel event buffer for the requested lines
 *WithFallingEdge* | Edge Detection<sup>**3**</sup> | Request lines with falling edge detection
 *WithRisingEdge* | Edge Detection<sup>**3**</sup> | Request lines with rising edge detection
 *WithBothEdges* | Edge Detection<sup>**3**</sup> | Request lines with rising and falling edge detection
