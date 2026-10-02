@@ -12,10 +12,11 @@ import (
 	"os"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/warthog618/go-gpiocdev"
 	"github.com/warthog618/go-gpiocdev/device/rpi"
 	"github.com/warthog618/go-gpiocdev/uapi"
-	"golang.org/x/sys/unix"
 )
 
 func main() {

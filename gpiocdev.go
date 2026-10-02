@@ -43,8 +43,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/warthog618/go-gpiocdev/uapi"
 	"golang.org/x/sys/unix"
+
+	"github.com/warthog618/go-gpiocdev/uapi"
 )
 
 // Chip represents a single GPIO chip that controls a set of lines.

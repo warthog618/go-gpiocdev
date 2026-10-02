@@ -11,9 +11,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/warthog618/go-gpiocdev/uapi"
 	"github.com/warthog618/go-gpiosim"
 	"golang.org/x/sys/unix"
+
+	"github.com/warthog618/go-gpiocdev/uapi"
 )
 
 func BenchmarkChipOpenClose(b *testing.B) {

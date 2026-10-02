@@ -10,10 +10,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/warthog618/go-gpiocdev"
-	"github.com/warthog618/go-gpiocdev/uapi"
 	"github.com/warthog618/go-gpiosim"
 	"golang.org/x/sys/unix"
+
+	"github.com/warthog618/go-gpiocdev"
+	"github.com/warthog618/go-gpiocdev/uapi"
 )
 
 func TestWithConsumer(t *testing.T) {

@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/warthog618/go-gpiocdev/uapi"
 	"golang.org/x/sys/unix"
+
+	"github.com/warthog618/go-gpiocdev/uapi"
 )
 
 type watcher struct {
