@@ -569,7 +569,7 @@ These are the results from a Raspberry Pi Zero W running Linux 6.4 and built
 with go1.20.6:
 
 ```shell
-$ ./go-gpiocdev.test -test.bench=.*
+$ ./go-gpiocdev.test -test.bench=.* -test.run=^$
 goos: linux
 goarch: arm
 pkg: github.com/warthog618/go-gpiocdev
@@ -592,7 +592,7 @@ looped Raspberry Pi lines produced a result of ~640μsec on the same platform.
 And on a Raspberry Pi 4 running Linux 6.4 (32bit kernel) and built with go1.20.6:
 
 ```shell
-$ ./go-gpiocdev.test -test.bench=.*
+$ ./go-gpiocdev.test -test.bench=.* -test.run=^$
 goos: linux
 goarch: arm
 pkg: github.com/warthog618/go-gpiocdev
