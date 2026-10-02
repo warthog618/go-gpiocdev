@@ -602,8 +602,9 @@ func (c *Chip) getLine(offsets []int, lro lineReqOptions) (uintptr, io.Closer, e
 		return 0, nil, err
 	}
 	lr := uapi.LineRequest{
-		Lines:  uint32(len(offsets)),
-		Config: config,
+		Lines:           uint32(len(offsets)),
+		Config:          config,
+		EventBufferSize: uint32(lro.eventBufferSize),
 	}
 	copy(lr.Consumer[:len(lr.Consumer)-1], lro.consumer)
 	// copy(hr.Offsets[:], offsets) - with cast

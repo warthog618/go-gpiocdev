@@ -5,6 +5,7 @@
 package gpiocdev_test
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -1416,52 +1417,84 @@ func TestWithEventBufferSize(t *testing.T) {
 	defer c.Close()
 	requireABI(t, c, 2)
 
+	// The kernel discards the oldest event once its buffer is full, so holding
+	// the handler on the first event while more edges than the buffer holds are
+	// generated leaves exactly the buffer size to be delivered after it, and
+	// those are the newest ones.
 	patterns := []struct {
 		name     string
 		size     int
-		numLines int
+		buffered int
 	}{
-		{"one smaller",
-			5,
-			1,
-		},
-		{"one larger",
-			25,
-			1,
-		},
-		{"one default",
-			0,
-			1,
-		},
-		{"two smaller",
-			5,
-			1,
-		},
-		{"two larger",
-			35,
-			1,
-		},
-		{"two default",
-			0,
-			1,
-		},
+		{"default", 0, 16},
+		{"smaller", 8, 8},
+		{"larger", 64, 64},
 	}
+	const (
+		// Generous as the simulator may merge toggles that outrun its irq thread.
+		edges = 200
+		// Allow the simulator irq thread to deliver the last edges before
+		// the handler is released, else they are read rather than dropped.
+		settle = 100 * time.Millisecond
+	)
 
 	for _, p := range patterns {
-		if p.numLines == 1 {
-			t.Run(p.name, func(t *testing.T) {
-				l, err := c.RequestLine(offsets[0], gpiocdev.WithEventBufferSize(p.size))
-				assert.Nil(t, err)
-				require.NotNil(t, l)
-				l.Close()
-			})
-		} else {
-			t.Run(p.name, func(t *testing.T) {
-				l, err := c.RequestLines(offsets[:p.numLines], gpiocdev.WithEventBufferSize(p.size))
-				assert.Nil(t, err)
-				require.NotNil(t, l)
-				l.Close()
-			})
-		}
+		t.Run(p.name, func(t *testing.T) {
+			s.SetPull(offset, 0)
+			first := make(chan struct{})
+			release := make(chan struct{})
+			var block, unblock sync.Once
+			defer unblock.Do(func() { close(release) })
+			ich := make(chan gpiocdev.LineEvent, edges)
+			l, err := c.RequestLine(offset,
+				gpiocdev.WithBothEdges,
+				gpiocdev.WithEventBufferSize(p.size),
+				gpiocdev.WithEventHandler(func(evt gpiocdev.LineEvent) {
+					block.Do(func() {
+						close(first)
+						<-release
+					})
+					ich <- evt
+				}))
+			require.Nil(t, err)
+			require.NotNil(t, l)
+			defer l.Close()
+			waitNoEvent(t, ich)
+
+			level := 1
+			s.SetPull(offset, level)
+			select {
+			case <-first:
+			case <-time.After(time.Second):
+				require.Fail(t, "timeout waiting for first event")
+			}
+			for i := 1; i < edges; i++ {
+				level ^= 1
+				s.SetPull(offset, level)
+			}
+			time.Sleep(settle)
+			unblock.Do(func() { close(release) })
+
+			var got []uint32
+			for done := false; !done; {
+				select {
+				case evt := <-ich:
+					got = append(got, evt.Seqno)
+				case <-time.After(200 * time.Millisecond):
+					done = true
+				}
+			}
+			// The last seqno is the number of events the kernel generated.
+			require.NotEmpty(t, got)
+			total := got[len(got)-1]
+			require.Greater(t, int(total), 1+p.buffered,
+				"simulator generated too few events to overflow the buffer")
+			assert.Equal(t, uint32(1), got[0])
+			assert.Equal(t, 1+p.buffered, len(got), "events delivered")
+			if len(got) > 1 {
+				assert.Equal(t, total-uint32(p.buffered)+1, got[1],
+					"oldest buffered event")
+			}
+		})
 	}
 }
