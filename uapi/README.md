@@ -165,3 +165,53 @@ This is essentially the same example using v1 of the UAPI:
     })
 
 ```
+
+## Tests
+
+The library is fully tested, other than some error cases and sanity checks that
+are difficult to trigger.
+
+The tests require a kernel release 5.19 or later to run, built with
+**CONFIG_GPIO_SIM** set or as a module.
+
+The tests must be run as root, to allow contruction of **gpio-sims**.
+They can still be built as an unprivileged user, e.g.
+
+```shell
+$ go test -c
+```
+
+but must be run as root.
+
+The tests can also be cross-compiled for other platforms.
+e.g. build tests for a Raspberry Pi using:
+
+```shell
+$ GOOS=linux GOARCH=arm GOARM=6 go test -c
+```
+
+Later Pis can also use ARM7 (GOARM=7).
+
+### Benchmarks
+
+The tests include benchmarks on reads, writes, bulk reads and writes,  and
+interrupt latency.
+
+These are the results from a Raspberry Pi Zero W running Linux 6.4 and built
+with go1.20.6:
+
+```shell
+$ ./uapi.test -test.bench=.* -test.run=^$
+```
+
+The latency benchmark is no longer representative as the measurement now depends
+on how quickly **gpio-sim** can toggle lines, and that is considerably slower
+than how quickly **gpiocdev** responds.  For comparison, the same test using
+looped Raspberry Pi lines produced a result of ~640μsec on the same platform.
+
+And on a Raspberry Pi 4 running Linux 6.4 (32bit kernel) and built with go1.20.6:
+
+```shell
+$ ./uapi.test -test.bench=.* -test.run=^$
+```
+
