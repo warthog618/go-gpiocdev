@@ -629,6 +629,7 @@ func TestWithPullDown(t *testing.T) {
 	testLineBiasOption(t, gpiocdev.WithPullDown, bias, 0)
 	testLineBiasReconfigure(t, gpiocdev.WithPullUp, gpiocdev.WithPullDown, bias, 0)
 }
+
 func TestWithPullUp(t *testing.T) {
 	bias := gpiocdev.LineBiasPullUp
 	testChipBiasOption(t, gpiocdev.WithPullUp, bias, 1)
@@ -1436,15 +1437,15 @@ func TestWithEventBufferSize(t *testing.T) {
 		},
 		{"two smaller",
 			5,
-			1,
+			2,
 		},
 		{"two larger",
 			35,
-			1,
+			2,
 		},
 		{"two default",
 			0,
-			1,
+			2,
 		},
 	}
 
