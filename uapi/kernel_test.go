@@ -754,48 +754,75 @@ func TestEventBufferOverflowV2(t *testing.T) {
 	require.Nil(t, err)
 	defer f.Close()
 	offset := 1
-	err = s.SetPull(offset, 1)
-	require.Nil(t, err)
-	lr := uapi.LineRequest{
-		Lines: 1,
-		Config: uapi.LineConfig{
-			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
+	patterns := []struct {
+		name string
+		// The requested buffer size.
+		size uint32
+		// The actual buffer size allocated by the kernel.
+		// This is not guaranteed stable.
+		ksize int
+	}{
+		{"default",
+			0,
+			16,
+		},
+		{"smaller", // compared to default
+			5,
+			8,
+		},
+		{"larger",
+			35,
+			64,
 		},
 	}
-	lr.Offsets[0] = uint32(offset)
-	copy(lr.Consumer[:31], "test-event-buffer-overflow-V2")
-	err = uapi.GetLine(f.Fd(), &lr)
-	require.Nil(t, err)
-	defer unix.Close(int(lr.Fd))
+	for _, p := range patterns {
+		tf := func(t *testing.T) {
+			err = s.SetPull(offset, 1)
+			require.Nil(t, err)
+			lr := uapi.LineRequest{
+				Lines: 1,
+				Config: uapi.LineConfig{
+					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
+				},
+				EventBufferSize: p.size,
+			}
+			lr.Offsets[0] = uint32(offset)
+			copy(lr.Consumer[:31], "test-event-buffer-overflow-V2")
+			err = uapi.GetLine(f.Fd(), &lr)
+			require.Nil(t, err)
+			defer unix.Close(int(lr.Fd))
 
-	for i := 0; i < 20; i++ {
-		err = s.SetPull(1, i&1)
-		require.Nil(t, err)
-		time.Sleep(clkTick)
-	}
-	// first 4 events should be discarded by the kernel
-	xevt := uapi.LineEvent{
-		Offset:    uint32(offset),
-		LineSeqno: 5,
-		Seqno:     5,
-	}
-	for i := 0; i < 16; i++ {
-		evt, err := readLineEventTimeout(lr.Fd, eventWaitTimeout)
-		require.Nil(t, err)
-		require.NotNil(t, evt)
-		evt.Timestamp = 0
-		if i&1 == 0 {
-			xevt.ID = uapi.LineEventFallingEdge
-		} else {
-			xevt.ID = uapi.LineEventRisingEdge
+			for i := 0; i < p.ksize+4; i++ {
+				err = s.SetPull(1, i&1)
+				require.Nil(t, err)
+				time.Sleep(clkTick)
+			}
+			// first 4 events should be discarded by the kernel
+			xevt := uapi.LineEvent{
+				Offset:    uint32(offset),
+				LineSeqno: 5,
+				Seqno:     5,
+			}
+			for i := 0; i < p.ksize; i++ {
+				evt, err := readLineEventTimeout(lr.Fd, eventWaitTimeout)
+				require.Nil(t, err)
+				require.NotNil(t, evt)
+				evt.Timestamp = 0
+				if i&1 == 0 {
+					xevt.ID = uapi.LineEventFallingEdge
+				} else {
+					xevt.ID = uapi.LineEventRisingEdge
+				}
+				assert.Equal(t, xevt, *evt)
+				xevt.LineSeqno++
+				xevt.Seqno++
+			}
+			evt, err := readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
+			assert.Nil(t, err)
+			assert.Nil(t, evt, "spurious event")
 		}
-		assert.Equal(t, xevt, *evt)
-		xevt.LineSeqno++
-		xevt.Seqno++
+		t.Run(p.name, tf)
 	}
-	evt, err := readLineEventTimeout(lr.Fd, spuriousEventWaitTimeout)
-	assert.Nil(t, err)
-	assert.Nil(t, evt, "spurious event")
 }
 
 func TestSetConfigDebouncedEdges(t *testing.T) {
