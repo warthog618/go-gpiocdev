@@ -456,14 +456,15 @@ func (c *Chip) RequestLine(offset int, options ...LineReqOption) (*Line, error) 
 	}
 	l := Line{
 		baseLine: baseLine{
-			offsets: ll.offsets,
-			values:  ll.values,
-			vfd:     ll.vfd,
-			isEvent: ll.isEvent,
-			chip:    ll.chip,
-			abi:     ll.abi,
-			defCfg:  ll.defCfg,
-			watcher: ll.watcher,
+			offsets:         ll.offsets,
+			values:          ll.values,
+			vfd:             ll.vfd,
+			isEvent:         ll.isEvent,
+			chip:            ll.chip,
+			abi:             ll.abi,
+			eventBufferSize: ll.eventBufferSize,
+			defCfg:          ll.defCfg,
+			watcher:         ll.watcher,
 		},
 	}
 	return &l, nil
@@ -494,11 +495,12 @@ func (c *Chip) RequestLines(offsets []int, options ...LineReqOption) (*Lines, er
 	}
 	ll := Lines{
 		baseLine: baseLine{
-			offsets: offsets,
-			values:  lro.values,
-			chip:    c.Name,
-			abi:     lro.abi,
-			defCfg:  lro.defCfg,
+			offsets:         offsets,
+			values:          lro.values,
+			chip:            c.Name,
+			abi:             lro.abi,
+			eventBufferSize: lro.eventBufferSize,
+			defCfg:          lro.defCfg,
 		},
 	}
 	var err error
@@ -603,8 +605,9 @@ func (c *Chip) getLine(offsets []int, lro lineReqOptions) (uintptr, io.Closer, e
 		return 0, nil, err
 	}
 	lr := uapi.LineRequest{
-		Lines:  uint32(len(offsets)),
-		Config: config,
+		Lines:           uint32(len(offsets)),
+		Config:          config,
+		EventBufferSize: uint32(lro.eventBufferSize),
 	}
 	copy(lr.Consumer[:len(lr.Consumer)-1], lro.consumer)
 	// copy(hr.Offsets[:], offsets) - with cast
@@ -789,11 +792,12 @@ func (c *Chip) UapiAbiVersion() int {
 }
 
 type baseLine struct {
-	offsets []int
-	vfd     uintptr
-	isEvent bool
-	chip    string
-	abi     int
+	offsets         []int
+	vfd             uintptr
+	isEvent         bool
+	chip            string
+	abi             int
+	eventBufferSize int
 	// mu covers all that follow - those above are immutable
 	mu      sync.Mutex
 	values  map[int]int
@@ -807,6 +811,17 @@ type baseLine struct {
 // UapiAbiVersion returns the version of the GPIO uAPI the line is using.
 func (l *baseLine) UapiAbiVersion() int {
 	return l.abi
+}
+
+// EventBufferSize returns the size requested by WithEventBufferSize.
+//
+// This is only relevant for UAPI v2.
+// This value is advisory only - the actual buffer size provided by the kernel
+// may differ.
+// A value of zero is the default and means the kernel will use the default
+// buffer size.
+func (l *baseLine) EventBufferSize() int {
+	return int(l.eventBufferSize)
 }
 
 // Chip returns the name of the chip from which the line was requested.

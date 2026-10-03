@@ -1455,6 +1455,7 @@ func TestWithEventBufferSize(t *testing.T) {
 				l, err := c.RequestLine(offsets[0], gpiocdev.WithEventBufferSize(p.size))
 				assert.Nil(t, err)
 				require.NotNil(t, l)
+				assert.Equal(t, l.EventBufferSize(), p.size)
 				l.Close()
 			})
 		} else {
@@ -1462,6 +1463,7 @@ func TestWithEventBufferSize(t *testing.T) {
 				l, err := c.RequestLines(offsets[:p.numLines], gpiocdev.WithEventBufferSize(p.size))
 				assert.Nil(t, err)
 				require.NotNil(t, l)
+				assert.Equal(t, l.EventBufferSize(), p.size)
 				l.Close()
 			})
 		}
