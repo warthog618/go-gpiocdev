@@ -25,23 +25,18 @@ equivalent functionality.
 
 Supports the following functionality per line and for collections of lines:
 
-- direction (input/output)<sup>**1**</sup>
+- direction (input/output)
 - write (active/inactive)
 - read (active/inactive)
 - active high/low (defaults to high)
 - output mode (push-pull/open-drain/open-source)
-- pull up/down<sup>**2**</sup>
+- pull up/down
 - watches and edge detection (rising/falling/both)
 - chip and line labels
-- debouncing input lines<sup>**3**</sup>
-- different configurations for lines within a collection<sup>**3**</sup>
+- debouncing input lines
+- different configurations for lines within a collection
 
-<sup>**1**</sup> Dynamically changing line direction without releasing the line
-requires Linux 5.5 or later.
-
-<sup>**2**</sup> Requires Linux 5.5 or later.
-
-<sup>**3**</sup> Requires Linux 5.10 or later.
+The library uses Linux GPIO uAPI v2 and so requires Linux 5.10 or later.
 
 All library functions are safe to call from different goroutines.
 
@@ -239,8 +234,6 @@ The *Line.Reconfigure* method accepts differential changes to the configuration
 for the lines, so option categories not specified or overridden by the specified
 changes will remain unchanged.
 
-The *Line.Reconfigure* method requires Linux 5.5 or later.
-
 #### Complex Configurations
 
 It is sometimes necessary for the configuration of lines within a request to
@@ -273,8 +266,6 @@ or reset to the request configuration using the *Defaulted* option:
 ```go
 ll.Reconfigure(gpiocdev.WithLines([]int{3}, gpiocdev.Defaulted))
 ```
-
-Complex configurations require Linux 5.10 or later.
 
 ### Chip Initialization
 
@@ -409,8 +400,6 @@ l, _ = c.RequestLine(4, gpiocdev.WithPullUp) // during request
 l.Reconfigure(gpiocdev.WithBiasDisabled)     // once requested
 ```
 
-The bias options require Linux 5.5 or later.
-
 ##### Drive
 
 The drive options control how an output line is driven when active and inactive:
@@ -435,8 +424,6 @@ l, _ = c.RequestLine(4, gpiocdev.WithDebounce(period))// during request
 l.Reconfigure(gpiocdev.WithDebounce(period))         // once requested
 ```
 
-The WithDebounce option requires Linux 5.10 or later.
-
 ##### Edge Detection
 
 The edge options control which edges on input lines will generate edge events.
@@ -450,15 +437,14 @@ Refer to [Edge Watches](#edge-watches) for examples of the edge detection option
 ##### Event Clock
 
 The event clock options control the source clock used to timestamp edge events.
-This is only useful for Linux kernels 5.11 and later - prior to that the clock
+This is only useful for Linux 5.11 and later - prior to that the clock
 source is fixed.
 
 The event clock source used by the kernel has changed over time as follows:
 
 Kernel Version | Clock source
 --- | ---
-pre-5.7 | CLOCK_REALTIME
-5.7 - 5.10 | CLOCK_MONOTONIC
+5.10 | CLOCK_MONOTONIC
 5.11 and later | configurable (defaults to CLOCK_MONOTONIC)
 
 Determining which clock the edge event timestamps contain is currently left as
@@ -479,21 +465,21 @@ Option | Category | Description
 *AsPushPull* | Drive | Request output lines drive both high and low (**default**)
 *AsOpenDrain* | Drive | Request lines as open drain outputs
 *AsOpenSource* | Drive | Request lines as open source outputs
-*WithEventHandler(eh)<sup>**1**</sup>* |  | Send edge events detected on requested lines to the provided handler
-*WithEventBufferSize(num)<sup>**2**,**5**</sup>* |  | Suggest the minimum number of events that can be stored in the kernel event buffer for the requested lines
-*WithFallingEdge* | Edge Detection<sup>**3**</sup> | Request lines with falling edge detection
-*WithRisingEdge* | Edge Detection<sup>**3**</sup> | Request lines with rising edge detection
-*WithBothEdges* | Edge Detection<sup>**3**</sup> | Request lines with rising and falling edge detection
-*WithoutEdges*<sup>**5**</sup> | Edge Detection<sup>**3**</sup> | Request lines with edge detection disabled (**default**)
-*WithBiasAsIs* | Bias<sup>**4**</sup> | Request the lines have their bias setting left unaltered (**default**)
-*WithBiasDisabled* | Bias<sup>**4**</sup> | Request the lines have internal bias disabled
-*WithPullDown* | Bias<sup>**4**</sup> | Request the lines have internal pull-down enabled
-*WithPullUp* | Bias<sup>**4**</sup> | Request the lines have internal pull-up enabled
-*WithDebounce(period)*<sup>**5**</sup> | Debounce | Request the lines be debounced with the provided period
+*WithEventHandler(eh)*<sup>**1**</sup> |  | Send edge events detected on requested lines to the provided handler
+*WithEventBufferSize(num)*<sup>**2**</sup> |  | Suggest the minimum number of events that can be stored in the kernel event buffer for the requested lines
+*WithFallingEdge*<sup>**3**</sup> | Edge Detection| Request lines with falling edge detection
+*WithRisingEdge*<sup>**3**</sup> | Edge Detection | Request lines with rising edge detection
+*WithBothEdges*<sup>**3**</sup> | Edge Detection | Request lines with rising and falling edge detection
+*WithoutEdges*<sup>**3**</sup> | Edge Detection | Request lines with edge detection disabled (**default**)
+*WithBiasAsIs* | Bias | Request the lines have their bias setting left unaltered (**default**)
+*WithBiasDisabled* | Bias | Request the lines have internal bias disabled
+*WithPullDown* | Bias | Request the lines have internal pull-down enabled
+*WithPullUp* | Bias | Request the lines have internal pull-up enabled
+*WithDebounce(period)*<sup>**3**</sup>  | Debounce | Request the lines be debounced with the provided period
 *WithMonotonicEventClock* | Event Clock | Request the timestamp in edge events use the monotonic clock (**default**)
-*WithRealtimeEventClock*<sup>**6**</sup> | Event Clock | Request the timestamp in edge events use the realtime clock
-*WithLines(offsets, options...)*<sup>**3**,**5**</sup> |  | Specify configuration options for a subset of lines in a request
-*Defaulted*<sup>**5**</sup> |  | Reset the configuration for a request to the default configuration, or the configuration of a particular line in a request to the default for that request
+*WithRealtimeEventClock*<sup>**4**</sup> | Event Clock | Request the timestamp in edge events use the realtime clock
+*WithLines(offsets, options...)*<sup>**3**</sup> |  | Specify configuration options for a subset of lines in a request
+*Defaulted* |  | Reset the configuration for a request to the default configuration, or the configuration of a particular line in a request to the default for that request
 
 The options described as **default** are generally not required, except to
 override other options earlier in a chain of configuration options.
@@ -507,11 +493,7 @@ with *NewChip* or *Line.Reconfigure*.
 <sup>**3**</sup> Can be applied to either *Chip.RequestLine* or
 *Line.Reconfigure*, but cannot be used with *NewChip*.
 
-<sup>**4**</sup> Requires Linux 5.5 or later.
-
-<sup>**5**</sup> Requires Linux 5.10 or later.
-
-<sup>**6**</sup> Requires Linux 5.11 or later.
+<sup>**4**</sup> Requires Linux 5.11 or later.
 
 ## Installation
 
@@ -539,8 +521,8 @@ equivalent of all the **libgpiod** command line tools into a single tool.
 The library is fully tested, other than some error cases and sanity checks that
 are difficult to trigger.
 
-The tests require a kernel release 5.19 or later to run, built with
-**CONFIG_GPIO_SIM** set or as a module.
+To run, the tests require a Linux 5.19 or later, built with **CONFIG_GPIO_SIM**
+set or as a module.
 
 The tests must be run as root, to allow contruction of **gpio-sims**.
 They can still be built as an unprivileged user, e.g.
@@ -609,17 +591,14 @@ PASS
 
 ## Prerequisites
 
-The library targets Linux with support for the GPIO character device API.  That
-generally means that **/dev/gpiochip0** exists.
+The library targets Linux with support for the GPIO character device API.
+That generally means that **/dev/gpiochip0** exists.
+
+The library uses GPIO uAPI v2, available in Linux 5.10 or later.
 
 The caller must have access to the character device - typically
 **/dev/gpiochip0**.  That is generally root unless you have changed the
 permissions of that device.
-
-The Bias line options and the Line.Reconfigure method both require Linux 5.5 or
-later.
-
-Debounce and other uAPI v2 features require Linux 5.10 or later.
 
 The requirements for each [configuration option](#configuration-options) are
 noted in that section.
