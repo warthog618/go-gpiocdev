@@ -3,7 +3,13 @@ SPDX-FileCopyrightText: 2024 Kent Gibson <warthog618@gmail.com>
 
 SPDX-License-Identifier: MIT
 -->
-## [Unreleased](https://github.com/warthog618/go-gpiocdev/compare/v0.9.1...HEAD)
+## [Unreleased](https://github.com/warthog618/go-gpiocdev/compare/v0.9.2..HEAD)
+
+## v0.9.2 - 2026-10-04
+
+- fix #59 passing eventBufferSize.
+- extend kernel uapi tests.
+- fix footnote in WithEventBufferSize in README.
 
 ## v0.9.1 - 2024-10-30
 
