@@ -6,7 +6,6 @@ package gpiocdev_test
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -20,28 +19,18 @@ import (
 	"github.com/warthog618/go-gpiocdev/uapi"
 )
 
-var kernelAbiVersion int
-
 func TestMain(m *testing.M) {
-	flag.IntVar(&kernelAbiVersion, "abi", 0, "kernel uAPI version")
 	flag.Parse()
 	rc := m.Run()
 	os.Exit(rc)
 }
 
 var (
-	biasKernel               = uapi.Semver{5, 5}  // bias flags added
-	setConfigKernel          = uapi.Semver{5, 5}  // setLineConfig ioctl added
-	infoWatchKernel          = uapi.Semver{5, 7}  // watchLineInfo ioctl added
-	uapiV2Kernel             = uapi.Semver{5, 10} // uapi v2 added
 	eventClockRealtimeKernel = uapi.Semver{5, 11} // realtime event clock option added
 )
 
 func TestRequestLine(t *testing.T) {
 	var opts []gpiocdev.LineReqOption
-	if kernelAbiVersion != 0 {
-		opts = append(opts, gpiocdev.ABIVersionOption(kernelAbiVersion))
-	}
 
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
@@ -90,9 +79,6 @@ func TestRequestLine(t *testing.T) {
 
 func TestRequestLines(t *testing.T) {
 	var opts []gpiocdev.LineReqOption
-	if kernelAbiVersion != 0 {
-		opts = append(opts, gpiocdev.ABIVersionOption(kernelAbiVersion))
-	}
 
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
@@ -140,9 +126,6 @@ func TestRequestLines(t *testing.T) {
 
 func TestNewChip(t *testing.T) {
 	var chipOpts []gpiocdev.ChipOption
-	if kernelAbiVersion != 0 {
-		chipOpts = append(chipOpts, gpiocdev.ABIVersionOption(kernelAbiVersion))
-	}
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
 	defer s.Close()
@@ -402,8 +385,6 @@ func TestChipRequestLines(t *testing.T) {
 }
 
 func TestChipWatchLineInfo(t *testing.T) {
-	requireKernel(t, infoWatchKernel)
-
 	offset := 4
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
@@ -456,8 +437,6 @@ func TestChipWatchLineInfo(t *testing.T) {
 }
 
 func TestChipUnwatchLineInfo(t *testing.T) {
-	requireKernel(t, infoWatchKernel)
-
 	offset := 3
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
@@ -573,8 +552,6 @@ func TestLineOffset(t *testing.T) {
 }
 
 func TestLineReconfigure(t *testing.T) {
-	requireKernel(t, setConfigKernel)
-
 	offset := 3
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
@@ -629,20 +606,12 @@ func TestLineReconfigure(t *testing.T) {
 	inf, err = c.LineInfo(offset)
 	assert.Nil(t, err)
 	xinf.Config.ActiveLow = false
-	if l.UapiAbiVersion() != 1 {
-		// uAPI v1 does not return edge detection status in info
-		xinf.Config.EdgeDetection = gpiocdev.LineEdgeBoth
-	}
+	xinf.Config.EdgeDetection = gpiocdev.LineEdgeBoth
 	assert.Equal(t, xinf, inf)
 
 	err = l.Reconfigure(gpiocdev.AsActiveLow)
-	switch l.UapiAbiVersion() {
-	case 1:
-		assert.Equal(t, unix.EINVAL, err)
-	case 2:
-		assert.Nil(t, err)
-		xinf.Config.ActiveLow = true
-	}
+	assert.Nil(t, err)
+	xinf.Config.ActiveLow = true
 	inf, err = c.LineInfo(offset)
 	assert.Nil(t, err)
 	assert.Equal(t, xinf, inf)
@@ -650,8 +619,6 @@ func TestLineReconfigure(t *testing.T) {
 }
 
 func TestLinesReconfigure(t *testing.T) {
-	requireKernel(t, setConfigKernel)
-
 	offsets := []int{1, 3, 0, 2}
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
@@ -691,62 +658,60 @@ func TestLinesReconfigure(t *testing.T) {
 	xinf.Config.ActiveLow = true
 	assert.Equal(t, xinf, inf)
 
-	if ll.UapiAbiVersion() != 1 {
-		inner := []int{offsets[3], offsets[0]}
+	inner := []int{offsets[3], offsets[0]}
 
-		// WithLines
-		err = ll.Reconfigure(
-			gpiocdev.WithLines(inner, gpiocdev.WithPullUp),
-			gpiocdev.AsActiveHigh,
-		)
-		assert.Nil(t, err)
+	// WithLines
+	err = ll.Reconfigure(
+		gpiocdev.WithLines(inner, gpiocdev.WithPullUp),
+		gpiocdev.AsActiveHigh,
+	)
+	assert.Nil(t, err)
 
-		inf, err = c.LineInfo(offset)
-		assert.Nil(t, err)
-		xinf.Config.ActiveLow = false
-		assert.Equal(t, xinf, inf)
+	inf, err = c.LineInfo(offset)
+	assert.Nil(t, err)
+	xinf.Config.ActiveLow = false
+	assert.Equal(t, xinf, inf)
 
-		xinfi := gpiocdev.LineInfo{
-			Used:     true,
-			Consumer: "TestLinesReconfigure",
-			Offset:   inner[0],
-			Config: gpiocdev.LineConfig{
-				ActiveLow: true,
-				Bias:      gpiocdev.LineBiasPullUp,
-				Direction: gpiocdev.LineDirectionInput,
-			},
-		}
-		inf, err = c.LineInfo(inner[0])
-		assert.Nil(t, err)
-		assert.Equal(t, xinfi, inf)
-
-		inf, err = c.LineInfo(inner[1])
-		assert.Nil(t, err)
-		xinfi.Offset = inner[1]
-		assert.Equal(t, xinfi, inf)
-
-		// single WithLines -> 3 distinct configs
-		err = ll.Reconfigure(
-			gpiocdev.WithLines(inner[:1], gpiocdev.WithPullDown),
-		)
-		assert.Nil(t, err)
-
-		inf, err = c.LineInfo(offset)
-		assert.Nil(t, err)
-		xinf.Config.ActiveLow = false
-		assert.Equal(t, xinf, inf)
-
-		inf, err = c.LineInfo(inner[1])
-		assert.Nil(t, err)
-		xinfi.Offset = inner[1]
-		assert.Equal(t, xinfi, inf)
-
-		inf, err = c.LineInfo(inner[0])
-		assert.Nil(t, err)
-		xinfi.Offset = inner[0]
-		xinfi.Config.Bias = gpiocdev.LineBiasPullDown
-		assert.Equal(t, xinfi, inf)
+	xinfi := gpiocdev.LineInfo{
+		Used:     true,
+		Consumer: "TestLinesReconfigure",
+		Offset:   inner[0],
+		Config: gpiocdev.LineConfig{
+			ActiveLow: true,
+			Bias:      gpiocdev.LineBiasPullUp,
+			Direction: gpiocdev.LineDirectionInput,
+		},
 	}
+	inf, err = c.LineInfo(inner[0])
+	assert.Nil(t, err)
+	assert.Equal(t, xinfi, inf)
+
+	inf, err = c.LineInfo(inner[1])
+	assert.Nil(t, err)
+	xinfi.Offset = inner[1]
+	assert.Equal(t, xinfi, inf)
+
+	// single WithLines -> 3 distinct configs
+	err = ll.Reconfigure(
+		gpiocdev.WithLines(inner[:1], gpiocdev.WithPullDown),
+	)
+	assert.Nil(t, err)
+
+	inf, err = c.LineInfo(offset)
+	assert.Nil(t, err)
+	xinf.Config.ActiveLow = false
+	assert.Equal(t, xinf, inf)
+
+	inf, err = c.LineInfo(inner[1])
+	assert.Nil(t, err)
+	xinfi.Offset = inner[1]
+	assert.Equal(t, xinfi, inf)
+
+	inf, err = c.LineInfo(inner[0])
+	assert.Nil(t, err)
+	xinfi.Offset = inner[0]
+	xinfi.Config.Bias = gpiocdev.LineBiasPullDown
+	assert.Equal(t, xinfi, inf)
 
 	// closed
 	ll.Close()
@@ -763,20 +728,12 @@ func TestLinesReconfigure(t *testing.T) {
 	inf, err = c.LineInfo(offset)
 	assert.Nil(t, err)
 	xinf.Config.ActiveLow = false
-	if ll.UapiAbiVersion() != 1 {
-		// uAPI v1 does not return edge detection status in info
-		xinf.Config.EdgeDetection = gpiocdev.LineEdgeBoth
-	}
+	xinf.Config.EdgeDetection = gpiocdev.LineEdgeBoth
 	assert.Equal(t, xinf, inf)
 
 	err = ll.Reconfigure(gpiocdev.AsActiveLow)
-	switch ll.UapiAbiVersion() {
-	case 1:
-		assert.Equal(t, unix.EINVAL, err)
-	case 2:
-		assert.Nil(t, err)
-		xinf.Config.ActiveLow = true
-	}
+	assert.Nil(t, err)
+	xinf.Config.ActiveLow = true
 	inf, err = c.LineInfo(offset)
 	assert.Nil(t, err)
 	assert.Equal(t, xinf, inf)
@@ -1106,35 +1063,8 @@ func waitNoInfoEvent(t *testing.T, ch <-chan gpiocdev.LineInfoChangeEvent) {
 }
 
 func getChip(t *testing.T, chipPath string, chipOpts ...gpiocdev.ChipOption) *gpiocdev.Chip {
-	if kernelAbiVersion != 0 {
-		chipOpts = append(chipOpts, gpiocdev.ABIVersionOption(kernelAbiVersion))
-	}
 	c, err := gpiocdev.NewChip(chipPath, chipOpts...)
 	require.Nil(t, err)
 	require.NotNil(t, c)
 	return c
-}
-
-func requireKernel(t *testing.T, min uapi.Semver) {
-	t.Helper()
-	if err := uapi.CheckKernelVersion(min); err != nil {
-		t.Skip(err)
-	}
-}
-
-func requireABI(t *testing.T, chip *gpiocdev.Chip, abi int) {
-	t.Helper()
-	if chip.UapiAbiVersion() != abi {
-		t.Skip(ErrorBadABIVersion{abi, chip.UapiAbiVersion()})
-	}
-}
-
-// ErrorBadVersion indicates the kernel version is insufficient.
-type ErrorBadABIVersion struct {
-	Need int
-	Have int
-}
-
-func (e ErrorBadABIVersion) Error() string {
-	return fmt.Sprintf("require kernel ABI %d, but using %d", e.Need, e.Have)
 }

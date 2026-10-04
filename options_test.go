@@ -131,8 +131,6 @@ func testLineDirectionReconfigure(t *testing.T, createOption gpiocdev.LineReqOpt
 	reconfigOption gpiocdev.LineConfigOption, config gpiocdev.LineConfig) {
 
 	tf := func(t *testing.T) {
-		requireKernel(t, setConfigKernel)
-
 		offset := 4
 		s, err := gpiosim.NewSimpleton(6)
 		require.Nil(t, err)
@@ -179,12 +177,12 @@ func testEdgeEventPolarity(t *testing.T, s *gpiosim.Simpleton, l *gpiocdev.Line,
 
 	evtSeqno = seqno
 	s.SetPull(l.Offset(), activeLevel^1)
-	waitEvent(t, ich, nextEvent(l, 0))
+	waitEvent(t, ich, nextEvent(0))
 	v, err := l.Value()
 	assert.Nil(t, err)
 	assert.Equal(t, 0, v)
 	s.SetPull(l.Offset(), activeLevel)
-	waitEvent(t, ich, nextEvent(l, 1))
+	waitEvent(t, ich, nextEvent(1))
 	v, err = l.Value()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, v)
@@ -320,8 +318,6 @@ func testLineLevelReconfigure(t *testing.T, createOption gpiocdev.LineReqOption,
 	reconfigOption gpiocdev.LineConfigOption, isActiveLow bool, activeLevel int) {
 
 	tf := func(t *testing.T) {
-		requireKernel(t, setConfigKernel)
-
 		offset := 4
 		s, err := gpiosim.NewSimpleton(6)
 		require.Nil(t, err)
@@ -425,8 +421,6 @@ func testLineDriveReconfigure(t *testing.T, createOption gpiocdev.LineReqOption,
 	reconfigOption gpiocdev.LineConfigOption, drive gpiocdev.LineDrive, values ...int) {
 
 	tf := func(t *testing.T) {
-		requireKernel(t, setConfigKernel)
-
 		offset := 4
 		s, err := gpiosim.NewSimpleton(6)
 		require.Nil(t, err)
@@ -483,8 +477,6 @@ func testChipBiasOption(t *testing.T, option gpiocdev.ChipOption,
 	bias gpiocdev.LineBias, expval int) {
 
 	tf := func(t *testing.T) {
-		requireKernel(t, biasKernel)
-
 		offset := 4
 		s, err := gpiosim.NewSimpleton(6)
 		require.Nil(t, err)
@@ -514,8 +506,6 @@ func testLineBiasOption(t *testing.T, option gpiocdev.LineReqOption,
 	bias gpiocdev.LineBias, expval int) {
 
 	tf := func(t *testing.T) {
-		requireKernel(t, biasKernel)
-
 		offset := 4
 		s, err := gpiosim.NewSimpleton(6)
 		require.Nil(t, err)
@@ -544,8 +534,6 @@ func testLineBiasReconfigure(t *testing.T, createOption gpiocdev.LineReqOption,
 	reconfigOption gpiocdev.LineConfigOption, bias gpiocdev.LineBias, expval int) {
 
 	tf := func(t *testing.T) {
-		requireKernel(t, setConfigKernel)
-
 		offset := 4
 		s, err := gpiosim.NewSimpleton(6)
 		require.Nil(t, err)
@@ -580,15 +568,12 @@ func TestWithBiasDisabled(t *testing.T) {
 }
 
 func TestWithBiasAsIs(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
-
 	offsets := []int{1, 2, 3, 4, 5}
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
 	defer s.Close()
 	c := getChip(t, s.DevPath(), gpiocdev.WithConsumer("TestWithBiasAsIs"))
 	defer c.Close()
-	requireABI(t, c, 2)
 
 	l, err := c.RequestLines(offsets,
 		gpiocdev.AsInput,
@@ -639,14 +624,8 @@ func TestWithPullUp(t *testing.T) {
 
 var evtSeqno uint32
 
-type AbiVersioner interface {
-	UapiAbiVersion() int
-}
-
-func nextEvent(r AbiVersioner, active int) gpiocdev.LineEvent {
-	if r.UapiAbiVersion() != 1 {
-		evtSeqno++
-	}
+func nextEvent(active int) gpiocdev.LineEvent {
+	evtSeqno++
 	typ := gpiocdev.LineEventFallingEdge
 	if active != 0 {
 		typ = gpiocdev.LineEventRisingEdge
@@ -672,9 +651,6 @@ func TestWithEventHandler(t *testing.T) {
 		ich <- evt
 	}
 	chipOpts := []gpiocdev.ChipOption{gpiocdev.WithEventHandler(eh)}
-	if kernelAbiVersion != 0 {
-		chipOpts = append(chipOpts, gpiocdev.ABIVersionOption(kernelAbiVersion))
-	}
 	c := getChip(t, s.DevPath(), chipOpts...)
 	defer c.Close()
 
@@ -685,13 +661,13 @@ func TestWithEventHandler(t *testing.T) {
 	evtSeqno = 0
 	waitNoEvent(t, ich)
 	s.SetPull(offset, 1)
-	waitEvent(t, ich, nextEvent(r, 1))
+	waitEvent(t, ich, nextEvent(1))
 	s.SetPull(offset, 0)
-	waitEvent(t, ich, nextEvent(r, 0))
+	waitEvent(t, ich, nextEvent(0))
 	s.SetPull(offset, 1)
-	waitEvent(t, ich, nextEvent(r, 1))
+	waitEvent(t, ich, nextEvent(1))
 	s.SetPull(offset, 0)
-	waitEvent(t, ich, nextEvent(r, 0))
+	waitEvent(t, ich, nextEvent(0))
 	waitNoEvent(t, ich)
 
 	r.Close()
@@ -710,13 +686,13 @@ func TestWithEventHandler(t *testing.T) {
 	evtSeqno = 0
 	waitNoEvent(t, ich2)
 	s.SetPull(offset, 1)
-	waitEvent(t, ich2, nextEvent(r, 1))
+	waitEvent(t, ich2, nextEvent(1))
 	s.SetPull(offset, 0)
-	waitEvent(t, ich2, nextEvent(r, 0))
+	waitEvent(t, ich2, nextEvent(0))
 	s.SetPull(offset, 1)
-	waitEvent(t, ich2, nextEvent(r, 1))
+	waitEvent(t, ich2, nextEvent(1))
 	s.SetPull(offset, 0)
-	waitEvent(t, ich2, nextEvent(r, 0))
+	waitEvent(t, ich2, nextEvent(0))
 	waitNoEvent(t, ich2)
 
 	r.Close()
@@ -755,11 +731,11 @@ func TestWithFallingEdge(t *testing.T) {
 	evtSeqno = 0
 	waitNoEvent(t, ich)
 	s.SetPull(offset, 0)
-	waitEvent(t, ich, nextEvent(r, 0))
+	waitEvent(t, ich, nextEvent(0))
 	s.SetPull(offset, 1)
 	waitNoEvent(t, ich)
 	s.SetPull(offset, 0)
-	waitEvent(t, ich, nextEvent(r, 0))
+	waitEvent(t, ich, nextEvent(0))
 	s.SetPull(offset, 1)
 	waitNoEvent(t, ich)
 }
@@ -785,11 +761,11 @@ func TestWithRisingEdge(t *testing.T) {
 	evtSeqno = 0
 	waitNoEvent(t, ich)
 	s.SetPull(offset, 1)
-	waitEvent(t, ich, nextEvent(r, 1))
+	waitEvent(t, ich, nextEvent(1))
 	s.SetPull(offset, 0)
 	waitNoEvent(t, ich)
 	s.SetPull(offset, 1)
-	waitEvent(t, ich, nextEvent(r, 1))
+	waitEvent(t, ich, nextEvent(1))
 	s.SetPull(offset, 0)
 	waitNoEvent(t, ich)
 }
@@ -816,13 +792,13 @@ func TestWithBothEdges(t *testing.T) {
 	evtSeqno = 0
 	waitNoEvent(t, ich)
 	s.SetPull(offset, 1)
-	waitEvent(t, ich, nextEvent(r, 1))
+	waitEvent(t, ich, nextEvent(1))
 	s.SetPull(offset, 0)
-	waitEvent(t, ich, nextEvent(r, 0))
+	waitEvent(t, ich, nextEvent(0))
 	s.SetPull(offset, 1)
-	waitEvent(t, ich, nextEvent(r, 1))
+	waitEvent(t, ich, nextEvent(1))
 	s.SetPull(offset, 0)
-	waitEvent(t, ich, nextEvent(r, 0))
+	waitEvent(t, ich, nextEvent(0))
 	waitNoEvent(t, ich)
 }
 
@@ -848,16 +824,11 @@ func TestWithoutEdges(t *testing.T) {
 	evtSeqno = 0
 	waitNoEvent(t, ich)
 	s.SetPull(offset, 1)
-	waitEvent(t, ich, nextEvent(r, 1))
+	waitEvent(t, ich, nextEvent(1))
 	s.SetPull(offset, 0)
-	waitEvent(t, ich, nextEvent(r, 0))
+	waitEvent(t, ich, nextEvent(0))
 
 	err = r.Reconfigure(gpiocdev.WithoutEdges)
-	if c.UapiAbiVersion() == 1 {
-		// uapi v2 required for edge reconfiguration
-		assert.Equal(t, unix.EINVAL, err)
-		return
-	}
 	require.Nil(t, err)
 	waitNoEvent(t, ich)
 	s.SetPull(offset, 1)
@@ -885,12 +856,6 @@ func TestWithRealtimeEventClock(t *testing.T) {
 			evtTimestamp = evt.Timestamp
 			ich <- evt
 		}))
-	if c.UapiAbiVersion() == 1 {
-		// uapi v2 required for event clock option
-		assert.Equal(t, gpiocdev.ErrUapiIncompatibility{Feature: "event clock", AbiVersion: 1}, err)
-		assert.Nil(t, r)
-		return
-	}
 	if uapi.CheckKernelVersion(eventClockRealtimeKernel) != nil {
 		// old kernels should reject the realtime request
 		assert.Equal(t, unix.EINVAL, err)
@@ -907,7 +872,7 @@ func TestWithRealtimeEventClock(t *testing.T) {
 	waitNoEvent(t, ich)
 	start := time.Now()
 	s.SetPull(offset, 1)
-	waitEvent(t, ich, nextEvent(r, 1))
+	waitEvent(t, ich, nextEvent(1))
 	end := time.Now()
 	// with time converted to nanoseconds duration
 	assert.LessOrEqual(t, start.UnixNano(), evtTimestamp.Nanoseconds())
@@ -919,7 +884,7 @@ func TestWithRealtimeEventClock(t *testing.T) {
 
 	start = time.Now()
 	s.SetPull(offset, 0)
-	waitEvent(t, ich, nextEvent(r, 0))
+	waitEvent(t, ich, nextEvent(0))
 	end = time.Now()
 	assert.LessOrEqual(t, start.UnixNano(), evtTimestamp.Nanoseconds())
 	assert.GreaterOrEqual(t, end.UnixNano(), evtTimestamp.Nanoseconds())
@@ -960,7 +925,6 @@ func clearEvents(ch <-chan gpiocdev.LineEvent) uint32 {
 }
 
 func TestWithDebounce(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	offset := 1
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
@@ -971,12 +935,6 @@ func TestWithDebounce(t *testing.T) {
 	l, err := c.RequestLine(offset,
 		gpiocdev.WithDebounce(10*time.Microsecond))
 
-	if c.UapiAbiVersion() == 1 {
-		xerr := gpiocdev.ErrUapiIncompatibility{"debounce", 1}
-		assert.Equal(t, xerr, err)
-		assert.Nil(t, l)
-		return
-	}
 	require.Nil(t, err)
 	require.NotNil(t, l)
 	defer l.Close()
@@ -989,7 +947,6 @@ func TestWithDebounce(t *testing.T) {
 }
 
 func TestWithLines(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	offsets := []int{4, 3, 2, 1, 0}
 	offset := offsets[1]
 	s, err := gpiosim.NewSimpleton(6)
@@ -998,7 +955,6 @@ func TestWithLines(t *testing.T) {
 	s.SetPull(offset, 0)
 	c := getChip(t, s.DevPath(), gpiocdev.WithConsumer("TestWithLines"))
 	defer c.Close()
-	requireABI(t, c, 2)
 
 	patterns := []struct {
 		name       string
@@ -1208,7 +1164,6 @@ func TestWithLines(t *testing.T) {
 }
 
 func TestDefaulted(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	offsets := []int{4, 3, 2, 1, 0}
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
@@ -1220,7 +1175,6 @@ func TestDefaulted(t *testing.T) {
 		name       string
 		reqOptions []gpiocdev.LineReqOption
 		info       map[int]gpiocdev.LineInfo
-		abi        int
 	}{
 		{"top level",
 			[]gpiocdev.LineReqOption{
@@ -1241,7 +1195,6 @@ func TestDefaulted(t *testing.T) {
 					},
 				},
 			},
-			1,
 		},
 		{"WithLines",
 			[]gpiocdev.LineReqOption{
@@ -1277,7 +1230,6 @@ func TestDefaulted(t *testing.T) {
 					},
 				},
 			},
-			2,
 		},
 		{"WithLines nil",
 			[]gpiocdev.LineReqOption{
@@ -1312,7 +1264,6 @@ func TestDefaulted(t *testing.T) {
 					},
 				},
 			},
-			2,
 		},
 		{"WithLines empty",
 			[]gpiocdev.LineReqOption{
@@ -1347,15 +1298,11 @@ func TestDefaulted(t *testing.T) {
 					},
 				},
 			},
-			2,
 		},
 	}
 
 	for _, p := range patterns {
 		tf := func(t *testing.T) {
-			if c.UapiAbiVersion() < p.abi {
-				t.Skip(ErrorBadABIVersion{p.abi, c.UapiAbiVersion()})
-			}
 			l, err := c.RequestLines(offsets, p.reqOptions...)
 			assert.Nil(t, err)
 			require.NotNil(t, l)
@@ -1375,9 +1322,6 @@ func TestDefaulted(t *testing.T) {
 
 	for _, p := range patterns {
 		tf := func(t *testing.T) {
-			if c.UapiAbiVersion() < p.abi {
-				t.Skip(ErrorBadABIVersion{p.abi, c.UapiAbiVersion()})
-			}
 			l, err := c.RequestLines(offsets)
 			assert.Nil(t, err)
 			require.NotNil(t, l)
@@ -1407,7 +1351,6 @@ func TestDefaulted(t *testing.T) {
 }
 
 func TestWithEventBufferSize(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	offsets := []int{4, 3, 2, 1}
 	offset := offsets[1]
 	s, err := gpiosim.NewSimpleton(6)
@@ -1416,7 +1359,6 @@ func TestWithEventBufferSize(t *testing.T) {
 	s.SetPull(offset, 0)
 	c := getChip(t, s.DevPath())
 	defer c.Close()
-	requireABI(t, c, 2)
 
 	patterns := []struct {
 		name     string

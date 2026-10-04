@@ -83,7 +83,6 @@ func TestRepeatedGetLineEvent(t *testing.T) {
 }
 
 func TestRepeatedGetLine(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
 	require.NotNil(t, s)
@@ -153,7 +152,6 @@ func TestAsIs(t *testing.T) {
 }
 
 func TestWatchIsolation(t *testing.T) {
-	requireKernel(t, infoWatchKernel)
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
 	require.NotNil(t, s)
@@ -263,7 +261,6 @@ func TestBulkEventRead(t *testing.T) {
 }
 
 func TestBulkEventReadV2(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
 	require.NotNil(t, s)
@@ -308,7 +305,6 @@ func TestBulkEventReadV2(t *testing.T) {
 }
 
 func TestWatchInfoVersionLockV1(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(t, err)
 	defer s.Close()
@@ -335,7 +331,6 @@ func TestWatchInfoVersionLockV1(t *testing.T) {
 }
 
 func TestWatchInfoVersionLockV2(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
 	require.NotNil(t, s)
@@ -363,7 +358,6 @@ func TestWatchInfoVersionLockV2(t *testing.T) {
 }
 
 func TestWatchLineInfoV2Requested(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	patterns := []struct {
 		name   string
 		flags  uapi.LineFlagV2
@@ -466,8 +460,6 @@ func TestWatchLineInfoV2Requested(t *testing.T) {
 }
 
 func TestWatchLineInfoV2Config(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
-
 	patterns := []struct {
 		name   string
 		flags  uapi.LineFlagV2
@@ -582,7 +574,6 @@ func TestWatchLineInfoV2Config(t *testing.T) {
 }
 
 func TestSetConfigEdgeDetection(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
 	require.NotNil(t, s)
@@ -745,7 +736,6 @@ func TestEventBufferOverflow(t *testing.T) {
 }
 
 func TestEventBufferOverflowV2(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
 	require.NotNil(t, s)
@@ -826,7 +816,6 @@ func TestEventBufferOverflowV2(t *testing.T) {
 }
 
 func TestSetConfigDebouncedEdges(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
 	require.NotNil(t, s)
@@ -898,7 +887,6 @@ func TestSetConfigDebouncedEdges(t *testing.T) {
 }
 
 func TestGetLineDebouncedEdges(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
 	require.NotNil(t, s)
@@ -959,7 +947,6 @@ func TestGetLineDebouncedEdges(t *testing.T) {
 }
 
 func TestSetConfigEdgeDetectionPolarity(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
 	require.NotNil(t, s)
@@ -1038,7 +1025,6 @@ func TestSetConfigEdgeDetectionPolarity(t *testing.T) {
 }
 
 func TestSetConfigDebouncedThenEdges(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
 	require.NotNil(t, s)
@@ -1147,7 +1133,6 @@ func TestOutputSetGets(t *testing.T) {
 }
 
 func TestEdgeDetectionLinesMax(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	s, err := gpiosim.NewSimpleton(uapi.LinesMax + 6)
 	require.Nil(t, err)
 	require.NotNil(t, s)

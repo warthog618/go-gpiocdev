@@ -10,7 +10,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"syscall"
 	"time"
 
 	"github.com/warthog618/go-gpiocdev"
@@ -23,22 +22,13 @@ func eventHandler(evt gpiocdev.LineEvent) {
 		// shouldn't see any of these, but check to confirm
 		edge = "falling"
 	}
-	if evt.Seqno != 0 {
-		// only uAPI v2 populates the sequence numbers
-		fmt.Printf("%s event: #%d(%d)%3d %-7s (%s)\n",
-			t.Format(time.RFC3339Nano),
-			evt.Seqno,
-			evt.LineSeqno,
-			evt.Offset,
-			edge,
-			evt.Timestamp)
-	} else {
-		fmt.Printf("%s event:%3d %-7s (%s)\n",
-			t.Format(time.RFC3339Nano),
-			evt.Offset,
-			edge,
-			evt.Timestamp)
-	}
+	fmt.Printf("%s event: #%d(%d)%3d %-7s (%s)\n",
+		t.Format(time.RFC3339Nano),
+		evt.Seqno,
+		evt.LineSeqno,
+		evt.Offset,
+		edge,
+		evt.Timestamp)
 }
 
 // Watches gpiochip0:23 reports when it rises.
@@ -51,9 +41,6 @@ func main() {
 		gpiocdev.WithEventHandler(eventHandler))
 	if err != nil {
 		fmt.Printf("RequestLine returned error: %s\n", err)
-		if err == syscall.Errno(22) {
-			fmt.Println("Note that the WithPullUp option requires Linux 5.5 or later - check your kernel version.")
-		}
 		os.Exit(1)
 	}
 	defer l.Close()

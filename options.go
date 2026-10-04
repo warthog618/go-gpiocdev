@@ -19,7 +19,6 @@ type ChipOption interface {
 type ChipOptions struct {
 	consumer string
 	config   LineConfig
-	abi      int
 	eh       EventHandler
 }
 
@@ -64,7 +63,6 @@ type SubsetLineConfigOption interface {
 type lineReqOptions struct {
 	lineConfigOptions
 	consumer        string
-	abi             int
 	eh              EventHandler
 	eventBufferSize int
 }
@@ -366,29 +364,21 @@ func (o LineBias) applySubsetLineConfigOption(offsets []int, lco *lineConfigOpti
 // This option corresponds to the default bias configuration and its only useful
 // application is to clear any previous bias option in a chain of LineOptions,
 // before that configuration is applied.
-//
-// Requires Linux 5.5 or later.
 const WithBiasAsIs = LineBiasUnknown
 
 // WithBiasDisabled indicates that a line have its internal bias disabled.
 //
 // This option overrides and clears any previous bias options.
-//
-// Requires Linux 5.5 or later.
 const WithBiasDisabled = LineBiasDisabled
 
 // WithPullDown indicates that a line have its internal pull-down enabled.
 //
 // This option overrides and clears any previous bias options.
-//
-// Requires Linux 5.5 or later.
 const WithPullDown = LineBiasPullDown
 
 // WithPullUp indicates that a line have its internal pull-up enabled.
 //
 // This option overrides and clears any previous bias options.
-//
-// Requires Linux 5.5 or later.
 const WithPullUp = LineBiasPullUp
 
 func (o EventHandler) applyChipOption(c *ChipOptions) {
@@ -470,8 +460,6 @@ const WithBothEdges = LineEdgeBoth
 //
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
-//
-// The WithoutEdges option requires Linux 5.10 or later.
 const WithoutEdges = LineEdgeNone
 
 func (o LineEventClock) applyChipOption(c *ChipOptions) {
@@ -507,8 +495,6 @@ const WithMonotonicEventClock = LineEventClockMonotonic
 const WithRealtimeEventClock = LineEventClockRealtime
 
 // DebounceOption indicates that a line will be debounced.
-//
-// The DebounceOption requires Linux 5.10 or later.
 type DebounceOption time.Duration
 
 func (o DebounceOption) applyLineConfig(lc *LineConfig) {
@@ -536,32 +522,8 @@ func (o DebounceOption) applySubsetLineConfigOption(offsets []int, lco *lineConf
 //
 // This option sets the Input option and overrides and clears any previous
 // Output, OpenDrain, or OpenSource options.
-//
-// Requires Linux 5.10 or later.
 func WithDebounce(period time.Duration) DebounceOption {
 	return DebounceOption(period)
-}
-
-// ABIVersionOption selects the version of the GPIO ioctl commands to use.
-//
-// The default is to use the latest version supported by the kernel.
-type ABIVersionOption int
-
-func (o ABIVersionOption) applyChipOption(c *ChipOptions) {
-	c.abi = int(o)
-}
-
-func (o ABIVersionOption) applyLineReqOption(l *lineReqOptions) {
-	l.abi = int(o)
-}
-
-// WithABIVersion indicates the version of the GPIO ioctls to use.
-//
-// The default is to use the latest version supported by the kernel.
-//
-// ABI version 2 requires Linux 5.10 or later.
-func WithABIVersion(version int) ABIVersionOption {
-	return ABIVersionOption(version)
 }
 
 // LinesOption specifies line options that are to be applied to a subset of
@@ -631,8 +593,6 @@ const Defaulted = DefaultedOption(0)
 
 // EventBufferSizeOption provides a suggested minimum number of events the
 // kernel will buffer for the line request.
-//
-// The EventBufferSizeOption requires Linux 5.10 or later.
 type EventBufferSizeOption int
 
 func (o EventBufferSizeOption) applyLineReqOption(lro *lineReqOptions) {
@@ -647,8 +607,6 @@ func (o EventBufferSizeOption) applyLineReqOption(lro *lineReqOptions) {
 //
 // A zero value (the default) indicates that the kernel should use its default
 // buffer size (the number of requested lines * 16).
-//
-// Requires Linux 5.10 or later.
 func WithEventBufferSize(size int) EventBufferSizeOption {
 	return EventBufferSizeOption(size)
 }

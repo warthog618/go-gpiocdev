@@ -57,7 +57,6 @@ func checkLineInfoV2(t *testing.T, f *os.File, k gpiosim.Bank) {
 }
 
 func TestGetLineInfoV2(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	s, err := gpiosim.NewSim(
 		gpiosim.WithName("gpiosim_test"),
 		gpiosim.WithBank(gpiosim.NewBank("left", 8,
@@ -94,7 +93,6 @@ func TestGetLineInfoV2(t *testing.T) {
 }
 
 func TestGetLine(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	patterns := []struct {
 		name string // unique name for pattern (hf/ef/offsets/xval combo)
 		lr   uapi.LineRequest
@@ -311,7 +309,6 @@ func TestGetLine(t *testing.T) {
 }
 
 func TestGetLineValidation(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	patterns := []struct {
 		name string
 		lr   uapi.LineRequest
@@ -479,7 +476,6 @@ func TestGetLineValidation(t *testing.T) {
 }
 
 func TestGetLineValuesV2(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	patterns := []struct {
 		name   string
 		lr     uapi.LineRequest
@@ -949,7 +945,6 @@ func TestGetLineValuesV2(t *testing.T) {
 }
 
 func TestSetLineValuesV2(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	patterns := []struct {
 		name   string
 		lr     uapi.LineRequest
@@ -1331,7 +1326,6 @@ func zeroed(data []byte) bool {
 }
 
 func TestSetLineConfigV2(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	patterns := []struct {
 		name   string
 		lr     uapi.LineRequest
@@ -1913,7 +1907,6 @@ func TestSetLineConfigV2(t *testing.T) {
 }
 
 func TestSetLineConfigV2Validation(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	patterns := []struct {
 		name string
 		lc   uapi.LineConfig
@@ -2006,7 +1999,6 @@ func TestSetLineConfigV2Validation(t *testing.T) {
 func TestWatchLineInfoV2(t *testing.T) {
 	// also covers ReadLineInfoChangedV2
 
-	requireKernel(t, uapiV2Kernel)
 	s, err := gpiosim.NewSim(
 		gpiosim.WithName("gpiosim_test"),
 		gpiosim.WithBank(gpiosim.NewBank("left", 8,
@@ -2127,7 +2119,6 @@ func TestWatchLineInfoV2(t *testing.T) {
 }
 
 func TestReadLineEvent(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(t, err)
 	defer s.Close()
@@ -2624,7 +2615,6 @@ func TestLineConfig(t *testing.T) {
 }
 
 func TestDebounce(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(t, err)
 	defer s.Close()
@@ -2720,7 +2710,6 @@ func TestDebounce(t *testing.T) {
 }
 
 func TestReleaseWakesPoll(t *testing.T) {
-	requireKernel(t, uapiV2Kernel)
 	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(t, err)
 	defer s.Close()
