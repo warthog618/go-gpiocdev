@@ -904,6 +904,13 @@ func TestLinesValues(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, []int{0, 1, 0}, vv)
 
+	// superset
+	vv = make([]int, len(offsets)+1)
+	vv[len(offsets)] = 42
+	err = l.Values(vv)
+	assert.Nil(t, err)
+	assert.Equal(t, []int{0, 1, 0, 0, 0, 42}, vv)
+
 	l.Close()
 
 	// after close
