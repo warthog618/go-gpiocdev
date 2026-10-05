@@ -371,6 +371,10 @@ func lineInfoV2ToLineConfig(li uapi.LineInfoV2) LineConfig {
 		lc.Bias = LineBiasDisabled
 	}
 
+	if li.Flags.HasRealtimeEventClock() {
+		lc.EventClock = LineEventClockRealtime
+	}
+
 	for i := 0; i < int(li.NumAttrs); i++ {
 		if li.Attrs[i].ID == uapi.LineAttributeIDDebounce {
 			lc.Debounced = true
