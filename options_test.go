@@ -11,10 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/warthog618/go-gpiosim"
-	"golang.org/x/sys/unix"
 
 	"github.com/warthog618/go-gpiocdev"
-	"github.com/warthog618/go-gpiocdev/uapi"
 )
 
 func TestWithConsumer(t *testing.T) {
@@ -837,7 +835,85 @@ func TestWithoutEdges(t *testing.T) {
 	waitNoEvent(t, ich)
 }
 
+func TestWithMonotonicEventClock(t *testing.T) {
+	testChipEventClockOption(t, gpiocdev.WithMonotonicEventClock, gpiocdev.LineEventClockMonotonic)
+	testLineEventClockOption(t, gpiocdev.WithMonotonicEventClock, gpiocdev.LineEventClockMonotonic)
+	testLineEventClockReconfigure(t, gpiocdev.WithRealtimeEventClock, gpiocdev.WithMonotonicEventClock, gpiocdev.LineEventClockMonotonic)
+}
+
 func TestWithRealtimeEventClock(t *testing.T) {
+	testChipEventClockOption(t, gpiocdev.WithRealtimeEventClock, gpiocdev.LineEventClockRealtime)
+	testLineEventClockOption(t, gpiocdev.WithRealtimeEventClock, gpiocdev.LineEventClockRealtime)
+	testLineEventClockReconfigure(t, gpiocdev.WithMonotonicEventClock, gpiocdev.WithRealtimeEventClock, gpiocdev.LineEventClockRealtime)
+}
+
+func testChipEventClockOption(t *testing.T, option gpiocdev.ChipOption,
+	clock gpiocdev.LineEventClock) {
+
+	t.Helper()
+
+	offset := 4
+	s, err := gpiosim.NewSimpleton(6)
+	require.Nil(t, err)
+	defer s.Close()
+	c := getChip(t, s.DevPath(), option)
+	defer c.Close()
+
+	l, err := c.RequestLine(offset, gpiocdev.WithBothEdges)
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	inf, err := c.LineInfo(offset)
+	assert.Nil(t, err)
+	assert.Equal(t, clock, inf.Config.EventClock)
+}
+
+func testLineEventClockOption(t *testing.T, option gpiocdev.LineReqOption,
+	clock gpiocdev.LineEventClock) {
+
+	t.Helper()
+
+	offset := 4
+	s, err := gpiosim.NewSimpleton(6)
+	require.Nil(t, err)
+	defer s.Close()
+	c := getChip(t, s.DevPath())
+	defer c.Close()
+
+	l, err := c.RequestLine(offset, gpiocdev.WithBothEdges, option)
+	assert.Nil(t, err)
+	require.NotNil(t, l)
+	defer l.Close()
+	inf, err := c.LineInfo(offset)
+	assert.Nil(t, err)
+	assert.Equal(t, clock, inf.Config.EventClock)
+}
+
+func testLineEventClockReconfigure(t *testing.T, createOption gpiocdev.LineReqOption,
+	reconfigOption gpiocdev.LineConfigOption, clock gpiocdev.LineEventClock) {
+
+	tf := func(t *testing.T) {
+		offset := 4
+		s, err := gpiosim.NewSimpleton(6)
+		require.Nil(t, err)
+		defer s.Close()
+		c := getChip(t, s.DevPath())
+		defer c.Close()
+
+		l, err := c.RequestLine(offset, createOption, gpiocdev.WithBothEdges)
+		assert.Nil(t, err)
+		require.NotNil(t, l)
+		defer l.Close()
+		err = l.Reconfigure(reconfigOption)
+		assert.Nil(t, err)
+		inf, err := c.LineInfo(offset)
+		assert.Nil(t, err)
+		assert.Equal(t, clock, inf.Config.EventClock)
+	}
+	t.Run("Reconfigure", tf)
+}
+
+func TestEdgeRealtimeEventClock(t *testing.T) {
 	offsets := []int{4, 3, 2, 1}
 	offset := offsets[1]
 	s, err := gpiosim.NewSimpleton(6)
@@ -856,15 +932,6 @@ func TestWithRealtimeEventClock(t *testing.T) {
 			evtTimestamp = evt.Timestamp
 			ich <- evt
 		}))
-	if uapi.CheckKernelVersion(eventClockRealtimeKernel) != nil {
-		// old kernels should reject the realtime request
-		assert.Equal(t, unix.EINVAL, err)
-		assert.Nil(t, r)
-		if r != nil {
-			r.Close()
-		}
-		return
-	}
 	require.Nil(t, err)
 	require.NotNil(t, r)
 	defer r.Close()
@@ -947,6 +1014,7 @@ func TestWithDebounce(t *testing.T) {
 }
 
 func TestWithLines(t *testing.T) {
+	// also covers reading LineInfo from the kernel
 	offsets := []int{4, 3, 2, 1, 0}
 	offset := offsets[1]
 	s, err := gpiosim.NewSimpleton(6)
@@ -965,6 +1033,7 @@ func TestWithLines(t *testing.T) {
 			[]gpiocdev.LineReqOption{
 				gpiocdev.AsInput,
 				gpiocdev.WithPullDown,
+				gpiocdev.WithMonotonicEventClock,
 				gpiocdev.WithLines(
 					[]int{offsets[2], offsets[4]},
 					gpiocdev.AsOutput(1, 1),
@@ -976,8 +1045,9 @@ func TestWithLines(t *testing.T) {
 			map[int]gpiocdev.LineInfo{
 				offsets[0]: {
 					Config: gpiocdev.LineConfig{
-						Bias:      gpiocdev.LineBiasPullDown,
-						Direction: gpiocdev.LineDirectionInput,
+						Bias:       gpiocdev.LineBiasPullDown,
+						Direction:  gpiocdev.LineDirectionInput,
+						EventClock: gpiocdev.LineEventClockMonotonic,
 					},
 				},
 				offsets[2]: {
@@ -993,17 +1063,23 @@ func TestWithLines(t *testing.T) {
 		{"in+debounced",
 			[]gpiocdev.LineReqOption{
 				gpiocdev.AsInput,
+				gpiocdev.WithRisingEdge,
+				gpiocdev.WithRealtimeEventClock,
 				gpiocdev.WithLines(
 					[]int{offsets[2], offsets[4]},
 					gpiocdev.WithDebounce(1234*time.Microsecond),
+					gpiocdev.WithFallingEdge,
+					gpiocdev.WithMonotonicEventClock,
 				),
 				gpiocdev.AsActiveLow,
 			},
 			map[int]gpiocdev.LineInfo{
 				offsets[1]: {
 					Config: gpiocdev.LineConfig{
-						ActiveLow: true,
-						Direction: gpiocdev.LineDirectionInput,
+						ActiveLow:     true,
+						Direction:     gpiocdev.LineDirectionInput,
+						EdgeDetection: gpiocdev.LineEdgeRising,
+						EventClock:    gpiocdev.LineEventClockRealtime,
 					},
 				},
 				offsets[4]: {
@@ -1011,6 +1087,8 @@ func TestWithLines(t *testing.T) {
 						Debounced:      true,
 						DebouncePeriod: 1234 * time.Microsecond,
 						Direction:      gpiocdev.LineDirectionInput,
+						EdgeDetection:  gpiocdev.LineEdgeFalling,
+						EventClock:     gpiocdev.LineEventClockMonotonic,
 					},
 				},
 			},
@@ -1020,7 +1098,10 @@ func TestWithLines(t *testing.T) {
 				gpiocdev.AsOutput(1, 0, 1, 1),
 				gpiocdev.WithLines(
 					[]int{offsets[2], offsets[4]},
+					gpiocdev.AsInput,
 					gpiocdev.WithDebounce(1432*time.Microsecond),
+					gpiocdev.WithBothEdges,
+					gpiocdev.WithRealtimeEventClock,
 				),
 			},
 			map[int]gpiocdev.LineInfo{
@@ -1034,6 +1115,8 @@ func TestWithLines(t *testing.T) {
 						Debounced:      true,
 						DebouncePeriod: 1432 * time.Microsecond,
 						Direction:      gpiocdev.LineDirectionInput,
+						EdgeDetection:  gpiocdev.LineEdgeBoth,
+						EventClock:     gpiocdev.LineEventClockRealtime,
 					},
 				},
 			},

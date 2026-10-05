@@ -16,7 +16,6 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/warthog618/go-gpiocdev"
-	"github.com/warthog618/go-gpiocdev/uapi"
 )
 
 func TestMain(m *testing.M) {
@@ -24,10 +23,6 @@ func TestMain(m *testing.M) {
 	rc := m.Run()
 	os.Exit(rc)
 }
-
-var (
-	eventClockRealtimeKernel = uapi.Semver{5, 11} // realtime event clock option added
-)
 
 func TestRequestLine(t *testing.T) {
 	var opts []gpiocdev.LineReqOption
