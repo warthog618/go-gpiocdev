@@ -1433,6 +1433,24 @@ func TestDefaulted(t *testing.T) {
 	}
 }
 
+func TestConfigOverflow(t *testing.T) {
+	offsets := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	s, err := gpiosim.NewSimpleton(11)
+	require.Nil(t, err)
+	defer s.Close()
+	c := getChip(t, s.DevPath())
+	defer c.Close()
+
+	lro := []gpiocdev.LineReqOption(nil)
+	for _, o := range offsets {
+		lro = append(lro, gpiocdev.WithLines([]int{o}, gpiocdev.WithDebounce(time.Duration(10+o)*time.Microsecond)))
+	}
+	l, err := c.RequestLines(offsets, lro...)
+
+	require.Equal(t, gpiocdev.ErrConfigOverflow, err)
+	require.Nil(t, l)
+}
+
 func TestWithEventBufferSize(t *testing.T) {
 	offsets := []int{4, 3, 2, 1}
 	offset := offsets[1]
