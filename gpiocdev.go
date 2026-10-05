@@ -371,7 +371,7 @@ func lineInfoV2ToLineConfig(li uapi.LineInfoV2) LineConfig {
 		lc.Bias = LineBiasDisabled
 	}
 
-	if li.Flags.HasRealtimeEventClock() {
+	if li.Flags.IsRealtimeEventClock() {
 		lc.EventClock = LineEventClockRealtime
 	}
 

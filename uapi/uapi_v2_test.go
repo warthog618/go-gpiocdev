@@ -2788,7 +2788,7 @@ func TestLineFlagsV2(t *testing.T) {
 	assert.False(t, uapi.LineFlagV2(0).IsBiasDisabled())
 	assert.False(t, uapi.LineFlagV2(0).IsBiasPullUp())
 	assert.False(t, uapi.LineFlagV2(0).IsBiasPullDown())
-	assert.False(t, uapi.LineFlagV2(0).HasRealtimeEventClock())
+	assert.False(t, uapi.LineFlagV2(0).IsRealtimeEventClock())
 	assert.False(t, uapi.LineFlagV2Used.IsAvailable())
 	assert.True(t, uapi.LineFlagV2Used.IsUsed())
 	assert.True(t, uapi.LineFlagV2ActiveLow.IsActiveLow())
@@ -2802,5 +2802,5 @@ func TestLineFlagsV2(t *testing.T) {
 	assert.True(t, uapi.LineFlagV2BiasDisabled.IsBiasDisabled())
 	assert.True(t, uapi.LineFlagV2BiasPullUp.IsBiasPullUp())
 	assert.True(t, uapi.LineFlagV2BiasPullDown.IsBiasPullDown())
-	assert.True(t, uapi.LineFlagV2EventClockRealtime.HasRealtimeEventClock())
+	assert.True(t, uapi.LineFlagV2EventClockRealtime.IsRealtimeEventClock())
 }

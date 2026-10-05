@@ -321,9 +321,9 @@ func (f LineFlagV2) IsBiasPullDown() bool {
 	return f&LineFlagV2BiasPullDown != 0
 }
 
-// HasRealtimeEventClock returns true if the line events will contain real-time
+// IsRealtimeEventClock returns true if the line events will contain real-time
 // timestamps.
-func (f LineFlagV2) HasRealtimeEventClock() bool {
+func (f LineFlagV2) IsRealtimeEventClock() bool {
 	return f&LineFlagV2EventClockRealtime != 0
 }
 
