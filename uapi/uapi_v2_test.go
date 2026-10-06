@@ -22,9 +22,7 @@ import (
 )
 
 var (
-	uapiV2Kernel             = uapi.Semver{5, 10} // uapi v2 added
-	eventClockRealtimeKernel = uapi.Semver{5, 11} // add LineFlagV2EventClockRealtime
-	debouncePeriod           = 5 * clkTick
+	debouncePeriod = 5 * clkTick
 )
 
 type AttributeEncoder interface {
@@ -2246,10 +2244,6 @@ func TestReadLineEvent(t *testing.T) {
 	assert.Equal(t, xevt, *evt)
 
 	unix.Close(int(lr.Fd))
-
-	if uapi.CheckKernelVersion(eventClockRealtimeKernel) != nil {
-		return
-	}
 
 	// realtime timestamp
 	lr.Lines = 1
