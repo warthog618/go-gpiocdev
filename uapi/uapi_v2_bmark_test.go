@@ -17,6 +17,16 @@ import (
 	"github.com/warthog618/go-gpiocdev/uapi"
 )
 
+func BenchmarkChipOpenClose(b *testing.B) {
+	s, err := gpiosim.NewSimpleton(4)
+	require.Nil(b, err)
+	defer s.Close()
+	for i := 0; i < b.N; i++ {
+		f, _ := os.Open(s.DevPath())
+		f.Close()
+	}
+}
+
 func BenchmarkLineInfo(b *testing.B) {
 	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
