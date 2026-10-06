@@ -118,7 +118,7 @@ func (lco lineConfigOptions) toULineConfig() (ulc uapi.LineConfig, err error) {
 	mask := uapi.NewLineBitMask(len(lco.offsets))
 	cfgAttrs := lineConfigAttributes{
 		// first cfg slot reserved for default flags
-		uapi.LineConfigAttribute{Attr: uapi.LineFlagV2(0).Encode(), Mask: mask},
+		uapi.LineConfigAttribute{Attr: uapi.LineFlag(0).Encode(), Mask: mask},
 	}
 	attrs := lco.defCfg.toLineAttributes()
 	for _, attr := range attrs {
@@ -150,7 +150,7 @@ func (lco lineConfigOptions) toULineConfig() (ulc uapi.LineConfig, err error) {
 			outputMask &^= mask
 		}
 	}
-	var defFlags uapi.LineFlagV2
+	var defFlags uapi.LineFlag
 	defFlags.Decode(cfgAttrs[0].Attr)
 	// replace default flags in slot 0 with outputValues
 	cfgAttrs[0].Attr = lco.outputValues().Encode()

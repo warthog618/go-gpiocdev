@@ -126,14 +126,14 @@ func uapiV2() error {
 	fmt.Print(ci)
 
 	// get line info
-	li, _ := uapi.GetLineInfoV2(f.Fd(), offset)
+	li, _ := uapi.GetLineInfo(f.Fd(), offset)
 	fmt.Print(li)
 
 	// request a line
 	lr := uapi.LineRequest{
 		Lines: uint32(len(offsets)),
 		Config: uapi.LineConfig{
-			Flags: uapi.LineFlagV2Output,
+			Flags: uapi.LineFlagOutput,
 		},
 		// initialise Offsets, DefaultValues and Consumer...
 	}
@@ -146,7 +146,7 @@ func uapiV2() error {
 	lr = uapi.LineRequest{
 		Lines: uint32(len(offsets)),
 		Config: uapi.LineConfig{
-			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2ActiveLow | uapi.LineFlagV2EdgeBoth,
+			Flags: uapi.LineFlagInput | uapi.LineFlagActiveLow | uapi.LineFlagEdgeBoth,
 		},
 		// initialise Offsets and Consumer...
 	}
@@ -161,20 +161,20 @@ func uapiV2() error {
 
 	// get values
 	var values uapi.LineValues
-	err = uapi.GetLineValuesV2(uintptr(lr.Fd), &values)
+	err = uapi.GetLineValues(uintptr(lr.Fd), &values)
 	if err != nil {
 		return err
 	}
 
 	// set values
-	err = uapi.SetLineValuesV2(uintptr(lr.Fd), values)
+	err = uapi.SetLineValues(uintptr(lr.Fd), values)
 	if err != nil {
 		return err
 	}
 
 	// update line config - change to outputs
-	err = uapi.SetLineConfigV2(uintptr(lr.Fd), &uapi.LineConfig{
-		Flags:    uapi.LineFlagV2Output,
+	err = uapi.SetLineConfig(uintptr(lr.Fd), &uapi.LineConfig{
+		Flags:    uapi.LineFlagOutput,
 		NumAttrs: 1,
 		// initialise OutputValues...
 	})

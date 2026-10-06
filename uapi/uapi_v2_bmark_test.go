@@ -17,7 +17,7 @@ import (
 	"github.com/warthog618/go-gpiocdev/uapi"
 )
 
-func BenchmarkLineInfoV2(b *testing.B) {
+func BenchmarkLineInfo(b *testing.B) {
 	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
 	defer s.Close()
@@ -26,7 +26,7 @@ func BenchmarkLineInfoV2(b *testing.B) {
 	require.NotNil(b, f)
 	defer f.Close()
 	for i := 0; i < b.N; i++ {
-		uapi.GetLineInfoV2(f.Fd(), 0)
+		uapi.GetLineInfo(f.Fd(), 0)
 	}
 }
 
@@ -58,7 +58,7 @@ func BenchmarkGetLineWithEdges(b *testing.B) {
 	lr := uapi.LineRequest{
 		Lines: 1,
 		Config: uapi.LineConfig{
-			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
+			Flags: uapi.LineFlagInput | uapi.LineFlagEdgeBoth,
 		},
 	}
 	for i := 0; i < b.N; i++ {
@@ -67,7 +67,7 @@ func BenchmarkGetLineWithEdges(b *testing.B) {
 	}
 }
 
-func BenchmarkGetLineValuesV2(b *testing.B) {
+func BenchmarkGetLineValues(b *testing.B) {
 	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
 	defer s.Close()
@@ -82,11 +82,11 @@ func BenchmarkGetLineValuesV2(b *testing.B) {
 	defer unix.Close(int(lr.Fd))
 	lv := uapi.LineValues{Mask: 1}
 	for i := 0; i < b.N; i++ {
-		uapi.GetLineValuesV2(uintptr(lr.Fd), &lv)
+		uapi.GetLineValues(uintptr(lr.Fd), &lv)
 	}
 }
 
-func BenchmarkSetLineValuesV2(b *testing.B) {
+func BenchmarkSetLineValues(b *testing.B) {
 	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
 	defer s.Close()
@@ -97,7 +97,7 @@ func BenchmarkSetLineValuesV2(b *testing.B) {
 	lr := uapi.LineRequest{
 		Lines: 1,
 		Config: uapi.LineConfig{
-			Flags: uapi.LineFlagV2Output,
+			Flags: uapi.LineFlagOutput,
 		},
 	}
 	err = uapi.GetLine(f.Fd(), &lr)
@@ -106,11 +106,11 @@ func BenchmarkSetLineValuesV2(b *testing.B) {
 	defer unix.Close(int(lr.Fd))
 	lv := uapi.LineValues{Mask: 1}
 	for i := 0; i < b.N; i++ {
-		uapi.SetLineValuesV2(uintptr(lr.Fd), lv)
+		uapi.SetLineValues(uintptr(lr.Fd), lv)
 	}
 }
 
-func BenchmarkSetLineValuesV2Sparse(b *testing.B) {
+func BenchmarkSetLineValuesSparse(b *testing.B) {
 	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
 	defer s.Close()
@@ -122,7 +122,7 @@ func BenchmarkSetLineValuesV2Sparse(b *testing.B) {
 		Lines:   4,
 		Offsets: [uapi.LinesMax]uint32{0, 1, 2, 3},
 		Config: uapi.LineConfig{
-			Flags: uapi.LineFlagV2Output,
+			Flags: uapi.LineFlagOutput,
 		},
 	}
 	err = uapi.GetLine(f.Fd(), &lr)
@@ -131,11 +131,11 @@ func BenchmarkSetLineValuesV2Sparse(b *testing.B) {
 	defer unix.Close(int(lr.Fd))
 	lv := uapi.LineValues{Mask: 0x0a}
 	for i := 0; i < b.N; i++ {
-		uapi.SetLineValuesV2(uintptr(lr.Fd), lv)
+		uapi.SetLineValues(uintptr(lr.Fd), lv)
 	}
 }
 
-func BenchmarkSetLineConfigV2(b *testing.B) {
+func BenchmarkSetLineConfig(b *testing.B) {
 	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
 	defer s.Close()
@@ -150,11 +150,11 @@ func BenchmarkSetLineConfigV2(b *testing.B) {
 	defer unix.Close(int(lr.Fd))
 	var lc uapi.LineConfig
 	for i := 0; i < b.N; i++ {
-		uapi.SetLineConfigV2(uintptr(lr.Fd), &lc)
+		uapi.SetLineConfig(uintptr(lr.Fd), &lc)
 	}
 }
 
-func BenchmarkWatchLineInfoV2(b *testing.B) {
+func BenchmarkWatchLineInfo(b *testing.B) {
 	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
 	defer s.Close()
@@ -162,9 +162,9 @@ func BenchmarkWatchLineInfoV2(b *testing.B) {
 	require.Nil(b, err)
 	require.NotNil(b, f)
 	defer f.Close()
-	var li uapi.LineInfoV2
+	var li uapi.LineInfo
 	for i := 0; i < b.N; i++ {
-		uapi.WatchLineInfoV2(f.Fd(), &li)
+		uapi.WatchLineInfo(f.Fd(), &li)
 		uapi.UnwatchLineInfo(f.Fd(), 0)
 	}
 }

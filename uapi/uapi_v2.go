@@ -14,18 +14,18 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// GetLineInfoV2 returns the LineInfoV2 for one line from the GPIO character device.
+// GetLineInfo returns the LineInfo for one line from the GPIO character device.
 //
 // The fd is an open GPIO character device.
 // The offset is zero based.
-func GetLineInfoV2(fd uintptr, offset int) (LineInfoV2, error) {
-	li := LineInfoV2{Offset: uint32(offset)}
+func GetLineInfo(fd uintptr, offset int) (LineInfo, error) {
+	li := LineInfo{Offset: uint32(offset)}
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		fd,
 		uintptr(getLineInfoV2Ioctl),
 		uintptr(unsafe.Pointer(&li)))
 	if errno != 0 {
-		return LineInfoV2{}, errno
+		return LineInfo{}, errno
 	}
 	return li, nil
 }
@@ -47,12 +47,12 @@ func GetLine(fd uintptr, request *LineRequest) error {
 	return nil
 }
 
-// GetLineValuesV2 returns the values of a set of requested lines.
+// GetLineValues returns the values of a set of requested lines.
 //
 // The fd is a requested line, as returned by GetLine.
 //
 // The values returned are the logical values, with inactive being 0.
-func GetLineValuesV2(fd uintptr, values *LineValues) error {
+func GetLineValues(fd uintptr, values *LineValues) error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		fd,
 		uintptr(getLineValuesV2Ioctl),
@@ -63,10 +63,10 @@ func GetLineValuesV2(fd uintptr, values *LineValues) error {
 	return nil
 }
 
-// SetLineValuesV2 sets the values of a set of requested lines.
+// SetLineValues sets the values of a set of requested lines.
 //
 // The fd is a requested line, as returned by GetLine.
-func SetLineValuesV2(fd uintptr, values LineValues) error {
+func SetLineValues(fd uintptr, values LineValues) error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		fd,
 		uintptr(setLineValuesV2Ioctl),
@@ -77,10 +77,10 @@ func SetLineValuesV2(fd uintptr, values LineValues) error {
 	return nil
 }
 
-// SetLineConfigV2 sets the config of an existing handle request.
+// SetLineConfig sets the config of an existing handle request.
 //
 // The config flags in the request will be applied to all lines in the request.
-func SetLineConfigV2(fd uintptr, config *LineConfig) error {
+func SetLineConfig(fd uintptr, config *LineConfig) error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		fd,
 		uintptr(setLineConfigV2Ioctl),
@@ -91,11 +91,11 @@ func SetLineConfigV2(fd uintptr, config *LineConfig) error {
 	return nil
 }
 
-// WatchLineInfoV2 sets a watch on info of a line.
+// WatchLineInfo sets a watch on info of a line.
 //
 // A watch is set on the line indicated by info.Offset. If successful the
 // current line info is returned, else an error is returned.
-func WatchLineInfoV2(fd uintptr, info *LineInfoV2) error {
+func WatchLineInfo(fd uintptr, info *LineInfo) error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		fd,
 		uintptr(watchLineInfoV2Ioctl),
@@ -118,14 +118,14 @@ func ReadLineEvent(fd uintptr) (LineEvent, error) {
 	return le, err
 }
 
-// ReadLineInfoChangedV2 reads a line info changed event from a chip.
+// ReadLineInfoChanged reads a line info changed event from a chip.
 //
 // The fd is an open GPIO character device.
 //
 // This function is blocking and should only be called when the fd is known to
 // be ready to read.
-func ReadLineInfoChangedV2(fd uintptr) (LineInfoChangedV2, error) {
-	var lic LineInfoChangedV2
+func ReadLineInfoChanged(fd uintptr) (LineInfoChanged, error) {
+	var lic LineInfoChanged
 	err := binary.Read(fdReader(fd), nativeEndian, &lic)
 	return lic, err
 }
@@ -141,9 +141,9 @@ var (
 
 func init() {
 	// ioctls require struct sizes which are only available at runtime.
-	var liv2 LineInfoV2
-	getLineInfoV2Ioctl = iorw(0xB4, 0x05, unsafe.Sizeof(liv2))
-	watchLineInfoV2Ioctl = iorw(0xB4, 0x06, unsafe.Sizeof(liv2))
+	var li LineInfo
+	getLineInfoV2Ioctl = iorw(0xB4, 0x05, unsafe.Sizeof(li))
+	watchLineInfoV2Ioctl = iorw(0xB4, 0x06, unsafe.Sizeof(li))
 	var lr LineRequest
 	getLineIoctl = iorw(0xB4, 0x07, unsafe.Sizeof(lr))
 	var lc LineConfig
@@ -153,8 +153,8 @@ func init() {
 	setLineValuesV2Ioctl = iorw(0xB4, 0x0F, unsafe.Sizeof(lv))
 }
 
-// LineInfoV2 contains the details of a single line of a GPIO chip.
-type LineInfoV2 struct {
+// LineInfo contains the details of a single line of a GPIO chip.
+type LineInfo struct {
 	// The system name for this line.
 	Name [nameSize]byte
 
@@ -167,20 +167,20 @@ type LineInfoV2 struct {
 
 	NumAttrs uint32
 
-	Flags LineFlagV2
+	Flags LineFlag
 
 	Attrs [10]LineAttribute
 
 	// reserved for future use.
-	Padding [lineInfoV2PadSize]uint32
+	Padding [lineInfoPadSize]uint32
 }
 
-// LineInfoChangedV2 contains the details of a change to line info.
+// LineInfoChanged contains the details of a change to line info.
 //
 // This is returned via the chip fd in response to changes to watched lines.
-type LineInfoChangedV2 struct {
+type LineInfoChanged struct {
 	// The updated info.
-	Info LineInfoV2
+	Info LineInfo
 
 	// The time the change occurred.
 	Timestamp uint64
@@ -189,153 +189,153 @@ type LineInfoChangedV2 struct {
 	Type ChangeType
 
 	// reserved for future use.
-	Padding [lineInfoChangedV2PadSize]uint32
+	Padding [lineInfoChangedPadSize]uint32
 }
 
-// LineFlagV2 are the flags for a line.
-type LineFlagV2 uint64
+// LineFlag are the flags for a line.
+type LineFlag uint64
 
 const (
-	// LineFlagV2Used indicates that the line is already in use.
+	// LineFlagUsed indicates that the line is already in use.
 	// It may have been requested by this process or another process,
 	// or may be reserved by the kernel.
 	//
 	// The line cannot be requested until this flag is clear.
-	LineFlagV2Used LineFlagV2 = 1 << iota
+	LineFlagUsed LineFlag = 1 << iota
 
-	// LineFlagV2ActiveLow indicates that the line is active low.
-	LineFlagV2ActiveLow
+	// LineFlagActiveLow indicates that the line is active low.
+	LineFlagActiveLow
 
-	// LineFlagV2Input indicates that the line direction is an input.
-	LineFlagV2Input
+	// LineFlagInput indicates that the line direction is an input.
+	LineFlagInput
 
-	// LineFlagV2Output indicates that the line direction is an output.
-	LineFlagV2Output
+	// LineFlagOutput indicates that the line direction is an output.
+	LineFlagOutput
 
-	// LineFlagV2EdgeRising indicates that edge detection is enabled for rising
+	// LineFlagEdgeRising indicates that edge detection is enabled for rising
 	// edges.
-	LineFlagV2EdgeRising
+	LineFlagEdgeRising
 
-	// LineFlagV2EdgeFalling indicates that edge detection is enabled for
+	// LineFlagEdgeFalling indicates that edge detection is enabled for
 	// falling edges.
-	LineFlagV2EdgeFalling
+	LineFlagEdgeFalling
 
-	// LineFlagV2OpenDrain indicates that the line drive is open drain.
-	LineFlagV2OpenDrain
+	// LineFlagOpenDrain indicates that the line drive is open drain.
+	LineFlagOpenDrain
 
-	// LineFlagV2OpenSource indicates that the line drive is open source.
-	LineFlagV2OpenSource
+	// LineFlagOpenSource indicates that the line drive is open source.
+	LineFlagOpenSource
 
-	// LineFlagV2BiasPullUp indicates that the line bias is pull-up.
-	LineFlagV2BiasPullUp
+	// LineFlagBiasPullUp indicates that the line bias is pull-up.
+	LineFlagBiasPullUp
 
-	// LineFlagV2BiasPullDown indicates that the line bias is set pull-down.
-	LineFlagV2BiasPullDown
+	// LineFlagBiasPullDown indicates that the line bias is set pull-down.
+	LineFlagBiasPullDown
 
-	// LineFlagV2BiasDisabled indicates that the line bias is disabled.
-	LineFlagV2BiasDisabled
+	// LineFlagBiasDisabled indicates that the line bias is disabled.
+	LineFlagBiasDisabled
 
-	// LineFlagV2EventClockRealtime indicates that the CLOCK_REALTIME will be
+	// LineFlagEventClockRealtime indicates that the CLOCK_REALTIME will be
 	// the source for event timestamps.
-	LineFlagV2EventClockRealtime
+	LineFlagEventClockRealtime
 
-	// LineFlagV2DirectionMask is a mask for all direction flags.
-	LineFlagV2DirectionMask = LineFlagV2Input | LineFlagV2Output
+	// LineFlagDirectionMask is a mask for all direction flags.
+	LineFlagDirectionMask = LineFlagInput | LineFlagOutput
 
-	// LineFlagV2EdgeMask is a mask for all edge flags.
-	LineFlagV2EdgeMask = LineFlagV2EdgeRising | LineFlagV2EdgeFalling
+	// LineFlagEdgeMask is a mask for all edge flags.
+	LineFlagEdgeMask = LineFlagEdgeRising | LineFlagEdgeFalling
 
-	// LineFlagV2EdgeBoth is a helper value for selecting edge detection on
+	// LineFlagEdgeBoth is a helper value for selecting edge detection on
 	// both edges.
-	LineFlagV2EdgeBoth = LineFlagV2EdgeMask
+	LineFlagEdgeBoth = LineFlagEdgeMask
 
-	// LineFlagV2DriveMask is a mask for all drive flags.
-	LineFlagV2DriveMask = LineFlagV2OpenDrain | LineFlagV2OpenSource
+	// LineFlagDriveMask is a mask for all drive flags.
+	LineFlagDriveMask = LineFlagOpenDrain | LineFlagOpenSource
 
-	// LineFlagV2BiasMask is a mask for all bias flags.
-	LineFlagV2BiasMask = LineFlagV2BiasDisabled | LineFlagV2BiasPullUp | LineFlagV2BiasPullDown
+	// LineFlagBiasMask is a mask for all bias flags.
+	LineFlagBiasMask = LineFlagBiasDisabled | LineFlagBiasPullUp | LineFlagBiasPullDown
 )
 
 // IsAvailable returns true if the line is available to be requested.
-func (f LineFlagV2) IsAvailable() bool {
-	return f&LineFlagV2Used == 0
+func (f LineFlag) IsAvailable() bool {
+	return f&LineFlagUsed == 0
 }
 
 // IsUsed returns true if the line is not available to be requested.
-func (f LineFlagV2) IsUsed() bool {
-	return f&LineFlagV2Used != 0
+func (f LineFlag) IsUsed() bool {
+	return f&LineFlagUsed != 0
 }
 
 // IsActiveLow returns true if the line is active low.
-func (f LineFlagV2) IsActiveLow() bool {
-	return f&LineFlagV2ActiveLow != 0
+func (f LineFlag) IsActiveLow() bool {
+	return f&LineFlagActiveLow != 0
 }
 
 // IsInput returns true if the line is an input.
-func (f LineFlagV2) IsInput() bool {
-	return f&LineFlagV2Input != 0
+func (f LineFlag) IsInput() bool {
+	return f&LineFlagInput != 0
 }
 
 // IsOutput returns true if the line is an output.
-func (f LineFlagV2) IsOutput() bool {
-	return f&LineFlagV2Output != 0
+func (f LineFlag) IsOutput() bool {
+	return f&LineFlagOutput != 0
 }
 
 // IsOpenDrain returns true if the line is an open drain.
-func (f LineFlagV2) IsOpenDrain() bool {
-	return f&LineFlagV2OpenDrain != 0
+func (f LineFlag) IsOpenDrain() bool {
+	return f&LineFlagOpenDrain != 0
 }
 
 // IsOpenSource returns true if the line is an open source.
-func (f LineFlagV2) IsOpenSource() bool {
-	return f&LineFlagV2OpenSource != 0
+func (f LineFlag) IsOpenSource() bool {
+	return f&LineFlagOpenSource != 0
 }
 
 // IsRisingEdge returns true if the line has edge detection on the rising edge.
-func (f LineFlagV2) IsRisingEdge() bool {
-	return f&LineFlagV2EdgeRising != 0
+func (f LineFlag) IsRisingEdge() bool {
+	return f&LineFlagEdgeRising != 0
 }
 
 // IsFallingEdge returns true if the line has edge detection on the falling edge.
-func (f LineFlagV2) IsFallingEdge() bool {
-	return f&LineFlagV2EdgeFalling != 0
+func (f LineFlag) IsFallingEdge() bool {
+	return f&LineFlagEdgeFalling != 0
 }
 
 // IsBothEdges returns true if the line has edge detection on both edges.
-func (f LineFlagV2) IsBothEdges() bool {
-	return f&LineFlagV2EdgeBoth == LineFlagV2EdgeBoth
+func (f LineFlag) IsBothEdges() bool {
+	return f&LineFlagEdgeBoth == LineFlagEdgeBoth
 }
 
 // IsBiasDisabled returns true if the line has bias disabled.
-func (f LineFlagV2) IsBiasDisabled() bool {
-	return f&LineFlagV2BiasDisabled != 0
+func (f LineFlag) IsBiasDisabled() bool {
+	return f&LineFlagBiasDisabled != 0
 }
 
 // IsBiasPullUp returns true if the line has pull-up bias enabled.
-func (f LineFlagV2) IsBiasPullUp() bool {
-	return f&LineFlagV2BiasPullUp != 0
+func (f LineFlag) IsBiasPullUp() bool {
+	return f&LineFlagBiasPullUp != 0
 }
 
 // IsBiasPullDown returns true if the line has pull-down bias enabled.
-func (f LineFlagV2) IsBiasPullDown() bool {
-	return f&LineFlagV2BiasPullDown != 0
+func (f LineFlag) IsBiasPullDown() bool {
+	return f&LineFlagBiasPullDown != 0
 }
 
 // IsRealtimeEventClock returns true if the line events will contain real-time
 // timestamps.
-func (f LineFlagV2) IsRealtimeEventClock() bool {
-	return f&LineFlagV2EventClockRealtime != 0
+func (f LineFlag) IsRealtimeEventClock() bool {
+	return f&LineFlagEventClockRealtime != 0
 }
 
-// Encode creates a LineAttribute with the value from the LineFlagV2.
-func (f LineFlagV2) Encode() (la LineAttribute) {
+// Encode creates a LineAttribute with the value from the LineFlag.
+func (f LineFlag) Encode() (la LineAttribute) {
 	la.Encode64(LineAttributeIDFlags, uint64(f))
 	return
 }
 
-// Decode populates the LineFlagV2 with value from the LineAttribute.
-func (f *LineFlagV2) Decode(la LineAttribute) {
-	*f = LineFlagV2(la.Value64())
+// Decode populates the LineFlag with value from the LineAttribute.
+func (f *LineFlag) Decode(la LineAttribute) {
+	*f = LineFlag(la.Value64())
 }
 
 const (
@@ -344,11 +344,11 @@ const (
 	LinesMax int = 64
 
 	// the pad sizes of each struct
-	lineConfigPadSize        int = 5
-	lineRequestPadSize       int = 5
-	lineEventPadSize         int = 6
-	lineInfoV2PadSize        int = 4
-	lineInfoChangedV2PadSize int = 5
+	lineConfigPadSize      int = 5
+	lineRequestPadSize     int = 5
+	lineEventPadSize       int = 6
+	lineInfoPadSize        int = 4
+	lineInfoChangedPadSize int = 5
 )
 
 // LineAttribute defines a configuration attribute for a line.
@@ -386,7 +386,7 @@ func (la LineAttribute) Value64() uint64 {
 type LineAttributeID uint32
 
 const (
-	// LineAttributeIDFlags indicates the attribute contains LineFlagV2 flags.
+	// LineAttributeIDFlags indicates the attribute contains LineFlag flags.
 	LineAttributeIDFlags LineAttributeID = iota + 1
 
 	// LineAttributeIDOutputValues indicates the attribute contains line output values.
@@ -440,7 +440,7 @@ type LineConfigAttribute struct {
 // LineConfig contains the configuration of a line.
 type LineConfig struct {
 	// The flags to be applied to the lines.
-	Flags LineFlagV2
+	Flags LineFlag
 
 	NumAttrs uint32
 

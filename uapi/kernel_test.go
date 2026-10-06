@@ -32,7 +32,7 @@ func TestRepeatedGetLine(t *testing.T) {
 
 	lr := uapi.LineRequest{
 		Config: uapi.LineConfig{
-			Flags: uapi.LineFlagV2Input,
+			Flags: uapi.LineFlagInput,
 		},
 		Lines:   2,
 		Offsets: [uapi.LinesMax]uint32{1, 3},
@@ -48,7 +48,7 @@ func TestRepeatedGetLine(t *testing.T) {
 	assert.Equal(t, unix.EBUSY, err)
 
 	// output
-	lr.Config.Flags = uapi.LineFlagV2Output
+	lr.Config.Flags = uapi.LineFlagOutput
 	err = uapi.GetLine(f.Fd(), &lr)
 	assert.Equal(t, unix.EBUSY, err)
 
@@ -70,24 +70,24 @@ func TestWatchIsolation(t *testing.T) {
 
 	offset := uint32(3)
 	// set watch
-	li := uapi.LineInfoV2{Offset: offset}
-	err = uapi.WatchLineInfoV2(f1.Fd(), &li)
+	li := uapi.LineInfo{Offset: offset}
+	err = uapi.WatchLineInfo(f1.Fd(), &li)
 	require.Nil(t, err)
-	xli := uapi.LineInfoV2{Offset: offset, Flags: uapi.LineFlagV2Input}
+	xli := uapi.LineInfo{Offset: offset, Flags: uapi.LineFlagInput}
 	assert.Equal(t, xli, li)
 
-	chg, err := readLineInfoChangedV2Timeout(f1.Fd(), spuriousEventWaitTimeout)
+	chg, err := readLineInfoChangedTimeout(f1.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change on f1")
 
-	chg, err = readLineInfoChangedV2Timeout(f2.Fd(), spuriousEventWaitTimeout)
+	chg, err = readLineInfoChangedTimeout(f2.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change on f2")
 
 	// request line
 	lr := uapi.LineRequest{
 		Config: uapi.LineConfig{
-			Flags: uapi.LineFlagV2Input,
+			Flags: uapi.LineFlagInput,
 		},
 		Lines: 1,
 	}
@@ -95,38 +95,38 @@ func TestWatchIsolation(t *testing.T) {
 	copy(lr.Consumer[:], "test-watch-isolation")
 	err = uapi.GetLine(f2.Fd(), &lr)
 	assert.Nil(t, err)
-	chg, err = readLineInfoChangedV2Timeout(f1.Fd(), eventWaitTimeout)
+	chg, err = readLineInfoChangedTimeout(f1.Fd(), eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedRequested, chg.Type)
-	xli.Flags |= uapi.LineFlagV2Used
+	xli.Flags |= uapi.LineFlagUsed
 	copy(xli.Consumer[:], "test-watch-isolation")
 	assert.Equal(t, xli, chg.Info)
 
-	chg, err = readLineInfoChangedV2Timeout(f2.Fd(), spuriousEventWaitTimeout)
+	chg, err = readLineInfoChangedTimeout(f2.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change on f2")
 
-	err = uapi.WatchLineInfoV2(f2.Fd(), &li)
+	err = uapi.WatchLineInfo(f2.Fd(), &li)
 	require.Nil(t, err)
 	err = uapi.UnwatchLineInfo(f1.Fd(), li.Offset)
 	require.Nil(t, err)
 	unix.Close(int(lr.Fd))
 
 	unix.Close(int(lr.Fd))
-	chg, err = readLineInfoChangedV2Timeout(f2.Fd(), eventWaitTimeout)
+	chg, err = readLineInfoChangedTimeout(f2.Fd(), eventWaitTimeout)
 	assert.Nil(t, err)
 	require.NotNil(t, chg)
 	assert.Equal(t, uapi.LineChangedReleased, chg.Type)
-	xli = uapi.LineInfoV2{Offset: offset, Flags: uapi.LineFlagV2Input}
+	xli = uapi.LineInfo{Offset: offset, Flags: uapi.LineFlagInput}
 	assert.Equal(t, xli, chg.Info)
 
-	chg, err = readLineInfoChangedV2Timeout(f1.Fd(), spuriousEventWaitTimeout)
+	chg, err = readLineInfoChangedTimeout(f1.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change on f1")
 }
 
-func TestBulkEventReadV2(t *testing.T) {
+func TestBulkEventRead(t *testing.T) {
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
 	require.NotNil(t, s)
@@ -140,11 +140,11 @@ func TestBulkEventReadV2(t *testing.T) {
 	lr := uapi.LineRequest{
 		Lines: 1,
 		Config: uapi.LineConfig{
-			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
+			Flags: uapi.LineFlagInput | uapi.LineFlagEdgeBoth,
 		},
 	}
 	lr.Offsets[0] = uint32(offset)
-	copy(lr.Consumer[:31], "test-bulk-event-read-V2")
+	copy(lr.Consumer[:31], "test-bulk-event-read-")
 	err = uapi.GetLine(f.Fd(), &lr)
 	require.Nil(t, err)
 
@@ -170,24 +170,24 @@ func TestBulkEventReadV2(t *testing.T) {
 	unix.Close(int(lr.Fd))
 }
 
-func TestWatchLineInfoV2Requested(t *testing.T) {
+func TestWatchLineInfoRequested(t *testing.T) {
 	patterns := []struct {
 		name   string
-		flags  uapi.LineFlagV2
+		flags  uapi.LineFlag
 		period int
 	}{
-		{"input", uapi.LineFlagV2Input, 0},
-		{"active_low", uapi.LineFlagV2Input, 0},
-		{"debounced", uapi.LineFlagV2Input, 20000},
-		{"output", uapi.LineFlagV2Output, 0},
-		{"open_drain", uapi.LineFlagV2Output | uapi.LineFlagV2OpenDrain, 0},
-		{"open_source", uapi.LineFlagV2Output | uapi.LineFlagV2OpenSource, 0},
-		{"rising", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising, 0},
-		{"falling", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling, 0},
-		{"both_edges", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth, 0},
-		{"rising_debounced", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising, 13000},
-		{"falling_debounced", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling, 15000},
-		{"both_edges_debounced", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth, 17000},
+		{"input", uapi.LineFlagInput, 0},
+		{"active_low", uapi.LineFlagInput, 0},
+		{"debounced", uapi.LineFlagInput, 20000},
+		{"output", uapi.LineFlagOutput, 0},
+		{"open_drain", uapi.LineFlagOutput | uapi.LineFlagOpenDrain, 0},
+		{"open_source", uapi.LineFlagOutput | uapi.LineFlagOpenSource, 0},
+		{"rising", uapi.LineFlagInput | uapi.LineFlagEdgeRising, 0},
+		{"falling", uapi.LineFlagInput | uapi.LineFlagEdgeFalling, 0},
+		{"both_edges", uapi.LineFlagInput | uapi.LineFlagEdgeBoth, 0},
+		{"rising_debounced", uapi.LineFlagInput | uapi.LineFlagEdgeRising, 13000},
+		{"falling_debounced", uapi.LineFlagInput | uapi.LineFlagEdgeFalling, 15000},
+		{"both_edges_debounced", uapi.LineFlagInput | uapi.LineFlagEdgeBoth, 17000},
 	}
 
 	for _, p := range patterns {
@@ -209,12 +209,12 @@ func TestWatchLineInfoV2Requested(t *testing.T) {
 			offset := uint32(3)
 
 			// set watch
-			li := uapi.LineInfoV2{Offset: offset}
-			err = uapi.WatchLineInfoV2(f.Fd(), &li)
+			li := uapi.LineInfo{Offset: offset}
+			err = uapi.WatchLineInfo(f.Fd(), &li)
 			require.Nil(t, err)
-			xli := uapi.LineInfoV2{
+			xli := uapi.LineInfo{
 				Offset: offset,
-				Flags:  uapi.LineFlagV2Input,
+				Flags:  uapi.LineFlagInput,
 			}
 			copy(xli.Name[:], []byte(c.Config().Names[int(offset)]))
 			assert.Equal(t, xli, li)
@@ -235,11 +235,11 @@ func TestWatchLineInfoV2Requested(t *testing.T) {
 			}
 			err = uapi.GetLine(f.Fd(), &lr)
 			assert.Nil(t, err)
-			chg, err := readLineInfoChangedV2Timeout(f.Fd(), eventWaitTimeout)
+			chg, err := readLineInfoChangedTimeout(f.Fd(), eventWaitTimeout)
 			assert.Nil(t, err)
 			require.NotNil(t, chg)
 			assert.Equal(t, uapi.LineChangedRequested, chg.Type)
-			xli.Flags = lr.Config.Flags | uapi.LineFlagV2Used
+			xli.Flags = lr.Config.Flags | uapi.LineFlagUsed
 			copy(xli.Consumer[:], "testwatchrequested")
 			if p.period > 0 {
 				xli.NumAttrs = 1
@@ -247,24 +247,24 @@ func TestWatchLineInfoV2Requested(t *testing.T) {
 			}
 			assert.Equal(t, xli, chg.Info)
 
-			chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
+			chg, err = readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
 			assert.Nil(t, err)
 			assert.Nil(t, chg, "spurious change")
 
 			// release line
 			unix.Close(int(lr.Fd))
-			chg, err = readLineInfoChangedV2Timeout(f.Fd(), eventWaitTimeout)
+			chg, err = readLineInfoChangedTimeout(f.Fd(), eventWaitTimeout)
 			assert.Nil(t, err)
 			require.NotNil(t, chg)
 			assert.Equal(t, uapi.LineChangedReleased, chg.Type)
-			xli = uapi.LineInfoV2{
+			xli = uapi.LineInfo{
 				Offset: 3,
-				Flags:  p.flags & (uapi.LineFlagV2Input | uapi.LineFlagV2Output),
+				Flags:  p.flags & (uapi.LineFlagInput | uapi.LineFlagOutput),
 			}
 			copy(xli.Name[:], []byte(c.Config().Names[int(offset)]))
 			assert.Equal(t, xli, chg.Info)
 
-			chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
+			chg, err = readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
 			assert.Nil(t, err)
 			assert.Nil(t, chg, "spurious change")
 		}
@@ -272,24 +272,24 @@ func TestWatchLineInfoV2Requested(t *testing.T) {
 	}
 }
 
-func TestWatchLineInfoV2Config(t *testing.T) {
+func TestWatchLineInfoConfig(t *testing.T) {
 	patterns := []struct {
 		name   string
-		flags  uapi.LineFlagV2
+		flags  uapi.LineFlag
 		period int
 	}{
-		{"input", uapi.LineFlagV2Input, 0},
-		{"active_low", uapi.LineFlagV2Input, 0},
-		{"debounced", uapi.LineFlagV2Input, 20000},
-		{"output", uapi.LineFlagV2Output, 0},
-		{"open_drain", uapi.LineFlagV2Output | uapi.LineFlagV2OpenDrain, 0},
-		{"open_source", uapi.LineFlagV2Output | uapi.LineFlagV2OpenSource, 0},
-		{"rising", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising, 0},
-		{"falling", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling, 0},
-		{"both_edges", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth, 0},
-		{"rising_debounced", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising, 13000},
-		{"falling_debounced", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling, 15000},
-		{"both_edges_debounced", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth, 17000},
+		{"input", uapi.LineFlagInput, 0},
+		{"active_low", uapi.LineFlagInput, 0},
+		{"debounced", uapi.LineFlagInput, 20000},
+		{"output", uapi.LineFlagOutput, 0},
+		{"open_drain", uapi.LineFlagOutput | uapi.LineFlagOpenDrain, 0},
+		{"open_source", uapi.LineFlagOutput | uapi.LineFlagOpenSource, 0},
+		{"rising", uapi.LineFlagInput | uapi.LineFlagEdgeRising, 0},
+		{"falling", uapi.LineFlagInput | uapi.LineFlagEdgeFalling, 0},
+		{"both_edges", uapi.LineFlagInput | uapi.LineFlagEdgeBoth, 0},
+		{"rising_debounced", uapi.LineFlagInput | uapi.LineFlagEdgeRising, 13000},
+		{"falling_debounced", uapi.LineFlagInput | uapi.LineFlagEdgeFalling, 15000},
+		{"both_edges_debounced", uapi.LineFlagInput | uapi.LineFlagEdgeBoth, 17000},
 	}
 
 	for _, p := range patterns {
@@ -311,12 +311,12 @@ func TestWatchLineInfoV2Config(t *testing.T) {
 			offset := uint32(3)
 
 			// set watch
-			li := uapi.LineInfoV2{Offset: offset}
-			err = uapi.WatchLineInfoV2(f.Fd(), &li)
+			li := uapi.LineInfo{Offset: offset}
+			err = uapi.WatchLineInfo(f.Fd(), &li)
 			require.Nil(t, err)
-			xli := uapi.LineInfoV2{
+			xli := uapi.LineInfo{
 				Offset: offset,
-				Flags:  uapi.LineFlagV2Input,
+				Flags:  uapi.LineFlagInput,
 			}
 			copy(xli.Name[:], []byte(c.Config().Names[int(offset)]))
 			assert.Equal(t, xli, li)
@@ -329,15 +329,15 @@ func TestWatchLineInfoV2Config(t *testing.T) {
 			copy(lr.Consumer[:], "testwatchconfig")
 			err = uapi.GetLine(f.Fd(), &lr)
 			assert.Nil(t, err)
-			chg, err := readLineInfoChangedV2Timeout(f.Fd(), eventWaitTimeout)
+			chg, err := readLineInfoChangedTimeout(f.Fd(), eventWaitTimeout)
 			assert.Nil(t, err)
 			require.NotNil(t, chg)
 			assert.Equal(t, uapi.LineChangedRequested, chg.Type)
-			xli.Flags = uapi.LineFlagV2Used | uapi.LineFlagV2Input
+			xli.Flags = uapi.LineFlagUsed | uapi.LineFlagInput
 			copy(xli.Consumer[:], "testwatchconfig")
 			assert.Equal(t, xli, chg.Info)
 
-			chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
+			chg, err = readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
 			assert.Nil(t, err)
 			assert.Nil(t, chg, "spurious change")
 
@@ -348,37 +348,37 @@ func TestWatchLineInfoV2Config(t *testing.T) {
 				lc.Attrs[0].Mask = 1
 				lc.Attrs[0].Attr = uapi.DebouncePeriod(p.period).Encode()
 			}
-			err = uapi.SetLineConfigV2(uintptr(lr.Fd), &lc)
+			err = uapi.SetLineConfig(uintptr(lr.Fd), &lc)
 			assert.Nil(t, err)
-			chg, err = readLineInfoChangedV2Timeout(f.Fd(), eventWaitTimeout)
+			chg, err = readLineInfoChangedTimeout(f.Fd(), eventWaitTimeout)
 			assert.Nil(t, err)
 			require.NotNil(t, chg)
 			assert.Equal(t, uapi.LineChangedConfig, chg.Type)
-			xli.Flags = p.flags | uapi.LineFlagV2Used
+			xli.Flags = p.flags | uapi.LineFlagUsed
 			if p.period > 0 {
 				xli.NumAttrs = 1
 				xli.Attrs[0] = uapi.DebouncePeriod(p.period).Encode()
 			}
 			assert.Equal(t, xli, chg.Info)
 
-			chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
+			chg, err = readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
 			assert.Nil(t, err)
 			assert.Nil(t, chg, "spurious change")
 
 			// release line
 			unix.Close(int(lr.Fd))
-			chg, err = readLineInfoChangedV2Timeout(f.Fd(), eventWaitTimeout)
+			chg, err = readLineInfoChangedTimeout(f.Fd(), eventWaitTimeout)
 			assert.Nil(t, err)
 			require.NotNil(t, chg)
 			assert.Equal(t, uapi.LineChangedReleased, chg.Type)
-			xli = uapi.LineInfoV2{
+			xli = uapi.LineInfo{
 				Offset: 3,
-				Flags:  p.flags & (uapi.LineFlagV2Input | uapi.LineFlagV2Output),
+				Flags:  p.flags & (uapi.LineFlagInput | uapi.LineFlagOutput),
 			}
 			copy(xli.Name[:], []byte(c.Config().Names[int(offset)]))
 			assert.Equal(t, xli, chg.Info)
 
-			chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
+			chg, err = readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
 			assert.Nil(t, err)
 			assert.Nil(t, chg, "spurious change")
 		}
@@ -394,13 +394,13 @@ func TestSetConfigEdgeDetection(t *testing.T) {
 
 	patterns := []struct {
 		name  string
-		flags uapi.LineFlagV2
+		flags uapi.LineFlag
 	}{
-		{"input", uapi.LineFlagV2Input},
-		{"output", uapi.LineFlagV2Output},
-		{"rising", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising},
-		{"falling", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeFalling},
-		{"both", uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth},
+		{"input", uapi.LineFlagInput},
+		{"output", uapi.LineFlagOutput},
+		{"rising", uapi.LineFlagInput | uapi.LineFlagEdgeRising},
+		{"falling", uapi.LineFlagInput | uapi.LineFlagEdgeFalling},
+		{"both", uapi.LineFlagInput | uapi.LineFlagEdgeBoth},
 	}
 
 	f, err := os.Open(s.DevPath())
@@ -435,13 +435,13 @@ func TestSetConfigEdgeDetection(t *testing.T) {
 				config := uapi.LineConfig{
 					Flags: p2.flags,
 				}
-				err = uapi.SetLineConfigV2(uintptr(lr.Fd), &config)
+				err = uapi.SetLineConfig(uintptr(lr.Fd), &config)
 				require.Nil(t, err)
 				testLineFlags(t, f.Fd(), offset, p2.flags)
 				testEdgeDetectionEvents(t, s, lr.Fd, &xevt, p2.flags)
 
 				config.Flags = p1.flags
-				err = uapi.SetLineConfigV2(uintptr(lr.Fd), &config)
+				err = uapi.SetLineConfig(uintptr(lr.Fd), &config)
 				require.Nil(t, err)
 				testEdgeDetectionEvents(t, s, lr.Fd, &xevt, p1.flags)
 			}
@@ -450,17 +450,17 @@ func TestSetConfigEdgeDetection(t *testing.T) {
 	}
 }
 
-func testLineFlags(t *testing.T, fd uintptr, offset uint32, flags uapi.LineFlagV2) {
-	li, err := uapi.GetLineInfoV2(fd, int(offset))
+func testLineFlags(t *testing.T, fd uintptr, offset uint32, flags uapi.LineFlag) {
+	li, err := uapi.GetLineInfo(fd, int(offset))
 	assert.Nil(t, err)
-	assert.Equal(t, flags|uapi.LineFlagV2Used, li.Flags)
+	assert.Equal(t, flags|uapi.LineFlagUsed, li.Flags)
 }
 
-func testEdgeDetectionEvents(t *testing.T, s *gpiosim.Simpleton, fd int32, xevt *uapi.LineEvent, flags uapi.LineFlagV2) {
+func testEdgeDetectionEvents(t *testing.T, s *gpiosim.Simpleton, fd int32, xevt *uapi.LineEvent, flags uapi.LineFlag) {
 	offset := int(xevt.Offset)
 	for i := 0; i < 2; i++ {
 		s.SetPull(offset, 1)
-		if flags&uapi.LineFlagV2EdgeRising == 0 {
+		if flags&uapi.LineFlagEdgeRising == 0 {
 			evt, err := readLineEventTimeout(fd, spuriousEventWaitTimeout)
 			assert.Nil(t, err)
 			assert.Nil(t, evt, "spurious event")
@@ -476,7 +476,7 @@ func testEdgeDetectionEvents(t *testing.T, s *gpiosim.Simpleton, fd int32, xevt 
 		}
 
 		s.SetPull(offset, 0)
-		if flags&uapi.LineFlagV2EdgeFalling == 0 {
+		if flags&uapi.LineFlagEdgeFalling == 0 {
 			evt, err := readLineEventTimeout(fd, spuriousEventWaitTimeout)
 			assert.Nil(t, err)
 			assert.Nil(t, evt, "spurious event")
@@ -493,7 +493,7 @@ func testEdgeDetectionEvents(t *testing.T, s *gpiosim.Simpleton, fd int32, xevt 
 	}
 }
 
-func TestEventBufferOverflowV2(t *testing.T) {
+func TestEventBufferOverflow(t *testing.T) {
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
 	require.NotNil(t, s)
@@ -530,12 +530,12 @@ func TestEventBufferOverflowV2(t *testing.T) {
 			lr := uapi.LineRequest{
 				Lines: 1,
 				Config: uapi.LineConfig{
-					Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
+					Flags: uapi.LineFlagInput | uapi.LineFlagEdgeBoth,
 				},
 				EventBufferSize: p.size,
 			}
 			lr.Offsets[0] = uint32(offset)
-			copy(lr.Consumer[:31], "test-event-buffer-overflow-V2")
+			copy(lr.Consumer[:31], "test-event-buffer-overflow-")
 			err = uapi.GetLine(f.Fd(), &lr)
 			require.Nil(t, err)
 			defer unix.Close(int(lr.Fd))
@@ -587,7 +587,7 @@ func TestSetConfigDebouncedEdges(t *testing.T) {
 	lr := uapi.LineRequest{
 		Lines: 1,
 		Config: uapi.LineConfig{
-			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
+			Flags: uapi.LineFlagInput | uapi.LineFlagEdgeBoth,
 		},
 	}
 	lr.Offsets[0] = uint32(offset)
@@ -615,7 +615,7 @@ func TestSetConfigDebouncedEdges(t *testing.T) {
 			config.NumAttrs = 1
 			config.Attrs[0].Mask = 1
 			config.Attrs[0].Attr = uapi.DebouncePeriod(period).Encode()
-			err = uapi.SetLineConfigV2(uintptr(lr.Fd), &config)
+			err = uapi.SetLineConfig(uintptr(lr.Fd), &config)
 			require.Nil(t, err, period)
 		}
 
@@ -658,7 +658,7 @@ func TestGetLineDebouncedEdges(t *testing.T) {
 	lr := uapi.LineRequest{
 		Lines: 1,
 		Config: uapi.LineConfig{
-			Flags:    uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
+			Flags:    uapi.LineFlagInput | uapi.LineFlagEdgeBoth,
 			NumAttrs: 1,
 		},
 	}
@@ -718,7 +718,7 @@ func TestSetConfigEdgeDetectionPolarity(t *testing.T) {
 	lr := uapi.LineRequest{
 		Lines: 1,
 		Config: uapi.LineConfig{
-			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeRising,
+			Flags: uapi.LineFlagInput | uapi.LineFlagEdgeRising,
 		},
 	}
 	lr.Offsets[0] = uint32(offset)
@@ -727,7 +727,7 @@ func TestSetConfigEdgeDetectionPolarity(t *testing.T) {
 	require.Nil(t, err)
 	defer unix.Close(int(lr.Fd))
 
-	flags := []uapi.LineFlagV2{0, uapi.LineFlagV2ActiveLow, 0, uapi.LineFlagV2ActiveLow}
+	flags := []uapi.LineFlag{0, uapi.LineFlagActiveLow, 0, uapi.LineFlagActiveLow}
 	xevt := uapi.LineEvent{
 		Seqno:     1,
 		LineSeqno: 1,
@@ -743,7 +743,7 @@ func TestSetConfigEdgeDetectionPolarity(t *testing.T) {
 		config := uapi.LineConfig{
 			Flags: lr.Config.Flags | flag,
 		}
-		err = uapi.SetLineConfigV2(uintptr(lr.Fd), &config)
+		err = uapi.SetLineConfig(uintptr(lr.Fd), &config)
 		require.Nil(t, err, flag)
 
 		if flag == 0 {
@@ -794,7 +794,7 @@ func TestSetConfigDebouncedThenEdges(t *testing.T) {
 	err = s.SetPull(offset, 0)
 	require.Nil(t, err)
 	config := uapi.LineConfig{
-		Flags: uapi.LineFlagV2Input}
+		Flags: uapi.LineFlagInput}
 
 	lr := uapi.LineRequest{
 		Lines:  1,
@@ -809,11 +809,11 @@ func TestSetConfigDebouncedThenEdges(t *testing.T) {
 	config.NumAttrs = 1
 	config.Attrs[0].Mask = 1
 	config.Attrs[0].Attr = uapi.DebouncePeriod(1000).Encode()
-	err = uapi.SetLineConfigV2(uintptr(lr.Fd), &config)
+	err = uapi.SetLineConfig(uintptr(lr.Fd), &config)
 	require.Nil(t, err)
 
-	config.Flags |= uapi.LineFlagV2EdgeBoth
-	err = uapi.SetLineConfigV2(uintptr(lr.Fd), &config)
+	config.Flags |= uapi.LineFlagEdgeBoth
+	err = uapi.SetLineConfig(uintptr(lr.Fd), &config)
 	require.Nil(t, err)
 
 	xevt := uapi.LineEvent{
@@ -854,11 +854,11 @@ func TestOutputSetGets(t *testing.T) {
 	t.Skip("contains known failures up to Linux 5.15")
 	patterns := []struct {
 		name string
-		flag uapi.LineFlagV2
+		flag uapi.LineFlag
 	}{
-		{"o", uapi.LineFlagV2Output},
-		{"od", uapi.LineFlagV2Output | uapi.LineFlagV2OpenDrain},
-		{"os", uapi.LineFlagV2Output | uapi.LineFlagV2OpenSource},
+		{"o", uapi.LineFlagOutput},
+		{"od", uapi.LineFlagOutput | uapi.LineFlagOpenDrain},
+		{"os", uapi.LineFlagOutput | uapi.LineFlagOpenSource},
 	}
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(t, err)
@@ -876,7 +876,7 @@ func TestOutputSetGets(t *testing.T) {
 					flags := p.flag
 					name := p.name
 					if activeLow == 1 {
-						flags |= uapi.LineFlagV2ActiveLow
+						flags |= uapi.LineFlagActiveLow
 						name += "al"
 					}
 					label := fmt.Sprintf("%s-%d-%d-%d", name, initial^1, initial, final)
@@ -909,7 +909,7 @@ func TestEdgeDetectionLinesMax(t *testing.T) {
 		Lines:   uint32(uapi.LinesMax),
 		Offsets: offsets,
 		Config: uapi.LineConfig{
-			Flags: uapi.LineFlagV2Input | uapi.LineFlagV2EdgeBoth,
+			Flags: uapi.LineFlagInput | uapi.LineFlagEdgeBoth,
 		},
 	}
 	copy(lr.Consumer[:31], "test-edge-detection-lines-max")
@@ -931,7 +931,7 @@ func TestEdgeDetectionLinesMax(t *testing.T) {
 		assert.Equal(t, uapi.LineEventRisingEdge, evt.ID)
 		assert.Equal(t, uint32(i), evt.Offset)
 
-		err = uapi.GetLineValuesV2(uintptr(lr.Fd), &lv)
+		err = uapi.GetLineValues(uintptr(lr.Fd), &lv)
 		assert.Nil(t, err)
 		assert.Equal(t, 1, lv.Bits.Get(i))
 	}
@@ -944,7 +944,7 @@ func TestEdgeDetectionLinesMax(t *testing.T) {
 		assert.Equal(t, uapi.LineEventFallingEdge, evt.ID)
 		assert.Equal(t, uint32(i), evt.Offset)
 
-		err = uapi.GetLineValuesV2(uintptr(lr.Fd), &lv)
+		err = uapi.GetLineValues(uintptr(lr.Fd), &lv)
 		assert.Nil(t, err)
 		assert.Equal(t, 0, lv.Bits.Get(i))
 	}
@@ -956,7 +956,7 @@ func TestEdgeDetectionLinesMax(t *testing.T) {
 	unix.Close(int(lr.Fd))
 }
 
-func testLine(t *testing.T, s *gpiosim.Simpleton, line int, flags uapi.LineFlagV2, initial, toggle int) {
+func testLine(t *testing.T, s *gpiosim.Simpleton, line int, flags uapi.LineFlag, initial, toggle int) {
 	t.Helper()
 	// set mock initial - opposing default
 	s.SetPull(line, initial^0x01)
@@ -966,7 +966,7 @@ func testLine(t *testing.T, s *gpiosim.Simpleton, line int, flags uapi.LineFlagV
 	// request line output
 	lr := uapi.LineRequest{
 		Config: uapi.LineConfig{
-			Flags: uapi.LineFlagV2Output,
+			Flags: uapi.LineFlagOutput,
 		},
 		Lines: 1,
 	}
@@ -981,21 +981,21 @@ func testLine(t *testing.T, s *gpiosim.Simpleton, line int, flags uapi.LineFlagV
 		var vv uapi.LineValues
 		vv.Mask.Set(0, 1)
 		vv.Bits.Set(0, initial^1)
-		err = uapi.SetLineValuesV2(uintptr(lr.Fd), vv)
+		err = uapi.SetLineValues(uintptr(lr.Fd), vv)
 		assert.Nil(t, err, "can't set value 1")
-		err = uapi.GetLineValuesV2(uintptr(lr.Fd), &vv)
+		err = uapi.GetLineValues(uintptr(lr.Fd), &vv)
 		assert.Nil(t, err, "can't get value 1")
 		assert.Equal(t, initial^1, vv.Get(0), "get value 1")
 		vv.Bits.Set(0, initial)
-		err = uapi.SetLineValuesV2(uintptr(lr.Fd), vv)
+		err = uapi.SetLineValues(uintptr(lr.Fd), vv)
 		assert.Nil(t, err, "can't set value 2")
-		err = uapi.GetLineValuesV2(uintptr(lr.Fd), &vv)
+		err = uapi.GetLineValues(uintptr(lr.Fd), &vv)
 		assert.Nil(t, err, "can't get value 2")
 		assert.Equal(t, initial, vv.Get(0), "get value 2")
 		vv.Bits.Set(0, initial^1)
-		err = uapi.SetLineValuesV2(uintptr(lr.Fd), vv)
+		err = uapi.SetLineValues(uintptr(lr.Fd), vv)
 		assert.Nil(t, err, "can't set value 3")
-		err = uapi.GetLineValuesV2(uintptr(lr.Fd), &vv)
+		err = uapi.GetLineValues(uintptr(lr.Fd), &vv)
 		assert.Nil(t, err, "can't get value 3")
 		assert.Equal(t, initial^1, vv.Get(0), "get value 3")
 	}

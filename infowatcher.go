@@ -94,19 +94,19 @@ func (iw *infoWatcher) watch() {
 				unix.Close(iw.epfd)
 				return
 			}
-			iw.readInfoChangedV2(fd)
+			iw.readInfoChanged(fd)
 		}
 	}
 }
 
-func (iw *infoWatcher) readInfoChangedV2(fd int32) {
-	lic, err := uapi.ReadLineInfoChangedV2(uintptr(fd))
+func (iw *infoWatcher) readInfoChanged(fd int32) {
+	lic, err := uapi.ReadLineInfoChanged(uintptr(fd))
 	if err != nil {
 		fmt.Printf("error reading line change:%s\n", err)
 		return
 	}
 	lice := LineInfoChangeEvent{
-		Info:      newLineInfoV2(lic.Info),
+		Info:      newLineInfo(lic.Info),
 		Timestamp: time.Duration(lic.Timestamp),
 		Type:      LineInfoChangeType(lic.Type),
 	}

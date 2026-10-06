@@ -52,7 +52,7 @@ func dataSize(v reflect.Value) int {
 }
 
 func main() {
-	var lic uapi.LineInfoChangedV2
+	var lic uapi.LineInfoChanged
 
 	fmt.Printf("unsafe.sizeof: %d\n", unsafe.Sizeof(lic))
 

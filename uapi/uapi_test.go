@@ -77,19 +77,19 @@ func TestUnwatchLineInfo(t *testing.T) {
 	require.Nil(t, err)
 	defer f.Close()
 
-	li := uapi.LineInfoV2{Offset: uint32(c.Config().NumLines + 1)}
+	li := uapi.LineInfo{Offset: uint32(c.Config().NumLines + 1)}
 	err = uapi.UnwatchLineInfo(f.Fd(), li.Offset)
 	require.Equal(t, syscall.Errno(0x16), err)
 
 	offset := uint32(3)
-	li = uapi.LineInfoV2{Offset: offset}
-	err = uapi.WatchLineInfoV2(f.Fd(), &li)
+	li = uapi.LineInfo{Offset: offset}
+	err = uapi.WatchLineInfo(f.Fd(), &li)
 	require.Nil(t, err)
-	xli := uapi.LineInfoV2{Offset: offset, Flags: uapi.LineFlagV2Input}
+	xli := uapi.LineInfo{Offset: offset, Flags: uapi.LineFlagInput}
 	copy(xli.Name[:], []byte(c.Config().Names[int(offset)]))
 	assert.Equal(t, xli, li)
 
-	chg, err := readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
+	chg, err := readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")
 
@@ -99,7 +99,7 @@ func TestUnwatchLineInfo(t *testing.T) {
 	// request line
 	lr := uapi.LineRequest{
 		Config: uapi.LineConfig{
-			Flags: uapi.LineFlagV2Input,
+			Flags: uapi.LineFlagInput,
 		},
 		Lines: 1,
 	}
@@ -107,7 +107,7 @@ func TestUnwatchLineInfo(t *testing.T) {
 	err = uapi.GetLine(f.Fd(), &lr)
 	assert.Nil(t, err)
 	unix.Close(int(lr.Fd))
-	chg, err = readLineInfoChangedV2Timeout(f.Fd(), spuriousEventWaitTimeout)
+	chg, err = readLineInfoChangedTimeout(f.Fd(), spuriousEventWaitTimeout)
 	assert.Nil(t, err)
 	assert.Nil(t, chg, "spurious change")
 
@@ -116,7 +116,7 @@ func TestUnwatchLineInfo(t *testing.T) {
 	require.Equal(t, unix.EBUSY, err)
 
 	// repeated watch
-	err = uapi.WatchLineInfoV2(f.Fd(), &li)
+	err = uapi.WatchLineInfo(f.Fd(), &li)
 	require.Nil(t, err)
 }
 

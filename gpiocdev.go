@@ -332,15 +332,15 @@ func (c *Chip) LineInfo(offset int) (info LineInfo, err error) {
 		err = ErrInvalidOffset
 		return
 	}
-	var li uapi.LineInfoV2
-	li, err = uapi.GetLineInfoV2(c.f.Fd(), offset)
+	var li uapi.LineInfo
+	li, err = uapi.GetLineInfo(c.f.Fd(), offset)
 	if err == nil {
-		info = newLineInfoV2(li)
+		info = newLineInfo(li)
 	}
 	return
 }
 
-func lineInfoV2ToLineConfig(li uapi.LineInfoV2) LineConfig {
+func lineInfoToLineConfig(li uapi.LineInfo) LineConfig {
 	lc := LineConfig{}
 	lc.ActiveLow = li.Flags.IsActiveLow()
 
@@ -384,13 +384,13 @@ func lineInfoV2ToLineConfig(li uapi.LineInfoV2) LineConfig {
 	return lc
 }
 
-func newLineInfoV2(li uapi.LineInfoV2) LineInfo {
+func newLineInfo(li uapi.LineInfo) LineInfo {
 	return LineInfo{
 		Offset:   int(li.Offset),
 		Name:     uapi.BytesToString(li.Name[:]),
 		Consumer: uapi.BytesToString(li.Consumer[:]),
 		Used:     li.Flags.IsUsed(),
-		Config:   lineInfoV2ToLineConfig(li),
+		Config:   lineInfoToLineConfig(li),
 	}
 }
 
@@ -499,13 +499,13 @@ func (c *Chip) WatchLineInfo(offset int, lich InfoChangeHandler) (info LineInfo,
 			return
 		}
 	}
-	li := uapi.LineInfoV2{Offset: uint32(offset)}
-	err = uapi.WatchLineInfoV2(c.f.Fd(), &li)
+	li := uapi.LineInfo{Offset: uint32(offset)}
+	err = uapi.WatchLineInfo(c.f.Fd(), &li)
 	if err != nil {
 		return
 	}
 	c.ich[offset] = lich
-	info = newLineInfoV2(li)
+	info = newLineInfo(li)
 	return
 }
 
@@ -551,45 +551,45 @@ func (c *Chip) getLine(offsets []int, lro lineReqOptions) (uintptr, io.Closer, e
 	return uintptr(lr.Fd), w, nil
 }
 
-func (lc LineConfig) toLineFlagV2() (flags uapi.LineFlagV2) {
+func (lc LineConfig) toLineFlag() (flags uapi.LineFlag) {
 	if lc.ActiveLow {
-		flags |= uapi.LineFlagV2ActiveLow
+		flags |= uapi.LineFlagActiveLow
 	}
 	switch lc.Direction {
 	case LineDirectionOutput:
-		flags |= uapi.LineFlagV2Output
+		flags |= uapi.LineFlagOutput
 		switch lc.Drive {
 		case LineDriveOpenDrain:
-			flags |= uapi.LineFlagV2OpenDrain
+			flags |= uapi.LineFlagOpenDrain
 		case LineDriveOpenSource:
-			flags |= uapi.LineFlagV2OpenSource
+			flags |= uapi.LineFlagOpenSource
 		}
 	case LineDirectionInput:
-		flags |= uapi.LineFlagV2Input
+		flags |= uapi.LineFlagInput
 		if lc.EdgeDetection&LineEdgeRising != 0 {
-			flags |= uapi.LineFlagV2EdgeRising
+			flags |= uapi.LineFlagEdgeRising
 		}
 		if lc.EdgeDetection&LineEdgeFalling != 0 {
-			flags |= uapi.LineFlagV2EdgeFalling
+			flags |= uapi.LineFlagEdgeFalling
 		}
 		if lc.EventClock == LineEventClockRealtime {
-			flags |= uapi.LineFlagV2EventClockRealtime
+			flags |= uapi.LineFlagEventClockRealtime
 		}
 	}
 
 	switch lc.Bias {
 	case LineBiasDisabled:
-		flags |= uapi.LineFlagV2BiasDisabled
+		flags |= uapi.LineFlagBiasDisabled
 	case LineBiasPullUp:
-		flags |= uapi.LineFlagV2BiasPullUp
+		flags |= uapi.LineFlagBiasPullUp
 	case LineBiasPullDown:
-		flags |= uapi.LineFlagV2BiasPullDown
+		flags |= uapi.LineFlagBiasPullDown
 	}
 	return
 }
 
 func (lc LineConfig) toLineAttributes() (attrs []uapi.LineAttribute) {
-	flags := lc.toLineFlagV2()
+	flags := lc.toLineFlag()
 	attr := uapi.LineAttribute{}
 	if flags != 0 {
 		attr.Encode64(uapi.LineAttributeIDFlags, uint64(flags))
@@ -619,7 +619,6 @@ type baseLine struct {
 
 // EventBufferSize returns the size requested by WithEventBufferSize.
 //
-// This is only relevant for UAPI v2.
 // This value is advisory only - the actual buffer size provided by the kernel
 // may differ.
 // A value of zero is the default and means the kernel will use the default
@@ -681,7 +680,7 @@ func (l *baseLine) Reconfigure(options ...LineConfigOption) error {
 	if err != nil {
 		return err
 	}
-	err = uapi.SetLineConfigV2(l.vfd, &config)
+	err = uapi.SetLineConfig(l.vfd, &config)
 	if err == nil {
 		l.defCfg = lro.defCfg
 		l.lineCfg = lro.lineCfg
@@ -735,7 +734,7 @@ func (l *Line) Value() (int, error) {
 		return 0, ErrClosed
 	}
 	lv := uapi.LineValues{Mask: 1}
-	err := uapi.GetLineValuesV2(l.vfd, &lv)
+	err := uapi.GetLineValues(l.vfd, &lv)
 	return lv.Get(0), err
 }
 
@@ -757,7 +756,7 @@ func (l *Line) SetValue(value int) error {
 		Mask: 1,
 		Bits: uapi.NewLineBitmap(value),
 	}
-	err := uapi.SetLineValuesV2(l.vfd, lsv)
+	err := uapi.SetLineValues(l.vfd, lsv)
 	if err == nil {
 		l.values[l.offsets[0]] = value
 	}
@@ -818,7 +817,7 @@ func (l *Lines) Values(values []int) error {
 		lines = len(l.offsets)
 	}
 	lv := uapi.LineValues{Mask: uapi.NewLineBitMask(lines)}
-	err := uapi.GetLineValuesV2(l.vfd, &lv)
+	err := uapi.GetLineValues(l.vfd, &lv)
 	if err != nil {
 		return err
 	}
@@ -853,7 +852,7 @@ func (l *Lines) SetValues(values []int) error {
 		Mask: uapi.NewLineBitMask(len(l.offsets)),
 		Bits: uapi.NewLineBitmap(values...),
 	}
-	err := uapi.SetLineValuesV2(l.vfd, lv)
+	err := uapi.SetLineValues(l.vfd, lv)
 	if err == nil {
 		for i, v := range values {
 			l.values[l.offsets[i]] = v
@@ -895,13 +894,9 @@ type LineEvent struct {
 	Type LineEventType
 
 	// The sequence number for this event in all events on all lines in this line request.
-	//
-	// Requires uAPI v2.
 	Seqno uint32
 
 	// The sequence number for this event in all events in this line.
-	//
-	// Requires uAPI v2.
 	LineSeqno uint32
 }
 
