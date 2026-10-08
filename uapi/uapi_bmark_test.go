@@ -77,6 +77,29 @@ func BenchmarkGetLineWithEdges(b *testing.B) {
 	}
 }
 
+func BenchmarkGetLineWithEdgesDebounced(b *testing.B) {
+	s, err := gpiosim.NewSimpleton(4)
+	require.Nil(b, err)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
+	require.Nil(b, err)
+	require.NotNil(b, f)
+	defer f.Close()
+	lr := uapi.LineRequest{
+		Lines: 1,
+		Config: uapi.LineConfig{
+			Flags: uapi.LineFlagInput | uapi.LineFlagEdgeBoth,
+		},
+	}
+	debounce := uapi.DebouncePeriod(20000)
+	lca := uapi.LineConfigAttribute{Attr: debounce.Encode(), Mask: 1}
+	lr.Config.AddAttribute(lca)
+	for i := 0; i < b.N; i++ {
+		uapi.GetLine(f.Fd(), &lr)
+		unix.Close(int(lr.Fd))
+	}
+}
+
 func BenchmarkGetLineValues(b *testing.B) {
 	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
