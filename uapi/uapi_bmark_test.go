@@ -100,7 +100,7 @@ func BenchmarkGetLineWithEdgesDebounced(b *testing.B) {
 	}
 }
 
-func BenchmarkGetLineValues(b *testing.B) {
+func BenchmarkGetLineValuesOne(b *testing.B) {
 	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
 	defer s.Close()
@@ -119,7 +119,29 @@ func BenchmarkGetLineValues(b *testing.B) {
 	}
 }
 
-func BenchmarkSetLineValues(b *testing.B) {
+func BenchmarkGetLineValuesTen(b *testing.B) {
+	s, err := gpiosim.NewSimpleton(12)
+	require.Nil(b, err)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
+	require.Nil(b, err)
+	require.NotNil(b, f)
+	defer f.Close()
+	lr := uapi.LineRequest{
+		Lines:   10,
+		Offsets: [uapi.LinesMax]uint32{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+	}
+	err = uapi.GetLine(f.Fd(), &lr)
+	require.Nil(b, err)
+	require.NotNil(b, f)
+	defer unix.Close(int(lr.Fd))
+	lv := uapi.LineValues{Mask: 0x3ff}
+	for i := 0; i < b.N; i++ {
+		uapi.GetLineValues(uintptr(lr.Fd), &lv)
+	}
+}
+
+func BenchmarkSetLineValuesOne(b *testing.B) {
 	s, err := gpiosim.NewSimpleton(4)
 	require.Nil(b, err)
 	defer s.Close()
@@ -138,6 +160,31 @@ func BenchmarkSetLineValues(b *testing.B) {
 	require.NotNil(b, f)
 	defer unix.Close(int(lr.Fd))
 	lv := uapi.LineValues{Mask: 1}
+	for i := 0; i < b.N; i++ {
+		uapi.SetLineValues(uintptr(lr.Fd), lv)
+	}
+}
+
+func BenchmarkSetLineValuesTen(b *testing.B) {
+	s, err := gpiosim.NewSimpleton(12)
+	require.Nil(b, err)
+	defer s.Close()
+	f, err := os.Open(s.DevPath())
+	require.Nil(b, err)
+	require.NotNil(b, f)
+	defer f.Close()
+	lr := uapi.LineRequest{
+		Lines:   10,
+		Offsets: [uapi.LinesMax]uint32{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+		Config: uapi.LineConfig{
+			Flags: uapi.LineFlagOutput,
+		},
+	}
+	err = uapi.GetLine(f.Fd(), &lr)
+	require.Nil(b, err)
+	require.NotNil(b, f)
+	defer unix.Close(int(lr.Fd))
+	lv := uapi.LineValues{Mask: 0x3ff}
 	for i := 0; i < b.N; i++ {
 		uapi.SetLineValues(uintptr(lr.Fd), lv)
 	}

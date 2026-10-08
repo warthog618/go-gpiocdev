@@ -117,7 +117,7 @@ func BenchmarkLineValue(b *testing.B) {
 	}
 }
 
-func BenchmarkLinesValues(b *testing.B) {
+func BenchmarkLinesValuesThree(b *testing.B) {
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(b, err)
 	defer s.Close()
@@ -126,6 +126,24 @@ func BenchmarkLinesValues(b *testing.B) {
 	require.NotNil(b, c)
 	defer c.Close()
 	l, err := c.RequestLines([]int{1, 2, 3})
+	require.Nil(b, err)
+	require.NotNil(b, l)
+	defer l.Close()
+	vv := make([]int, len(l.Offsets()))
+	for i := 0; i < b.N; i++ {
+		l.Values(vv)
+	}
+}
+
+func BenchmarkLinesValuesTen(b *testing.B) {
+	s, err := gpiosim.NewSimpleton(12)
+	require.Nil(b, err)
+	defer s.Close()
+	c, err := gpiocdev.NewChip(s.DevPath())
+	require.Nil(b, err)
+	require.NotNil(b, c)
+	defer c.Close()
+	l, err := c.RequestLines([]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
 	require.Nil(b, err)
 	require.NotNil(b, l)
 	defer l.Close()
@@ -152,7 +170,7 @@ func BenchmarkLineSetValue(b *testing.B) {
 	}
 }
 
-func BenchmarkLinesSetValues(b *testing.B) {
+func BenchmarkLinesSetValuesThree(b *testing.B) {
 	s, err := gpiosim.NewSimpleton(6)
 	require.Nil(b, err)
 	defer s.Close()
@@ -160,11 +178,30 @@ func BenchmarkLinesSetValues(b *testing.B) {
 	require.Nil(b, err)
 	require.NotNil(b, c)
 	defer c.Close()
-	ll, err := c.RequestLines([]int{1, 2}, gpiocdev.AsOutput(0))
+	ll, err := c.RequestLines([]int{1, 2, 3}, gpiocdev.AsOutput(0))
 	require.Nil(b, err)
 	require.NotNil(b, ll)
 	defer ll.Close()
-	vv := []int{0, 0}
+	vv := []int{0, 0, 0}
+	for i := 0; i < b.N; i++ {
+		vv[0] = i & 1
+		ll.SetValues(vv)
+	}
+}
+
+func BenchmarkLinesSetValuesTen(b *testing.B) {
+	s, err := gpiosim.NewSimpleton(12)
+	require.Nil(b, err)
+	defer s.Close()
+	c, err := gpiocdev.NewChip(s.DevPath())
+	require.Nil(b, err)
+	require.NotNil(b, c)
+	defer c.Close()
+	ll, err := c.RequestLines([]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, gpiocdev.AsOutput(0))
+	require.Nil(b, err)
+	require.NotNil(b, ll)
+	defer ll.Close()
+	vv := []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	for i := 0; i < b.N; i++ {
 		vv[0] = i & 1
 		ll.SetValues(vv)
