@@ -38,6 +38,13 @@ SetLineConfigV2| line | [SetLineConfig](https://pkg.go.dev/github.com/warthog618
 WatchLineInfoV2| chip| [WatchLineInfo](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#WatchLineInfo) | Add a watch for changes to the info of a particular line on the chip.
 UnwatchLineInfo| chip| [UnwatchLineInfo](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#UnwatchLineInfo) | Remove a watch for changes to the info of a particular line on the chip.
 
+Additionally, the [ReadLineEvent](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#ReadLineEvent)
+function reads [LineEvent](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#LineEvent)s
+from the fd returned by GetLine, and the
+[ReadLineInfoChanged](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#ReadLineInfoChanged)
+function reads [LineInfoChanged](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#LineInfoChanged)
+events from the chip fd for watches set by WatchLineInfo.
+
 ## Usage
 
 The following is a brief example of the usage of the major functions:
