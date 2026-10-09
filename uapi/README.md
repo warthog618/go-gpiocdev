@@ -19,9 +19,11 @@ The library is exposed to allow for testing of the uAPI with the minimal amount 
 
 ## API
 
-The library targets the latest version of the GPIO uAPI, v2, supported by Linux 5.10 or later.
+The library targets the latest version of the GPIO uAPI, v2, supported by Linux 5.10 or later,
+and exposes functions that provide a thin wrapper around the uAPI IOCTL calls.
 
-Older versions of the **uapi** module, up to v0.9.x, supported both versions of the uAPI.
+Older versions of the **uapi** module, up to v0.9.x, supported both versions of the uAPI and can
+still be used if you are stuck on a kernel older than Linux 5.10.
 
 The GPIO uAPI v2 comprises eight ioctls:
 
@@ -35,8 +37,6 @@ SetLineValuesV2| line | [SetLineValues](https://pkg.go.dev/github.com/warthog618
 SetLineConfigV2| line | [SetLineConfig](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#SetLineConfig) | Update the configuration of the lines in an existing line request.
 WatchLineInfoV2| chip| [WatchLineInfo](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#WatchLineInfo) | Add a watch for changes to the info of a particular line on the chip.
 UnwatchLineInfo| chip| [UnwatchLineInfo](https://pkg.go.dev/github.com/warthog618/go-gpiocdev/uapi#UnwatchLineInfo) | Remove a watch for changes to the info of a particular line on the chip.
-
-The library exposes functions that provide thin wrappers around the IOCTL calls.
 
 ## Usage
 

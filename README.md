@@ -38,6 +38,9 @@ Supports the following functionality per line and for collections of lines:
 
 The library uses Linux GPIO uAPI v2 and so requires Linux 5.10 or later.
 
+Older versions of **gpiocdev**, up to v0.9.x, supported both versions of the uAPI and can
+still be used if you are stuck on a kernel older than Linux 5.10.
+
 All library functions are safe to call from different goroutines.
 
 ## Quick Start
