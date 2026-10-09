@@ -131,11 +131,28 @@ Later Pis can also use ARM7 (GOARM=7).
 The tests include benchmarks on reads, writes, bulk reads and writes,  and
 interrupt latency.
 
-These are the results from a Raspberry Pi Zero W running Linux 6.4 and built
-with go1.20.6:
+These are the results from a Raspberry Pi Zero W running Linux 7.2 and built
+with go1.27.1:
 
 ```shell
 $ ./uapi.test -test.bench=.* -test.run=^$
+goos: linux
+goarch: arm
+pkg: github.com/warthog618/go-gpiocdev/uapi
+cpu: ARMv6-compatible processor rev 7 (v6l)
+BenchmarkChipOpenClose             	    2044	    710681 ns/op
+BenchmarkLineInfo                  	   35424	     42201 ns/op
+BenchmarkGetLine                   	    6002	    173513 ns/op
+BenchmarkGetLineWithEdges          	     460	   2792954 ns/op
+BenchmarkGetLineWithEdgesDebounced 	    5095	    250814 ns/op
+BenchmarkGetLineValuesOne          	   69099	     15488 ns/op
+BenchmarkGetLineValuesTen          	   47217	     22792 ns/op
+BenchmarkSetLineValuesOne          	   85342	     15057 ns/op
+BenchmarkSetLineValuesTen          	   52056	     22442 ns/op
+BenchmarkSetLineValuesSparse       	   49161	     21117 ns/op
+BenchmarkSetLineConfig             	   65604	     16552 ns/op
+BenchmarkWatchLineInfo             	   18624	     68620 ns/op
+PASS
 ```
 
 The latency benchmark is no longer representative as the measurement now depends
@@ -143,9 +160,25 @@ on how quickly **gpio-sim** can toggle lines, and that is considerably slower
 than how quickly **gpiocdev** responds.  For comparison, the same test using
 looped Raspberry Pi lines produced a result of ~640μsec on the same platform.
 
-And on a Raspberry Pi 4 running Linux 6.4 (32bit kernel) and built with go1.20.6:
+And on a Raspberry Pi 4 running Linux 7.2 and built with go1.27.1:
 
 ```shell
 $ ./uapi.test -test.bench=.* -test.run=^$
+goos: linux
+goarch: arm64
+pkg: github.com/warthog618/go-gpiocdev/uapi
+BenchmarkChipOpenClose-4               	   44066	     26387 ns/op
+BenchmarkLineInfo-4                    	  549898	      2158 ns/op
+BenchmarkGetLine-4                     	   92293	     12060 ns/op
+BenchmarkGetLineWithEdges-4            	    9670	    122422 ns/op
+BenchmarkGetLineWithEdgesDebounced-4   	   62787	     18034 ns/op
+BenchmarkGetLineValuesOne-4            	 1129938	      1071 ns/op
+BenchmarkGetLineValuesTen-4            	  523214	      2336 ns/op
+BenchmarkSetLineValuesOne-4            	 1024548	      1166 ns/op
+BenchmarkSetLineValuesTen-4            	  527864	      2274 ns/op
+BenchmarkSetLineValuesSparse-4         	  779002	      1553 ns/op
+BenchmarkSetLineConfig-4               	 1157347	      1038 ns/op
+BenchmarkWatchLineInfo-4               	  272320	      3818 ns/op
+PASS
 ```
 

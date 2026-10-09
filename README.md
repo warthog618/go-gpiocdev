@@ -547,22 +547,28 @@ Later Pis can also use ARM7 (GOARM=7).
 The tests include benchmarks on reads, writes, bulk reads and writes,  and
 interrupt latency.
 
-These are the results from a Raspberry Pi Zero W running Linux 6.4 and built
-with go1.20.6:
+These are the results from a Raspberry Pi Zero W running Linux 7.2 and built
+with go1.27.1:
 
 ```shell
 $ ./go-gpiocdev.test -test.bench=.* -test.run=^$
 goos: linux
 goarch: arm
 pkg: github.com/warthog618/go-gpiocdev
-BenchmarkChipNewClose     	     248	   4381075 ns/op
-BenchmarkLineInfo         	   24651	     47278 ns/op
-BenchmarkLineReconfigure  	   20312	     55273 ns/op
-BenchmarkLineValue        	   71774	     14933 ns/op
-BenchmarkLinesValues      	   54920	     24659 ns/op
-BenchmarkLineSetValue     	   73359	     16501 ns/op
-BenchmarkLinesSetValues   	   53557	     21056 ns/op
-BenchmarkInterruptLatency 	     105	  10407929 ns/op
+cpu: ARMv6-compatible processor rev 7 (v6l)
+BenchmarkChipNewClose                      	     367	   3002700 ns/op
+BenchmarkLineInfo                          	   20858	     52844 ns/op
+BenchmarkLineRequest                       	    2983	    486717 ns/op
+BenchmarkLineRequestWithBothEdges          	     309	   3314612 ns/op
+BenchmarkLineRequestWithBothEdgesDebounced 	    1248	    896736 ns/op
+BenchmarkLineReconfigure                   	   20832	     50677 ns/op
+BenchmarkLineValue                         	   73873	     18020 ns/op
+BenchmarkLinesValuesThree                  	   50755	     25544 ns/op
+BenchmarkLinesValuesTen                    	   38841	     26646 ns/op
+BenchmarkLineSetValue                      	   43478	     24261 ns/op
+BenchmarkLinesSetValuesThree               	   41216	     25410 ns/op
+BenchmarkLinesSetValuesTen                 	   24538	     43713 ns/op
+BenchmarkInterruptLatency                  	     108	  11061045 ns/op
 PASS
 ```
 
@@ -571,21 +577,26 @@ on how quickly **gpio-sim** can toggle lines, and that is considerably slower
 than how quickly **gpiocdev** responds.  For comparison, the same test using
 looped Raspberry Pi lines produced a result of ~640μsec on the same platform.
 
-And on a Raspberry Pi 4 running Linux 6.4 (32bit kernel) and built with go1.20.6:
+And on a Raspberry Pi 4 running Linux 7.2 and built with go1.27.1:
 
 ```shell
 $ ./go-gpiocdev.test -test.bench=.* -test.run=^$
 goos: linux
-goarch: arm
+goarch: arm64
 pkg: github.com/warthog618/go-gpiocdev
-BenchmarkChipNewClose-4       	    9727	    118291 ns/op
-BenchmarkLineInfo-4           	  185316	      6104 ns/op
-BenchmarkLineReconfigure-4    	  364795	      3205 ns/op
-BenchmarkLineValue-4          	 1072785	      1061 ns/op
-BenchmarkLinesValues-4        	  816200	      1428 ns/op
-BenchmarkLineSetValue-4       	 1015972	      1150 ns/op
-BenchmarkLinesSetValues-4     	  715154	      1717 ns/op
-BenchmarkInterruptLatency-4   	   18439	     61145 ns/op
+BenchmarkChipNewClose-4                        	   11880	    101407 ns/op
+BenchmarkLineInfo-4                            	  402621	      2599 ns/op
+BenchmarkLineRequest-4                         	   56482	     19751 ns/op
+BenchmarkLineRequestWithBothEdges-4            	    7786	    140090 ns/op
+BenchmarkLineRequestWithBothEdgesDebounced-4   	   36753	     31814 ns/op
+BenchmarkLineReconfigure-4                     	  553968	      2199 ns/op
+BenchmarkLineValue-4                           	 1098085	      1074 ns/op
+BenchmarkLinesValuesThree-4                    	  745329	      1659 ns/op
+BenchmarkLinesValuesTen-4                      	  508993	      2359 ns/op
+BenchmarkLineSetValue-4                        	  974678	      1230 ns/op
+BenchmarkLinesSetValuesThree-4                 	  651061	      1850 ns/op
+BenchmarkLinesSetValuesTen-4                   	  424622	      2831 ns/op
+BenchmarkInterruptLatency-4                    	   15679	     74562 ns/op
 PASS
 ```
 
