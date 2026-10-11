@@ -3,7 +3,25 @@ SPDX-FileCopyrightText: 2024 Kent Gibson <warthog618@gmail.com>
 
 SPDX-License-Identifier: MIT
 -->
-## [Unreleased](https://github.com/warthog618/go-gpiocdev/compare/v0.9.2..HEAD)
+## [Unreleased](https://github.com/warthog618/go-gpiocdev/compare/v0.10.0..HEAD)
+
+## v0.10.0 - 2026-10-10
+
+- fix #60 drop support for uAPI v1.
+
+Breaking API changes:
+
+1. Remove *WithABIVersion* option. v2 is always used now and was previously the default so 
+   the optino should only have been used to force usage of v1.
+   If you really need that then stick with version v0.9.x, else remove any usage of the option.
+
+2. Rename *HasRealtimeEventClock* to *IsRealtimeEventClock*.  To match other simple line flags.
+
+3. uapi module - remove v1 specific types and functions from uapi and drop v2 from remaining type
+   and function names.
+
+4. uapi module - removed kernel version checking functions as tests require Linux 5.19 or later
+   for **gpio-sim** so kernels under test always support all v2 features.
 
 ## v0.9.2 - 2026-10-04
 
@@ -43,7 +61,8 @@ SPDX-License-Identifier: MIT
 ## v0.8.0 - 2022-02-13
 
 - add top level *RequestLine* and *RequestLines* functions to simplify common use cases.
-- **blinker** and **watcher** examples interwork with each other on a Raspberry Pi with a jumper across **J8-15** and **J8-16**.
+- **blinker** and **watcher** examples interwork with each other on a Raspberry Pi with a jumper
+  across **J8-15** and **J8-16**.
 - fix deadlock in **gpiodctl set** no-wait.
 
 ## v0.7.1 - 2021-10-10
